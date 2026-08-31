@@ -1,0 +1,17 @@
+# MATLAB generated files and local state
+slprj/
+*.slxc
+*.asv
+*.m~
+*.autosave
+*.mex*
+
+# Simulation output is reproducible. Curated evidence lives in docs/evidence.
+results/
+animation_frame.png
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
