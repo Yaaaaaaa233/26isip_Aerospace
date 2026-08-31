@@ -5,9 +5,9 @@
 | 工作线 | 当前状态 | 可作出的结论 | 不能作出的结论 |
 |---|---|---|---|
 | `modules/ratio_esc` | 可运行的单变量在线 ESC、Simulink 一致性与代理对象验收 | 代理对象上存在受边界约束的因果寻优行为 | 真实 X8 节能、偏航安全、已部署飞控 |
-| `models/px4_x8` | 阶段 0、M0-A 完成；M0-B 原型已实现，但 2026-09-01 独立复核不通过，待修复验收 | 旁路与原基线一致；速度俯仰通道及指令限幅/限速可运行；姿态触发演示可复现 | 完整安全回退已通过、已有合格稳定寻优窗口、已具备 M0-C 接入条件、真实功率模型 |
+| `models/px4_x8` | 阶段 0、M0-A、M0-B 完成（复核缺陷已于 2026-09-01 修复并重新验收通过） | 旁路与原基线零差异（真 `Ve` 维度断言）；速度俯仰通道名义误差 0.03 m/s 量级、扰动下有界；位 1/4/6/7 故障注入全链保护通过 | 已有能耗优化算法（M0-C 起）、`eta` 分配器、真实功率模型、扰动场景长稳定窗口 |
 
-飞控平台的唯一执行基线是 [`interfaces/PROJECT_EXECUTION_ROADMAP.md`](interfaces/PROJECT_EXECUTION_ROADMAP.md)。**当前下一项是修复并重新验收 M0-B，暂不进入 M0-C。**独立复核报告见 [`evidence/M0B_REVIEW_20260901.md`](evidence/M0B_REVIEW_20260901.md)：原始约束标志到覆盖层的连线断开，四类故障注入均未送达安全层；验收脚本另有速度误差口径、阶跃空窗口与 Ve 端口误标问题。修复通过后，才在 [`interfaces/M0B_SPEED_LOOP.md`](interfaces/M0B_SPEED_LOOP.md) 的高层参考接口接入速度 ESC；不接入转速比 ESC，也不做 RL。
+飞控平台的唯一执行基线是 [`interfaces/PROJECT_EXECUTION_ROADMAP.md`](interfaces/PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并重新验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)）。**当前下一项是 M0-C：把单变量速度 ESC 在 [`interfaces/M0B_SPEED_LOOP.md`](interfaces/M0B_SPEED_LOOP.md) 固定的接口内接入（替换 `M0B v Ref Optimizer` 占位）**；不接入转速比 ESC，也不做 RL。
 
 ### 已验证的模型平台证据
 
@@ -15,7 +15,7 @@
 - 接口审计：1 个 6DOF 块、59 条端口连接；见 [`evidence/air_interface_20260831_164903_port_connectivity.csv`](evidence/air_interface_20260831_164903_port_connectivity.csv)。
 - `air_spare.slx`：M0-A 观测层完整——速度、PWM、8 维 RPM 估算、`P_est`/`E_est`（未校准估算，来源标志 0）、8 位约束标志、35 维统一日志总线与 `optimizer_enable=0` 基线模式。
 - M0-A 历史验收（2026-08-31）：三个命名信号逐样本最大差 0，见 [`evidence/air_m0a_baseline_compare_20260831_201430.csv`](evidence/air_m0a_baseline_compare_20260831_201430.csv)；稳定快照 `models/px4_x8/air_m0a.slx`。2026-09-01 发现旧脚本将 DCM 误标为 `Ve`；本次已额外核验当前 M0-B 旁路下真正的 `[10001 3]` 惯性速度，与 `air` 差异仍为 0，详见独立复核报告。
-- M0-B 原测试复跑：四场景仍全部 PASS；5/9 m/s 平均误差 1.615/1.598 m/s，阶跃后 1.883 m/s。但 `air_spare.slx` 和 `air_m0b.slx` 均存在原始 flags 输入断线，原测试只触发重新计算的姿态位，未发现其他保护失效。9 m/s 稳态窗口 75.2% 样本标为速度失跟，S3 全程 active=0。**`air_m0b.slx` 当前只能作为待修复的阶段快照，不能视为完整验收通过的安全基线。**
+- M0-B 修复与再验收（2026-09-01，[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)）：flags_raw 链路修复后逐位注入位 1/4/6/7 全链"触发→frozen 0.000 s→fallback 0.500 s→（位 6）恢复"；速度验收双口径——名义（roll 正弦置 0）9 m/s 均值误差 0.032 m/s、失跟 0%，扰动 5/9 m/s 1.615/1.598 m/s（与复核复跑一致）；旁路比对修正 `Ve` 端口后三信号差 0。稳定快照 `models/px4_x8/air_m0b.slx` 已替换为修复版。
 
 ## 已完成
 

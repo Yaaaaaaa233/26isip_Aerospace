@@ -7,12 +7,13 @@
 | 文件 | 用途 | 当前状态 | 后续处理 |
 |---|---|---|---|
 | `air.slx` | 原始 PX4/Simulink 八旋翼飞控与 6DOF 基线模型 | 已成功完成 10 s 仿真 | 只读基线；不直接开发 |
-| `air_spare.slx` | 从 `air.slx` 复制的开发副本 | **2026-09-01 复核判定 M0-B 验收不通过（P1 缺陷：`M0A Constraint Flags` 出 1 → `M0B Flags Override` 入 1 连线丢失，透传位 1/2/4/6/7 恒 0，故障注入证明保护链路断裂）**；速度外环本体、限幅/限速与旁路零差异经复核确认有效 | 修复轮唯一修改对象：按路线图 §6 修复清单执行，从 `air_m0a.slx` 恢复后重装 |
+| `air_spare.slx` | 从 `air.slx` 复制的开发副本 | **2026-09-01 修复轮完成并通过再验收**：flags_raw 链路修复（重定向逐支路删除 + 保存后重载验证 67 连线）；逐位故障注入位 1/4/6/7 全链通过；速度验收名义/扰动双口径通过（证据 `M0B_RERUN_20260901.md`） | M0-C 起唯一修改对象 |
 | `air_m0a.slx` | M0-A 验收通过后的稳定快照 | 2026-08-31 由 `air_spare` 另存；与 `air` 基线比对零差异 | 冻结快照；后续阶段不再修改 |
-| `air_m0b.slx` | M0-B 稳定快照 | **含 P1 缺陷，已被复核否定（`M0B_REVIEW_20260901.md`），只能作为待修复阶段快照** | 修复轮全绿后重新另存 |
+| `air_m0b.slx` | M0-B 稳定快照 | 2026-09-01 修复后重新另存（替换含缺陷旧快照，git 可追溯）；旁路零差异 + 注入回归通过 | 冻结快照；后续阶段不再修改 |
 | `add_air_m0b_speed_loop.m` | 原子安装 M0-B 层：参考选择器+安全监视器、PI 速度控制器、算术融合俯仰插入、flags 位 3/5 普通方块覆盖（含运行时阈值常量）、Ve_x 观测出口、`m0b_log_bus`；保存前先做功能检查（enable=1 时 ve_x 必须离开 0） | 已执行并验证 | M0-C 复用此模式 |
 | `add_air_m0b_controller_gains.m` | 把控制器 `Kp`/`Ki` 从 chart 字面量提升为根层常量输入（重建 7 输入 chart，避免脚本编辑断线问题） | 已执行（默认 Kp=0.12、Ki=0.04） | 扫参见 `diag_m0b_gain_sweep` |
-| `run_air_m0b_tests.m` | M0-B 验收（2026-08-31 版）：5/9 m/s 稳态、6→9 m/s 阶跃、安全演示 | 复核指出四项缺口：阶跃前窗口恒空（pre 指标 NaN）、注释阈值 0.5 与代码 2.0 不一致、5 m/s 场景不检查误差、安全演示全程 active=0（8 次转换不能证明完整恢复） | 修复轮按路线图 §6.4 重写为名义/扰动双口径 |
+| `run_air_m0b_tests.m` | M0-B 速度验收（2026-09-01 重写版）：N1 名义/D1/D2 扰动/S2 阶跃双口径 | **PASS**（`results/air_m0b_tests/20260901_003714`）：N1 均值 0.032 m/s、D1/D2 1.615/1.598、S2 pre 2.134/post 1.883 | 每次结构变更后重跑 |
+| `run_air_m0b_safety_injection.m` | M0-B 逐位故障注入验收（位 1/4/6/7，active 先行，含恢复链） | **PASS**（`results/air_m0b_safety_injection/20260901_005201`）：四组全部触发→frozen 0.000 s→fallback 0.500 s，位 6 清除后重新爬坡 | 与 compare 一起作为结构变更回归 |
 | `diag_m0b_pitch_sign.m` / `diag_m0b_pitch_gain.m` | 俯仰符号与增益标定实验（内存改参数，不保存模型） | 已执行：`pitch_cmd>0 → θ+ → 加速 -x`，每单位指令约 15 m/s² | 证据链保留 |
 | `diag_m0b_gain_sweep.m` / `diag_m0b_test_postmortem.m` | 增益扫描与试验数据复核 | 已执行（0.12/0.04 相对最优；复核正确指出扫描不足以证明扰动误差为物理下限） | 证据链保留 |
 | `run_air_baseline.m` | 更新、仿真并归档 `air` 的非破坏性基线脚本 | 已成功执行 | 后续可泛化为支持指定模型名 |
@@ -23,7 +24,7 @@
 | `add_air_m0a_constraints_and_logbus.m` | 加入姿态/角速度观测出口、`M0A Constraint Flags`（8 位）、35 维统一日志总线、`optimizer_enable=0`，并写场景配置 | 已执行；与 `fix_m0a_rpm_width_and_zoh.m` 联合验证通过 | 阈值在 M0-B 校准 |
 | `fix_m0a_rpm_width_and_zoh.m` | 修正 rpm 派生链：Fcn 块只能输出标量，替换为逐元素 Subtract+Gain（总线级与执行器级两处）；ZOH 初始条件保持 0 并在验收中把 t<5 ms 作为初始化窗 | 已执行；rpm 现为 8 维，与 `9.5493·(pwm-1000)` 零误差 | 无 |
 | `write_m0a_scenario_config.m` | 写 M0-A 场景配置归档（阈值、总线布局、optimizer_enable=0） | 已执行 | M0-B 演进为场景配置结构 |
-| `run_air_m0a_baseline_compare.m` | M0-A 验收：`air` 与 `air_spare` 同场景 10 s 比对，并复核日志总线 | 复核指出：原第 113 行把 6DOF 输出 4（DCM）误标为 `Ve`；复核者已用真输出 1 补证差 0，零差异结论不变 | 修复轮改标输出 1 并加 `[N×3]` 维度断言 |
+| `run_air_m0a_baseline_compare.m` | 旁路零差异比对（2026-09-01 修正版：`Ve`=6DOF 输出 1 + 维度断言） | **PASS**（`results/air_m0a_baseline_compare/20260901_003133`）：三信号差 0 | 每次模型结构变更后重跑 |
 | `AIR_SLX_AUDIT.md` | `air.slx` 静态结构、依赖和差距审计 | 已完成；其中早期“尚未确认运行”的表述已被后续实际仿真验证覆盖 | 作为结构参考；以路线文件为执行依据 |
 | `PROJECT_EXECUTION_ROADMAP.md` | 全项目阶段、接口、验收、数据回灌与变更规则 | 当前执行基线 | 每次策略/接口/验收改变时同步更新 |
 | `CURRENT_WORKSPACE_STATUS.md` | 本文件 | 当前文件盘点 | 阶段交付后更新 |

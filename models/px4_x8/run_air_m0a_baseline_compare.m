@@ -4,7 +4,10 @@ function result = run_air_m0a_baseline_compare(tolerance)
 %   model air_spare.slx over their configured 10 s scenario and compares the
 %   shared physical signals sample by sample:
 %     - pwm_cmd  : the eight-channel PWM command net (Attitude Control out 2)
-%     - Ve       : inertial velocity from the 6DOF block output 4
+%     - Ve       : inertial velocity from the 6DOF block output 1
+%                  (output 4 is the DCM and was mislabelled here before the
+%                  2026-09-01 review; a [N x 3] dimension assertion now
+%                  rejects that shape)
 %     - quat     : quaternion entering Attitude Control/quat2eul
 %   Temporary signal logging is enabled in memory only; neither model is
 %   modified on disk. Also re-validates the M0-A log bus consistency.
@@ -43,19 +46,32 @@ sSpare = runLogged('air_spare', comparedSignals);
 rows = {};
 maxOverall = 0;
 pass = true;
+expectedWidth = struct('pwm_cmd', 8, 'Ve', 3, 'quat', 4);
 for k = 1:numel(comparedSignals)
     va = sAir.(comparedSignals{k});
     vb = sSpare.(comparedSignals{k});
+    wa = squeeze(va.Data);
+    if size(wa, 2) == numel(va.Time)
+        wa = wa';
+    end
+    wb = squeeze(vb.Data);
+    if size(wb, 2) == numel(vb.Time)
+        wb = wb';
+    end
+    % dimension assertion: Ve must be N x 3 inertial velocity, not the
+    % N x 3 x 3 DCM that was mislabelled before the 2026-09-01 review
+    dimsOk = isequal(size(wa), [numel(va.Time), expectedWidth.(comparedSignals{k})]) && ...
+        isequal(size(wa), size(wb));
     sameTime = numel(va.Time) == numel(vb.Time) && max(abs(va.Time - vb.Time)) == 0;
-    if sameTime
-        d = max(abs(va.Data - vb.Data), [], 'all');
+    if sameTime && dimsOk
+        d = max(abs(wa - wb), [], 'all');
     else
         d = inf;
     end
     maxOverall = max(maxOverall, d);
-    ok = sameTime && d <= tolerance;
+    ok = sameTime && dimsOk && d <= tolerance;
     pass = pass && ok;
-    rows(end+1, :) = {comparedSignals{k}, mat2str(size(va.Data)), d, ok}; %#ok<AGROW>
+    rows(end+1, :) = {comparedSignals{k}, mat2str(size(wa)), d, ok}; %#ok<AGROW>
 end
 
 % ---------- M0-A log bus re-validation on the spare run ----------
@@ -110,7 +126,12 @@ markPort(acOut2, names{1});
 sixDof = find_system([model '/Subsystem'], 'RegExp', 'on', 'Name', '^6DOF.*');
 assert(numel(sixDof) == 1, 'air:M0A:SixDofNotFound', 'expected one 6DOF block');
 sfPorts = get_param(sixDof{1}, 'PortHandles');
-markPort(sfPorts.Outport(4), names{2});
+% 6DOF output 1 is the inertial velocity Ve [N x 3]. Output 4 is the DCM
+% [N x 3 x 3] and was mislabelled as Ve here before the 2026-09-01 review;
+% the dimension assertion below now rejects that shape.
+assert(numel(sfPorts.Outport) >= 1, 'air:M0A:SixDofNoOutputs', ...
+    '6DOF block exposes no outputs.');
+markPort(sfPorts.Outport(1), names{2});
 quatInLine = get_param( ...
     get_param([model '/Attitude Control/quat2eul'], 'PortHandles').Inport(1), 'Line');
 markPort(get_param(quatInLine, 'SrcPortHandle'), names{3});
