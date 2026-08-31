@@ -1,0 +1,10 @@
+Path,BlockType
+air/Attitude Control,SubSystem
+air/Demux,Demux
+air/Demux3,Demux
+air/Failsafe Value,Constant
+air/Mux2,Mux
+air/PX4 PWM Output,MATLABSystem
+air/Radio Control Transmitter,SubSystem
+air/Subsystem,SubSystem
+air/Terminator1,Terminator

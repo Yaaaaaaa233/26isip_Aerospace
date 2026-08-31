@@ -1,0 +1,9 @@
+Metric,Value
+model,air
+passed,true
+stop_time_s,10
+sample_count,10001
+first_time_s,0
+last_time_s,10
+solver,FixedStepAuto
+fixed_step,0.001

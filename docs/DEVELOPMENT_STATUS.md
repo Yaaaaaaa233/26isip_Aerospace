@@ -1,5 +1,20 @@
 # 开发状态与下一步
 
+## 总览：两条工作线尚未集成
+
+| 工作线 | 当前状态 | 可作出的结论 | 不能作出的结论 |
+|---|---|---|---|
+| `modules/ratio_esc` | 可运行的单变量在线 ESC、Simulink 一致性与代理对象验收 | 代理对象上存在受边界约束的因果寻优行为 | 真实 X8 节能、偏航安全、已部署飞控 |
+| `models/px4_x8` | 阶段 0 完成，M0-A 观测层部分完成 | 现有 PX4/Simulink X8 模型可运行；可记录若干接口量 | 已有能耗优化闭环或真实功率模型 |
+
+飞控平台的唯一执行基线是 [`interfaces/PROJECT_EXECUTION_ROADMAP.md`](interfaces/PROJECT_EXECUTION_ROADMAP.md)。当前下一项是完成 M0-A 的 `P_est`、`E_est`、约束标志与统一日志，再进入 M0-B 的受保护速度闭环；此时不接入转速比 ESC，也不做 RL。
+
+### 已验证的模型平台证据
+
+- `air.slx`：MATLAB R2022b 手动更新、仿真 0--10 s 成功，10001 个样本；摘要见 [`evidence/air_baseline_20260831_161623_summary.csv`](evidence/air_baseline_20260831_161623_summary.csv)。
+- 接口审计：1 个 6DOF 块、59 条端口连接；见 [`evidence/air_interface_20260831_164903_port_connectivity.csv`](evidence/air_interface_20260831_164903_port_connectivity.csv)。
+- `air_spare.slx`：已新增 `m0a_Ve_inertial_mps`、`m0a_horizontal_speed_mps`、`m0a_motor_pwm_us`、`m0a_motor_rpm_est`。最后一项是命令映射估算，不是实测转速。
+
 ## 已完成
 
 - 问题定义：在满足恒推力假设的代理对象上，在线最小化上下桨转速比对应的归一化功率。
