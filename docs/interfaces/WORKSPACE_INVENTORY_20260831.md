@@ -1,8 +1,8 @@
 # 当前工作区文件清单
 
-盘点日期：2026-08-31。此清单描述现有文件的作用与当前状态；不移动、不重命名任何已有模型或归档结果。
+盘点日期：2026-08-31。此清单描述现有文件的作用与当前状态。2026-08-31 起本地工作区已按第 5 节结构整理（依据：用户指示，且 Git 仓库结构已建立运行）；模型与脚本位于 `models/px4_x8/`，文档位于 `docs/`，历史归档 `results/` 原地未动。此后移动或重命名模型/归档前须先更新本清单。
 
-## 1. 根目录：模型、脚本与文档
+## 1. `models/px4_x8/`：模型与脚本（文档在 `docs/`）
 
 | 文件 | 用途 | 当前状态 | 后续处理 |
 |---|---|---|---|
@@ -33,9 +33,9 @@
 
 ## 2a. 2026-08-31 结构整理记录
 
-- 参考资料移入 `references/`；`slprj/`、`air.slxc`、`air_spare.slxc` 等生成缓存已删除（Simulink 下次运行自动重建，文档规定不入版本控制）。
-- M0-A 的五个脚本（`add_air_m0a_power_measurement`、`add_air_m0a_constraints_and_logbus`、`fix_m0a_rpm_width_and_zoh`、`write_m0a_scenario_config`、`run_air_m0a_baseline_compare`）在本地与仓库 `models/px4_x8/` 两处内容完全一致，且已改为按脚本自身位置定位模型（`mfilename` 路径），从任意工作目录均可运行；结果写入脚本所在目录的 `results/`（仓库侧被 `.gitignore` 忽略）。
-- 仓库旧脚本（`run_baseline`、`inspect_interfaces`、`add_m0a_*`）为带路径自适应的早期版本，与本地原始命名（`run_air_baseline` 等）并存；统一命名待协作商定，暂不改动。
+- **本地工作区已按第 5 节结构整理**：文档移入 `docs/`，模型与全部脚本移入 `models/px4_x8/`（与仓库布局同构，`M0A_OBSERVABILITY.md` 中的 `models/px4_x8/*.slx` 路径自此在本地同样成立）；参考资料此前已移入 `references/`；历史归档 `results/` 留在工作区根且原地未动；再生的 `slprj/`、`*.slxc` 缓存已删除（Simulink 自动重建，不入版本控制）。
+- 全部 9 个脚本已改为按脚本自身位置定位（`mfilename` 路径）：从 `models/px4_x8/` 加载同级模型，结果统一写入工作区根 `results/`（脚本位置两级上层），从任意工作目录均可运行。
+- M0-A 的五个脚本在本地与仓库 `models/px4_x8/` 两处内容保持一致；仓库旧脚本（`run_baseline`、`inspect_interfaces`、`add_m0a_*`）为带路径自适应的早期版本，与本地原始命名（`run_air_baseline` 等）并存；统一命名待协作商定，暂不改动。
 
 ## 3. 已归档的可复现结果
 
@@ -66,20 +66,20 @@
 
 因此当前模型是“可运行、可观测、可安全比较的飞控与动力学基座”，尚未接入任何能耗优化闭环（M0-B 起才建立速度通道）。
 
-## 5. 建议的未来 Git 结构（暂不移动）
+## 5. 工作区结构（2026-08-31 起已实施；Git 仓库同构）
 
 ```text
 docs/                    路线、接口、审计、实验说明
 references/              可公开分发的参考资料或引用清单
-models/px4_x8/           air 基线与各验收快照
-modules/speed_esc/       M0/M1 慢层速度算法
-modules/ratio_esc/       同学维护的 eta 算法模块
-integration/air_esc/     算法适配、安全层、控制分配、日志接口
-harness/                 多场景与批量试验配置
-tests/                   单元、接口、回归测试
+models/px4_x8/           air 基线与各验收快照 + 工作脚本
+modules/speed_esc/       M0/M1 慢层速度算法（仓库）
+modules/ratio_esc/       同学维护的 eta 算法模块（仓库）
+integration/air_esc/     算法适配、安全层、控制分配、日志接口（仓库）
+harness/                 多场景与批量试验配置（仓库）
+tests/                   单元、接口、回归测试（仓库）
 results/                 本地归档；默认不提交大体积原始结果
 ```
 
-仓库 `26isip_Aerospace/` 已按此结构建立（`references/` 因版权暂不入库，本地已在工作区根目录）。本工作区根目录保留模型、工作脚本、三份工作文档与 `results/` 归档，作为验证平台线的活跃工作区。
+仓库 `26isip_Aerospace/` 与本地工作区均已按此结构建立（`references/` 因版权仅存本地）。`results/` 位于工作区根，所有脚本将新归档写入此处；历史归档不覆盖、不移动。
 
 提交前应忽略 `slprj/`、`*.slxc`、Simulink 自动保存文件和未筛选的大型结果文件；可提交小型 CSV 摘要、配置、脚本和图表生成代码。

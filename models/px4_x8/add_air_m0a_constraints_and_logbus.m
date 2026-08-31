@@ -260,7 +260,7 @@ try
 
     % --- scenario config archive ---
     stamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
-    cfgDir = fullfile(modelDir, 'results', 'm0a_config', stamp);
+    cfgDir = fullfile(fileparts(fileparts(modelDir)), 'results', 'm0a_config', stamp);
     if ~exist(cfgDir, 'dir')
         mkdir(cfgDir);
     end

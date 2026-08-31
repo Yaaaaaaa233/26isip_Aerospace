@@ -79,7 +79,7 @@ pass = pass && busOk;
 
 % ---------- archive ----------
 stamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
-outDir = fullfile(modelDir, 'results', 'air_m0a_baseline_compare', stamp);
+outDir = fullfile(fileparts(fileparts(modelDir)), 'results', 'air_m0a_baseline_compare', stamp);
 if ~exist(outDir, 'dir')
     mkdir(outDir);
 end

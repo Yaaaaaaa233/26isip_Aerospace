@@ -3,7 +3,7 @@
 % failed post-save in batch mode).
 stamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
 modelDir = fileparts(mfilename('fullpath'));
-cfgDir = fullfile(modelDir, 'results', 'm0a_config', stamp);
+cfgDir = fullfile(fileparts(fileparts(modelDir)), 'results', 'm0a_config', stamp);
 if ~exist(cfgDir, 'dir')
     mkdir(cfgDir);
 end
