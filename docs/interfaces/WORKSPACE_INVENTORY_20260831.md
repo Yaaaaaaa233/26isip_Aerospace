@@ -26,10 +26,16 @@
 
 | 位置 | 内容 | 用途 |
 |---|---|---|
-| `共轴八旋翼在线功率优化-任务定义与技术路线.pdf` | 项目任务定义、M0–M4 路线、风险与里程碑 | 技术路线的原始依据 |
-| `文献/` | 五篇共轴旋翼、功率优化与相关研究 PDF | 建模、功率/干扰机理、论证与报告引用 |
+| `references/共轴八旋翼在线功率优化-任务定义与技术路线.pdf` | 项目任务定义、M0–M4 路线、风险与里程碑 | 技术路线的原始依据 |
+| `references/文献/` | 五篇共轴旋翼、功率优化与相关研究 PDF | 建模、功率/干扰机理、论证与报告引用 |
 
-这些文件不宜混入仿真输出目录；未来放入 Git 时建议归入 `docs/` 与 `references/`，并先确认公开仓库的版权与分发许可。
+这些文件不宜混入仿真输出目录；未来放入 Git 时建议归入 `docs/` 与 `references/`，并先确认公开仓库的版权与分发许可（2026-08-31 整理：本地已移入 `references/`，仍未入仓库）。
+
+## 2a. 2026-08-31 结构整理记录
+
+- 参考资料移入 `references/`；`slprj/`、`air.slxc`、`air_spare.slxc` 等生成缓存已删除（Simulink 下次运行自动重建，文档规定不入版本控制）。
+- M0-A 的五个脚本（`add_air_m0a_power_measurement`、`add_air_m0a_constraints_and_logbus`、`fix_m0a_rpm_width_and_zoh`、`write_m0a_scenario_config`、`run_air_m0a_baseline_compare`）在本地与仓库 `models/px4_x8/` 两处内容完全一致，且已改为按脚本自身位置定位模型（`mfilename` 路径），从任意工作目录均可运行；结果写入脚本所在目录的 `results/`（仓库侧被 `.gitignore` 忽略）。
+- 仓库旧脚本（`run_baseline`、`inspect_interfaces`、`add_m0a_*`）为带路径自适应的早期版本，与本地原始命名（`run_air_baseline` 等）并存；统一命名待协作商定，暂不改动。
 
 ## 3. 已归档的可复现结果
 
@@ -73,5 +79,7 @@ harness/                 多场景与批量试验配置
 tests/                   单元、接口、回归测试
 results/                 本地归档；默认不提交大体积原始结果
 ```
+
+仓库 `26isip_Aerospace/` 已按此结构建立（`references/` 因版权暂不入库，本地已在工作区根目录）。本工作区根目录保留模型、工作脚本、三份工作文档与 `results/` 归档，作为验证平台线的活跃工作区。
 
 提交前应忽略 `slprj/`、`*.slxc`、Simulink 自动保存文件和未筛选的大型结果文件；可提交小型 CSV 摘要、配置、脚本和图表生成代码。

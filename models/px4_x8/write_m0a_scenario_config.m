@@ -2,7 +2,8 @@
 % add_air_m0a_constraints_and_logbus; separated after the config write step
 % failed post-save in batch mode).
 stamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
-cfgDir = fullfile('results', 'm0a_config', stamp);
+modelDir = fileparts(mfilename('fullpath'));
+cfgDir = fullfile(modelDir, 'results', 'm0a_config', stamp);
 if ~exist(cfgDir, 'dir')
     mkdir(cfgDir);
 end

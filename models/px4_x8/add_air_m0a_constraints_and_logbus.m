@@ -22,9 +22,10 @@ function result = add_air_m0a_constraints_and_logbus()
 %      pwm(8), rpm_est(8), constraint_flags(8), optimizer_enable]
 
 model = 'air_spare';
+modelDir = fileparts(mfilename('fullpath'));
 wasLoaded = bdIsLoaded(model);
 if ~wasLoaded
-    load_system(model);
+    load_system(fullfile(modelDir, [model '.slx']));
 end
 dirtyBefore = get_param(model, 'Dirty');
 
@@ -259,7 +260,7 @@ try
 
     % --- scenario config archive ---
     stamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
-    cfgDir = fullfile('results', 'm0a_config', stamp);
+    cfgDir = fullfile(modelDir, 'results', 'm0a_config', stamp);
     if ~exist(cfgDir, 'dir')
         mkdir(cfgDir);
     end
@@ -297,7 +298,7 @@ try
 catch err
     if strcmp(dirtyBefore, 'off') && bdIsLoaded(model)
         close_system(model, 0);
-        load_system(model);
+        load_system(fullfile(modelDir, [model '.slx']));
     end
     rethrow(err);
 end

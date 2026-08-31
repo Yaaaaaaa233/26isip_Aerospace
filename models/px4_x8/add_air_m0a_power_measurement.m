@@ -12,9 +12,10 @@ function result = add_air_m0a_power_measurement()
 %   UNCALIBRATED ESTIMATE: must not be reported as real energy saving.
 
 model = 'air_spare';
+modelDir = fileparts(mfilename('fullpath'));
 wasLoaded = bdIsLoaded(model);
 if ~wasLoaded
-    load_system(model);
+    load_system(fullfile(modelDir, [model '.slx']));
 end
 dirtyBefore = get_param(model, 'Dirty');
 
@@ -140,7 +141,7 @@ try
 catch err
     if strcmp(dirtyBefore, 'off') && bdIsLoaded(model)
         close_system(model, 0);
-        load_system(model);
+        load_system(fullfile(modelDir, [model '.slx']));
     end
     rethrow(err);
 end

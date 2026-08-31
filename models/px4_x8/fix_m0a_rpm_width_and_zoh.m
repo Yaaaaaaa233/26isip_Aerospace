@@ -5,9 +5,10 @@
 %   2. Set the PWM Zero-Order Hold initial condition to 1500 us so the t=0
 %      ZOH default of 0 does not spuriously trip the pwm/rpm saturation flags.
 model = 'air_spare';
+modelDir = fileparts(mfilename('fullpath'));
 wasLoaded = bdIsLoaded(model);
 if ~wasLoaded
-    load_system(model);
+    load_system(fullfile(modelDir, [model '.slx']));
 end
 dirtyBefore = get_param(model, 'Dirty');
 try
@@ -87,7 +88,7 @@ try
 catch err
     if strcmp(dirtyBefore, 'off') && bdIsLoaded(model)
         close_system(model, 0);
-        load_system(model);
+        load_system(fullfile(modelDir, [model '.slx']));
     end
     rethrow(err);
 end

@@ -17,11 +17,12 @@ if nargin < 1
     tolerance = 1e-6;
 end
 comparedSignals = {'pwm_cmd', 'Ve', 'quat'};
+modelDir = fileparts(mfilename('fullpath'));
 
 % ---------- run baseline air.slx (read-only) ----------
 wasLoadedAir = bdIsLoaded('air');
 if ~wasLoadedAir
-    load_system('air');
+    load_system(fullfile(modelDir, ['air' '.slx']));
 end
 airDirtyBefore = get_param('air', 'Dirty');
 cleanupAir = onCleanup(@() cleanupModel('air', ~wasLoadedAir, airDirtyBefore));
@@ -31,7 +32,7 @@ sAir = runLogged('air', comparedSignals);
 % ---------- run development air_spare.slx (read-only) ----------
 wasLoadedSpare = bdIsLoaded('air_spare');
 if ~wasLoadedSpare
-    load_system('air_spare');
+    load_system(fullfile(modelDir, ['air_spare' '.slx']));
 end
 spareDirtyBefore = get_param('air_spare', 'Dirty');
 cleanupSpare = onCleanup(@() cleanupModel('air_spare', ~wasLoadedSpare, spareDirtyBefore));
@@ -78,7 +79,7 @@ pass = pass && busOk;
 
 % ---------- archive ----------
 stamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
-outDir = fullfile('results', 'air_m0a_baseline_compare', stamp);
+outDir = fullfile(modelDir, 'results', 'air_m0a_baseline_compare', stamp);
 if ~exist(outDir, 'dir')
     mkdir(outDir);
 end
