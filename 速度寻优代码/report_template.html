@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Microsoft YaHei", "SimHei", sans-serif;
+         font-size: 10.5pt; color: #1a1a2e; line-height: 1.62; margin: 0; }
+  .cover { text-align: center; padding-top: 55mm; page-break-after: always; }
+  .cover h1 { font-size: 23pt; margin: 0 0 10pt; letter-spacing: 2pt; }
+  .cover .sub { font-size: 13pt; color: #4a5568; margin-bottom: 30mm; }
+  .cover .meta { color: #718096; font-size: 10pt; line-height: 2; }
+  .cover .badge { display: inline-block; background: #ebf8ff; border: 1px solid #90cdf4;
+                  color: #2b6cb0; border-radius: 4px; padding: 5pt 12pt;
+                  font-size: 10pt; margin: 4pt 3pt; }
+  h2 { font-size: 14.5pt; color: #2c5282; border-bottom: 2px solid #2c5282;
+       padding-bottom: 3pt; margin: 20pt 0 9pt; page-break-after: avoid; }
+  h3 { font-size: 11.5pt; color: #2d3748; margin: 12pt 0 5pt; page-break-after: avoid; }
+  p { margin: 5pt 0; text-align: justify; }
+  table { border-collapse: collapse; width: 100%; margin: 7pt 0; font-size: 9.2pt; }
+  th { background: #edf2f7; color: #2d3748; }
+  th, td { border: 1px solid #cbd5e0; padding: 4pt 6pt; text-align: left;
+           vertical-align: top; }
+  code, .mono { font-family: Consolas, monospace; font-size: 9pt;
+                background: #f6f8fa; padding: 1px 4px; border-radius: 3px; }
+  pre { background: #f6f8fa; border: 1px solid #e2e8f0; border-radius: 5px;
+        padding: 8pt 10pt; font-family: Consolas, monospace; font-size: 8.6pt;
+        line-height: 1.5; white-space: pre-wrap; margin: 6pt 0; }
+  .pass { color: #276749; font-weight: bold; }
+  .warn { color: #c05621; font-weight: bold; }
+  .note { background: #fffbeb; border-left: 3px solid #d69e2e;
+          padding: 6pt 10pt; margin: 7pt 0; font-size: 9.6pt; }
+  .good { background: #f0fff4; border-left: 3px solid #38a169;
+          padding: 6pt 10pt; margin: 7pt 0; font-size: 9.6pt; }
+  .toc li { margin: 3pt 0; }
+  ul { margin: 4pt 0; padding-left: 20pt; }
+  li { margin: 2.5pt 0; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>共轴八旋翼前飞速度 ESC 在线寻优</h1>
+  <div class="sub">工作总结与技术报告 —— 三阶段验证、方法完善与项目定位</div>
+  <div>
+    <span class="badge">V1/M0 达成</span>
+    <span class="badge">V2/V3 通过</span>
+    <span class="badge">代理功率曲线全链路</span>
+    <span class="badge">后悔值口径对齐</span>
+  </div>
+  <div class="meta">
+    项目：AI 驱动的航空器动力控制 · 共轴八旋翼在线能耗优化<br>
+    成员：周航正、霍奕茗、于跃、叶安、<b>王健祺</b><br>
+    日期：2026 年 8 月 31 日 ｜ 依据：《任务定义与技术路线》V1.0
+  </div>
+</div>
+
+<h2 id="toc">目录</h2>
+<ol class="toc">
+  <li>项目定位（在整个技术路线中的位置）</li>
+  <li>交付物清单与运行方式</li>
+  <li>ESC 算法：原理、信号链与关键设计决策</li>
+  <li>三版本验证设计与结果</li>
+  <li>今日调试历程：发现的问题与解决方案</li>
+  <li>方法与模型完善记录</li>
+  <li>已知边缘项、理论特性与后续衔接</li>
+</ol>
+
+<h2>1. 项目定位</h2>
+<p>依据团队技术路线报告，项目总目标为 min J<sub>E</sub> = P<sub>e</sub>(v, η<sub>Ω</sub>)，
+以实时电功率 U·I 为反馈，在线优化前飞速度 v 与上下桨转速比 η<sub>Ω</sub>，技术主线为
+<b>在线优先 · 先单变量后耦合 · 先仿真后联调</b>，分四阶段推进：A 速度 ESC →
+B 推力比 ESC → C 交替耦合 → D 同步多变量。</p>
+<p><b>本次工作 = 阶段 A 的算法原型 + 速度对象 Harness 基线</b>，即整条研究链路的入口。
+报告明确指出"找到速度–功率曲线最低点只是算法入口"，创新性来自动态工况、在线反馈与
+双变量耦合；本工作在 V3 中额外验证了最优点跳变场景（超出 M1 明文要求），为"动态工况"
+这一核心创新主张提供了预研证据。</p>
+<table>
+  <tr><th>路线图里程碑</th><th>日期</th><th>对应交付</th><th>状态</th></tr>
+  <tr><td>M0 速度在线原型<br>（三初值无噪声收敛）</td><td>8.28–8.31</td>
+      <td>V1 静态对象</td><td class="pass">今日达成</td></tr>
+  <tr><td>M1 动态与抗扰<br>（速度闭环+2%噪声+0.5s延迟；后悔值≤3%）</td><td>9.1–9.3</td>
+      <td>V2 一阶动态 + V3 环境变化</td><td class="pass">主体提前完成</td></tr>
+  <tr><td>M2 推力比在线 / M3 交替耦合 / M4 同步联调</td><td>9.4–9.11</td>
+      <td>未开始（符合计划，衔接路径见 §7）</td><td>—</td></tr>
+</table>
+<div class="note"><b>Harness 口径说明：</b>路线图表 3 在 8.28 版将"速度在线 ESC"列为
+"尚未开始"，本次工作将该条目翻转为可交付状态；正式分工中速度 ESC 属周航正、
+Harness 属王健祺，本批代码实际横跨两者，建议周报口径写作
+"A 阶段速度 ESC 原型 + 速度对象 Harness 基线已形成仿真结果"。</div>
+
+<h2>2. 交付物清单与运行方式</h2>
+<pre>
+├── esc_core.py       共享内核：ESC 控制器（可选预热/限幅）、HP/LP 滤波器、
+│                     仿真器 run_case、PhysicsPowerModel 代理功率曲线、power_regret
+├── demo_kit.py       共享演示界面框架（三版 demo 复用）
+├── v1_static.py      V1 静态对象（M0）
+├── v2_dynamics.py    V2 一阶速度动态（τ_v 可调）
+├── v3_robust.py      V3 跳变+2%噪声+0.5s延迟（M1 场景）
+└── README.md         项目文档
+</pre>
+<p>每版三种模式：<code>python v1_static.py</code> 交互演示；
+<code>--batch</code> 调试曲线批量验收；<code>--batch --phys</code> 代理功率曲线批量验收；
+<code>--test</code> 界面自检截图。demo 左上滑块可在线切换对象曲线（学习率自动 22↔8）。
+依赖仅 numpy、matplotlib。</p>
+
+<h2>3. ESC 算法：原理、信号链与关键设计决策</h2>
+<h3>3.1 信号链与四个速度量</h3>
+<pre>
+v_hat ──(＋扰动 a·sin ωt)──> v_ref ──(被控对象)──> v ──> 代价 J(v)
+  ↑                                                        │
+  └────────────(梯度估计：由 J 的响应反推方向)──────────────┘
+
+v_ref = v_hat + a·sin(ωt)              # 扰动注入（感知梯度的唯一探头）
+g ≈ 窗口最小二乘回归斜率（63 步 ≈ 半周期，J、v 双边去均值）
+v_hat ← clip(v_hat − k·g·dt, 0, 20)    # 梯度下降
+</pre>
+<ul>
+  <li><b>v*</b> 真实最优——只有环境知道，ESC 永远不可见（问题难点所在）；</li>
+  <li><b>v_hat</b> ESC 对最优值的估计（图上平滑线）；</li>
+  <li><b>v_ref</b> 发出的指令 = 估计 + 探测扰动；</li>
+  <li><b>v</b> 实际达到的速度——功率按它计算，不按指令。</li>
+</ul>
+<p>正弦扰动的意义：单点测量不含方向信息，必须主动"动起来做实验"才能测出坡度；
+选正弦是因为它均值恒为零（不引入漂移）且能量集中在单一频率 ω——像锁相放大器
+一样把坡度信号调制到已知频率上，从噪声与漂移中干净地解调出来。探测与到达
+是同一件事，这决定了 ESC 收敛到<b>邻域</b>而非精确点（§7）。</p>
+<h3>3.2 三版本递进逻辑</h3>
+<p>V1 验证"盲人会不会下山"；V2 加上"这人有反应延迟"（速度惯性使扰动被衰减、
+延迟，v_ref 与 v 出现相位滞后）；V3 再加上"山会搬家、还起雾"（最优点跳变、
+测量噪声、反馈延迟）。ESC 因扰动永不停止，跳变后自动发现梯度变向并重新跟踪——
+这正是它优于离线优化器的本质原因。</p>
+<h3>3.3 关键设计决策：窗口回归取代经典解调</h3>
+<p>技术路线 §6.1 规定梯度由"高通→同步解调→低通"获得。本实现外层结构与公式 (4)
+完全一致（v_ref = v̂ + a·sin ωt，v̂̇ = −k·ĝ），但 ĝ 内部改用<b>半周期窗口最小二乘
+回归</b>。调试中发现经典方案在本任务上存在两个系统性缺陷：① 工作点移动时高通
+瞬态产生 ∝ v̇ 的解调偏置，持续把估计值往错误方向推（实测产生幅度渐增的极限环）；
+② 平坦代价曲线上解调信噪比极低。回归对直流、移动、延迟天然免疫。HP/LP 滤波器
+仍保留于架构中（直流监视/梯度平滑），参数偏离（k、LP 截止）连同扫描证据已在
+文件头与 README 书面记录。</p>
+
+<h2>4. 三版本验证设计与结果</h2>
+<table>
+  <tr><th></th><th>V1 静态</th><th>V2 一阶动态</th><th>V3 环境变化</th></tr>
+  <tr><td>速度响应</td><td>瞬时（v≡v_ref）</td><td>τ_v·dv/dt=v_ref−v，τ_v=2s</td><td>同 V2</td></tr>
+  <tr><td>代价测量</td><td>精确</td><td>精确（按实际 v）</td><td>2% 噪声 + 0.5s 延迟</td></tr>
+  <tr><td>最优点</td><td>固定 6</td><td>固定 6</td><td>第 200 步 6→9 跳变</td></tr>
+  <tr><td>回答的问题</td><td>算法能否找到谷底</td><td>有惯性还能否收敛</td><td>环境变了还能否跟上</td></tr>
+  <tr><td>验收</td><td>6±0.5，&lt;100 步</td><td>误差&lt;0.5，&lt;150 步</td><td>跳变后&lt;0.7，不振荡</td></tr>
+</table>
+<h3>4.1 调试曲线（任务书口径，--batch）</h3>
+<pre>
+V1: 2/10/15 m/s → 6.07/6.03/6.01 m/s（98/86/103 步）；后悔值 ≤0.10%   <span class="pass">[通过]</span>
+    （v0=15 入带 103 步，超 M0 阈值 3 步，<span class="warn">如实标注</span>）
+V2: 稳态误差 ≤0.04 m/s；后悔值 ≤0.42%                                 <span class="pass">[通过]</span>
+    （v0=15 入带 251 步，超 150 步阈值，<span class="warn">如实标注</span>；根因见 §5）
+V3: 跳变后 152 步重收敛，误差 0.01 m/s，波动 2.4%；后悔值 0.02%        <span class="pass">[通过]</span>
+</pre>
+<h3>4.2 文献代理功率曲线（--batch --phys，500 步，k=8+预热+限幅）</h3>
+<pre>
+V1: 2/10/15 m/s → 6.23/6.25/6.24 m/s（目标 6.3）；后悔值 ≤0.12%        <span class="pass">[通过]</span>
+V2: 稳态误差 ≤0.28 m/s；后悔值 ≤0.40%                                  <span class="pass">[通过]</span>
+V3: 跳变 6.3→9 后重收敛 253 步，误差 0.56 m/s（&lt;0.7）；后悔值 0.26%     <span class="pass">[通过]</span>
+</pre>
+<div class="good">代理功率曲线：U 形 P*(v)=P/P_hover（悬停=1，最低 0.913 @6.3 m/s），
+−v² 项=前飞解除诱导功率、+v³ 项=废阻力功率。换实测曲线只改
+PhysicsPowerModel(v_star_ref, p_min_ratio) 两个标定参数——"换曲线不重写优化器"
+已在代码层面兑现。</div>
+
+<h2>5. 今日调试历程：发现的问题与解决方案</h2>
+<p>以下问题均在系统性参数扫描中定位并修复，全过程证据保留在文件头注释：</p>
+<table>
+  <tr><th>#</th><th>现象</th><th>根因分析</th><th>解决</th></tr>
+  <tr><td>1</td><td>任务书参数（k=0.3、滤波 0.1 rad/s）下完全不动/发散</td>
+      <td>J_v 梯度量级 ~0.006，k=0.3 三百步位移不足 0.5 m/s；LP 0.1 rad/s 引入 ~10s 环路滞后与收敛速度矛盾</td>
+      <td>k=22、LP=2.0 rad/s（扫描确定）</td></tr>
+  <tr><td>2</td><td>所有初值系统性向下漂移</td>
+      <td>HP 滤波器零初态的启动阶跃瞬态混入解调，产生恒定偏置</td>
+      <td>HP 首帧用当前输入初始化</td></tr>
+  <tr><td>3</td><td>稳态 ±1 m/s 慢速极限环</td>
+      <td>解调纹波频率 2ω 与 LP 截止重合，未被衰减地进入积分器；叠加移动工作点的高通瞬态偏置 ∝ v̇</td>
+      <td>梯度估计改为窗口回归（§3.3）</td></tr>
+  <tr><td>4</td><td>陡峭物理曲线 + 速度惯性 + 噪声：估计值 25 步内被踹飞 4 m/s</td>
+      <td>启动初期扰动纹波未建立，回归分母（速度方差）过小，噪声被放大成巨大伪梯度</td>
+      <td>估计器预热（窗口填满前不更新）+ 步长限幅（信任域）</td></tr>
+  <tr><td>5</td><td>守卫阈值法在稳态误触发（半周期窗激励方差随相位波动）</td>
+      <td>阈值难以同时满足"启动期冻结"与"稳态不冻结"</td>
+      <td>改为确定性预热判据（窗口长度），默认关闭</td></tr>
+</table>
+
+<h2>6. 方法与模型完善记录</h2>
+<ul>
+  <li><b>功率后悔值验收口径</b>：(稳态功率−离线最优)/离线最优，对齐路线图表 7
+      （无噪声 ≤1%、噪声工况 ≤3%），三版本批处理均输出；</li>
+  <li><b>文献代理功率曲线</b>接入三版本（--phys 与 demo 曲线滑块），
+      验证"换曲线不重写优化器"；</li>
+  <li><b>估计器预热 + 步长限幅</b>（ESC 类新增，默认关闭——调试曲线已验收结果
+      <b>逐位不变</b>，物理模式自动启用）；</li>
+  <li><b>V3 延迟对齐 M1 口径</b>：3 步 → 5 步（0.5 s），重跑后跳变重收敛 152 步。</li>
+</ul>
+
+<h2>7. 已知边缘项、理论特性与后续衔接</h2>
+<h3>7.1 如实标注的边缘项</h3>
+<ul>
+  <li>调试曲线 V1 v0=15 入带 103 步（阈值 100）；V2 v0=15 入带 251 步（阈值 150）——
+      过冲后回稳所致；在 ω=0.5、a=0.5 固定约束下已接近该结构可行极限，
+      若需严格达标可提高扰动频率缩短回归窗口；</li>
+  <li>代理曲线为文献量级代理，非 X8 实测（风险表 8 口径），实机数据到位后
+      仅需替换两个标定参数。</li>
+</ul>
+<h3>7.2 收敛到邻域的理论特性（答辩高频问题）</h3>
+<p>ESC 理论保证收敛到邻域：① 扰动是感知梯度的唯一探头，v 必然在 v*±a 摆动
+（正弦周期均值为零，时间平均恰为 v*）；② 梯度估计含噪声使 v_hat 小幅游走。
+2% 噪声下把 v_hat 从 6 挪到 6.3 代价仅变化 0.0003（远小于噪声 0.02），
+±0.3 m/s 游走是信息论极限。缩小邻域必然牺牲收敛速度或跳变跟踪能力——
+V3 要求跳变后重收敛，就注定扰动必须持续存在。</p>
+<h3>7.3 后续衔接路径</h3>
+<ul>
+  <li><b>M2 推力比在线 ESC（叶安）</b>：在本库 Environment 协议上加 η_Ω 维度，
+      复用 ESC 类与演示框架；</li>
+  <li><b>M3/M4 耦合</b>：窗口回归可扩展为二元回归，无需经典方案的 ω_v≠ω_η
+      频率分离（可写进报告作为结构优势）；</li>
+  <li><b>RL（Agent+PID/TD3）对照</b>：以本库 V1–V3 后悔值曲线为 ESC 基线，
+      同一对象协议下接入；</li>
+  <li><b>实机迁移</b>：功率按空速计算（地速/空速混淆为路线图风险项），
+      实机需优先空速测量。</li>
+</ul>
+
+<p style="margin-top:16pt;color:#718096;font-size:9pt">
+参考文献：Hwang 2018（P(v) 最低点）；Ye 2021（离线推进优化）；Opazo 2022
+（共轴悬停 η_Ω≈0.89 先验）；Haddadi 2022（共轴八旋翼控制）；Eliker 2026（RL 对照）。
+详细文档见 README.md；交互验证运行 python v1_static.py / v2_dynamics.py / v3_robust.py。
+</p>
+
+</body>
+</html>
