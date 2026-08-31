@@ -5,9 +5,9 @@
 | 工作线 | 当前状态 | 可作出的结论 | 不能作出的结论 |
 |---|---|---|---|
 | `modules/ratio_esc` | 可运行的单变量在线 ESC、Simulink 一致性与代理对象验收 | 代理对象上存在受边界约束的因果寻优行为 | 真实 X8 节能、偏航安全、已部署飞控 |
-| `models/px4_x8` | 阶段 0 与 M0-A 完成（测量、日志与基线模式验收通过） | 模型可运行、可观测、可与基线零差异比较；有未校准估算功率与约束标志 | 已有能耗优化闭环、速度闭环或真实功率模型 |
+| `models/px4_x8` | 阶段 0、M0-A、M0-B 完成（测量/日志/基线模式与受保护速度闭环均验收通过） | 模型可运行、可观测、可与基线零差异比较；慢层可经俯仰通道安全操纵速度并带回退；有未校准估算功率与运行时可调约束阈值 | 已有能耗优化算法（M0-C 起）、`eta` 分配器或真实功率模型 |
 
-飞控平台的唯一执行基线是 [`interfaces/PROJECT_EXECUTION_ROADMAP.md`](interfaces/PROJECT_EXECUTION_ROADMAP.md)。当前下一项是 M0-B 的受保护速度闭环（参考选择器、`v_ref→pitch_ref` 外环、限幅与安全回退）；此时不接入转速比 ESC，也不做 RL。
+飞控平台的唯一执行基线是 [`interfaces/PROJECT_EXECUTION_ROADMAP.md`](interfaces/PROJECT_EXECUTION_ROADMAP.md)。当前下一项是 M0-C：把单变量速度 ESC 在 [`interfaces/M0B_SPEED_LOOP.md`](interfaces/M0B_SPEED_LOOP.md) 固定的接口内接入（替换 `M0B v Ref Optimizer` 占位）；此时不接入转速比 ESC，也不做 RL。
 
 ### 已验证的模型平台证据
 
@@ -15,6 +15,7 @@
 - 接口审计：1 个 6DOF 块、59 条端口连接；见 [`evidence/air_interface_20260831_164903_port_connectivity.csv`](evidence/air_interface_20260831_164903_port_connectivity.csv)。
 - `air_spare.slx`：M0-A 观测层完整——速度、PWM、8 维 RPM 估算、`P_est`/`E_est`（未校准估算，来源标志 0）、8 位约束标志、35 维统一日志总线与 `optimizer_enable=0` 基线模式。
 - M0-A 验收（2026-08-31）：`air` 与 `air_spare` 的 `pwm_cmd`/`Ve`/`quat` 逐样本最大绝对差为 0，观测层不改变飞行行为；见 [`evidence/air_m0a_baseline_compare_20260831_201430.csv`](evidence/air_m0a_baseline_compare_20260831_201430.csv)。稳定快照 `models/px4_x8/air_m0a.slx`。
+- M0-B 验收（2026-08-31）：`air_spare` 装入速度外环与安全层后，旁路模式（`speed_loop_enable=0`）与 `air` 的三信号逐样本最大绝对差仍为 0；5/9 m/s 稳态与 6→9 m/s 阶跃的速度误差均值 1.6--1.9 m/s（受模型固有 roll 正弦扰动限制，非增益不足）；安全演示在日志中记录 8 次 `frozen/fallback` 状态转换并回退手动参考。稳定快照 `models/px4_x8/air_m0b.slx`；接口与踩坑记录见 [`interfaces/M0B_SPEED_LOOP.md`](interfaces/M0B_SPEED_LOOP.md)。
 
 ## 已完成
 

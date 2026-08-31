@@ -7,8 +7,14 @@
 | 文件 | 用途 | 当前状态 | 后续处理 |
 |---|---|---|---|
 | `air.slx` | 原始 PX4/Simulink 八旋翼飞控与 6DOF 基线模型 | 已成功完成 10 s 仿真 | 只读基线；不直接开发 |
-| `air_spare.slx` | 从 `air.slx` 复制的开发副本 | M0-A 完整观测层：速度、PWM、RPM 估算、`M0A Power Measurement`（`P_est`/`E_est`/来源标志）、`M0A Constraint Flags`（8 位）、统一日志总线 `m0a_log_bus`（35 维 @1 ms）与 `optimizer_enable=0` 基线模式；原快层控制逻辑未改 | M0-B 起唯一修改对象 |
+| `air_spare.slx` | 从 `air.slx` 复制的开发副本 | M0-B 完整速度外环与安全层（在 M0-A 观测层之上）：`M0B Reference & Safety` 参考选择器/安全监视器、`M0B Speed Controller` 投影 PI 外环（`Kp`/`Ki` 根层常量）、wrapper 内算术融合俯仰注入（`speed_loop_enable=0` 时与基线逐位一致）、`M0B Flags Override`（位 3/5 阈值运行时可调）、`m0b_log_bus`（7 维 @1 ms）；roll/yaw/thrust 通路与 M0-A chart 均未触碰 | M0-C 起唯一修改对象 |
 | `air_m0a.slx` | M0-A 验收通过后的稳定快照 | 2026-08-31 由 `air_spare` 另存；与 `air` 基线比对零差异 | 冻结快照；后续阶段不再修改 |
+| `air_m0b.slx` | M0-B 验收通过后的稳定快照 | 2026-08-31 由 `air_spare` 另存；旁路模式与 `air` 基线比对零差异 | 冻结快照；后续阶段不再修改 |
+| `add_air_m0b_speed_loop.m` | 原子安装 M0-B 层：参考选择器+安全监视器、PI 速度控制器、算术融合俯仰插入、flags 位 3/5 普通方块覆盖（含运行时阈值常量）、Ve_x 观测出口、`m0b_log_bus`；保存前先做功能检查（enable=1 时 ve_x 必须离开 0） | 已执行并验证 | M0-C 复用此模式 |
+| `add_air_m0b_controller_gains.m` | 把控制器 `Kp`/`Ki` 从 chart 字面量提升为根层常量输入（重建 7 输入 chart，避免脚本编辑断线问题） | 已执行（默认 Kp=0.12、Ki=0.04） | 扫参见 `diag_m0b_gain_sweep` |
+| `run_air_m0b_tests.m` | M0-B 验收：5/9 m/s 稳态、6→9 m/s 阶跃、安全演示（运行时收紧姿态阈值触发 frozen/fallback） | **PASS**（2026-08-31，归档 `results/air_m0b_tests/20260831_234117`） | 每次结构变更后重跑 |
+| `diag_m0b_pitch_sign.m` / `diag_m0b_pitch_gain.m` | 俯仰符号与增益标定实验（内存改参数，不保存模型） | 已执行：`pitch_cmd>0 → θ+ → 加速 -x`，每单位指令约 15 m/s² | 证据链保留 |
+| `diag_m0b_gain_sweep.m` / `diag_m0b_test_postmortem.m` | 增益扫描与试验数据复核 | 已执行（0.12/0.04 最优） | 证据链保留 |
 | `run_air_baseline.m` | 更新、仿真并归档 `air` 的非破坏性基线脚本 | 已成功执行 | 后续可泛化为支持指定模型名 |
 | `inspect_air_interfaces.m` | 更新模型、导出关键子系统和 6DOF 端口连接 | 已成功执行 | M0-B 前再次运行验证接口变化 |
 | `add_air_m0a_velocity_observability.m` | 在 `air_spare` 中加入 6DOF 惯性速度与水平速度观测链，并保存模型 | 已通过 GUI 执行与仿真验证 | M0-A 后续日志与功率模块的可复现安装脚本 |
@@ -45,6 +51,10 @@
 | `results/air_interface_inspection/20260831_164903/` | **PASS**：发现 1 个 6DOF 块，导出 59 条端口连接 | `interface_inspection.mat`、`port_connectivity.csv` |
 | `results/m0a_config/20260831_195541/` | M0-A 场景配置：`optimizer_enable=0`、总线布局、标志阈值 | `m0a_scenario_config.mat`、`m0a_scenario_config.txt` |
 | `results/air_m0a_baseline_compare/20260831_201430/` | **PASS（M0-A 验收）**：`air` 与 `air_spare` 的 `pwm_cmd`/`Ve`/`quat` 逐样本最大绝对差 0；日志总线 35×10001 复核通过 | `summary.csv`、`comparison.mat` |
+| `results/air_m0a_baseline_compare/20260831_232611/` | **PASS（M0-B 装入后复验）**：旁路模式三信号最大绝对差仍为 0 | `summary.csv`、`comparison.mat` |
+| `results/air_m0b_tests/20260831_234117/` | **PASS（M0-B 验收）**：四场景全过——5 m/s 稳态均值误差 1.62、9 m/s 1.60、阶跃后 1.88 m/s（roll 正弦扰动下限）；安全演示 8 次 frozen/fallback 转换且回退参考 5 m/s | 各场景 `S*.mat`、`summary.csv` |
+| `results/m0b_config/` | M0-B 两版安装配置（外环参数、增益默认值） | `m0b_config.*`、`m0b_gains.mat` |
+| `results/m0b_diagnostics/` | 俯仰符号/增益标定与 wrapper 拓扑导出 | `pitch_sign_diag.mat`、`wrapper_topology.txt` 等 |
 
 这些结果是阶段 0 与 M0-A 的证据，应保留。后续每次实验使用新时间戳目录，不覆盖此处内容。
 
@@ -62,9 +72,13 @@
 
 已知细节：根级 PWM 指令网在 t=0 输出 0（包装层滞后一拍，air 原模型固有行为）；内部 `m0a_motor_pwm_us` 为 uint16 量化版（与根网最大差 1 us）。
 
-尚缺：速度参考与速度外环（M0-B）、`eta_ref` 和 X8 受约束分配器（M2）、真实 RPM/电功率模型与校准、Harness、SITL 接口。
+已新增（M0-B 完成）：速度通道完整闭环——参考选择器（手动/优化器切换 + [0,15] m/s 范围与 2 m/s² 变化率限制 + warm-up 语义）、投影 PI 速度外环（`Kp=0.12`、`Ki=0.04`，`|pitch_cmd|≤0.40`、积分 ≤0.15、变化率 0.25/s）、wrapper 内俯仰注入（算术融合，旁路逐位一致）、安全监视器（硬标志冻结 0.5 s → 回退手动参考，清除 1.5 s 后重进）与 `optimizer_status`（0 基线/1 warm-up/2 active/3 frozen/4 fallback）。约束位 3/5 阈值改为运行时常量（`M0B Att Tol` 0.523 rad、`M0B Speed Tol` 1.0 m/s），位 5 语义升级为 `|v − v_ref(延迟一拍)| > tol`。`m0b_log_bus`（7 维 @1 ms）：`[v_ref, pitch_cmd, v_err, optimizer_status, speed_loop_enable, ve_x, v]`。
 
-因此当前模型是“可运行、可观测、可安全比较的飞控与动力学基座”，尚未接入任何能耗优化闭环（M0-B 起才建立速度通道）。
+重要模型事实（M0-B 审计确认，M0-A 文档未覆盖）：`InputConditioning` 完全忽略 RC 输入（四路接 Terminator），roll 指令由内部正弦（幅 200 us → ±0.4 @1 rad/s）生成，pitch 常数 1500（即 0，经 `Gain2=[1 -1]` 取负），thrust 常数 0.5，yaw 0；chart `arm` 由 wrapper 内 Constant 1 提供（恒解锁）。垂直方向为原始模型固有自由落体（PWM=1500×8、P_est≈251 W 但净推力≈0）。这些均为 `air` 原模型行为，M0-A/M0-B 未改变。
+
+尚缺：慢层 ESC 算法本体（M0-C）、`eta_ref` 和 X8 受约束分配器（M2）、真实 RPM/电功率模型与校准、Harness、SITL 接口。
+
+因此当前模型是“可运行、可观测、可安全比较、且慢层可经俯仰通道安全操纵速度”的飞控与动力学基座，尚未接入任何能耗优化算法（M0-C 起接入）。
 
 ## 5. 工作区结构（2026-08-31 起已实施；Git 仓库同构）
 

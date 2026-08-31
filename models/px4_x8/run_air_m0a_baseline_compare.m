@@ -60,7 +60,10 @@ end
 
 % ---------- M0-A log bus re-validation on the spare run ----------
 bus = sSpare.output.get('m0a_log_bus');
-B = squeeze(bus.Data)';
+B = double(squeeze(bus.Data));
+if size(B, 2) ~= 35
+    B = B';
+end
 tBus = bus.Time(:);
 c1 = size(B, 2) == 35;
 c2 = numel(tBus) == 10001;
