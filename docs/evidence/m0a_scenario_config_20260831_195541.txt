@@ -1,0 +1,9 @@
+model: air_spare
+stage: M0-A
+optimizer_enable: 0
+power_source: estimated (flag 0, uncalibrated)
+solver_step_s: 0.001
+stop_time_s: 10
+bus_layout: [v, P_est, E_est, power_source, att(6)=phi theta psi p q r, pwm(8), rpm_est(8), flags(8), optimizer_enable]
+flag_thresholds: att_tol_rad=0.523 yaw_rate_tol_rad_s=1.5 speed_tol_mps=1.0 P_max_W=1500 pwm_edge_us=5
+notes: v_ref placeholder = 0 until M0-B; thresholds uncalibrated

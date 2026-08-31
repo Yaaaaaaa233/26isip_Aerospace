@@ -5,15 +5,16 @@
 | 工作线 | 当前状态 | 可作出的结论 | 不能作出的结论 |
 |---|---|---|---|
 | `modules/ratio_esc` | 可运行的单变量在线 ESC、Simulink 一致性与代理对象验收 | 代理对象上存在受边界约束的因果寻优行为 | 真实 X8 节能、偏航安全、已部署飞控 |
-| `models/px4_x8` | 阶段 0 完成，M0-A 观测层部分完成 | 现有 PX4/Simulink X8 模型可运行；可记录若干接口量 | 已有能耗优化闭环或真实功率模型 |
+| `models/px4_x8` | 阶段 0 与 M0-A 完成（测量、日志与基线模式验收通过） | 模型可运行、可观测、可与基线零差异比较；有未校准估算功率与约束标志 | 已有能耗优化闭环、速度闭环或真实功率模型 |
 
-飞控平台的唯一执行基线是 [`interfaces/PROJECT_EXECUTION_ROADMAP.md`](interfaces/PROJECT_EXECUTION_ROADMAP.md)。当前下一项是完成 M0-A 的 `P_est`、`E_est`、约束标志与统一日志，再进入 M0-B 的受保护速度闭环；此时不接入转速比 ESC，也不做 RL。
+飞控平台的唯一执行基线是 [`interfaces/PROJECT_EXECUTION_ROADMAP.md`](interfaces/PROJECT_EXECUTION_ROADMAP.md)。当前下一项是 M0-B 的受保护速度闭环（参考选择器、`v_ref→pitch_ref` 外环、限幅与安全回退）；此时不接入转速比 ESC，也不做 RL。
 
 ### 已验证的模型平台证据
 
 - `air.slx`：MATLAB R2022b 手动更新、仿真 0--10 s 成功，10001 个样本；摘要见 [`evidence/air_baseline_20260831_161623_summary.csv`](evidence/air_baseline_20260831_161623_summary.csv)。
 - 接口审计：1 个 6DOF 块、59 条端口连接；见 [`evidence/air_interface_20260831_164903_port_connectivity.csv`](evidence/air_interface_20260831_164903_port_connectivity.csv)。
-- `air_spare.slx`：已新增 `m0a_Ve_inertial_mps`、`m0a_horizontal_speed_mps`、`m0a_motor_pwm_us`、`m0a_motor_rpm_est`。最后一项是命令映射估算，不是实测转速。
+- `air_spare.slx`：M0-A 观测层完整——速度、PWM、8 维 RPM 估算、`P_est`/`E_est`（未校准估算，来源标志 0）、8 位约束标志、35 维统一日志总线与 `optimizer_enable=0` 基线模式。
+- M0-A 验收（2026-08-31）：`air` 与 `air_spare` 的 `pwm_cmd`/`Ve`/`quat` 逐样本最大绝对差为 0，观测层不改变飞行行为；见 [`evidence/air_m0a_baseline_compare_20260831_201430.csv`](evidence/air_m0a_baseline_compare_20260831_201430.csv)。稳定快照 `models/px4_x8/air_m0a.slx`。
 
 ## 已完成
 

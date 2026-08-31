@@ -7,11 +7,17 @@
 | 文件 | 用途 | 当前状态 | 后续处理 |
 |---|---|---|---|
 | `air.slx` | 原始 PX4/Simulink 八旋翼飞控与 6DOF 基线模型 | 已成功完成 10 s 仿真 | 只读基线；不直接开发 |
-| `air_spare.slx` | 从 `air.slx` 复制的开发副本 | 已加入 M0-A 速度、PWM 与 RPM 估算观测支路；原快层控制逻辑未改 | M0-A 起唯一修改对象 |
+| `air_spare.slx` | 从 `air.slx` 复制的开发副本 | M0-A 完整观测层：速度、PWM、RPM 估算、`M0A Power Measurement`（`P_est`/`E_est`/来源标志）、`M0A Constraint Flags`（8 位）、统一日志总线 `m0a_log_bus`（35 维 @1 ms）与 `optimizer_enable=0` 基线模式；原快层控制逻辑未改 | M0-B 起唯一修改对象 |
+| `air_m0a.slx` | M0-A 验收通过后的稳定快照 | 2026-08-31 由 `air_spare` 另存；与 `air` 基线比对零差异 | 冻结快照；后续阶段不再修改 |
 | `run_air_baseline.m` | 更新、仿真并归档 `air` 的非破坏性基线脚本 | 已成功执行 | 后续可泛化为支持指定模型名 |
-| `inspect_air_interfaces.m` | 更新模型、导出关键子系统和 6DOF 端口连接 | 已成功执行 | M0-A 后再次运行验证接口变化 |
+| `inspect_air_interfaces.m` | 更新模型、导出关键子系统和 6DOF 端口连接 | 已成功执行 | M0-B 前再次运行验证接口变化 |
 | `add_air_m0a_velocity_observability.m` | 在 `air_spare` 中加入 6DOF 惯性速度与水平速度观测链，并保存模型 | 已通过 GUI 执行与仿真验证 | M0-A 后续日志与功率模块的可复现安装脚本 |
 | `add_air_m0a_actuator_observability.m` | 在快层混控后的 8 路 PWM 处加入 PWM 与估算 RPM 观测链，并保存模型 | 已通过 GUI 执行与仿真验证 | M0-A 功率与约束模块的执行器输入 |
+| `add_air_m0a_power_measurement.m` | 在 `air_spare` 根层加入可替换 `M0A Power Measurement` 子系统（`P_est`、`E_est`、来源标志 0=estimated），从根级 PWM 指令网分支 | 已执行并验证：`P_est` 与 `C_M·Σω³` 重算最大偏差 5.7e-14 W | M2 起替换为电机/ESC/电池模型或实测功率 |
+| `add_air_m0a_constraints_and_logbus.m` | 加入姿态/角速度观测出口、`M0A Constraint Flags`（8 位）、35 维统一日志总线、`optimizer_enable=0`，并写场景配置 | 已执行；与 `fix_m0a_rpm_width_and_zoh.m` 联合验证通过 | 阈值在 M0-B 校准 |
+| `fix_m0a_rpm_width_and_zoh.m` | 修正 rpm 派生链：Fcn 块只能输出标量，替换为逐元素 Subtract+Gain（总线级与执行器级两处）；ZOH 初始条件保持 0 并在验收中把 t<5 ms 作为初始化窗 | 已执行；rpm 现为 8 维，与 `9.5493·(pwm-1000)` 零误差 | 无 |
+| `write_m0a_scenario_config.m` | 写 M0-A 场景配置归档（阈值、总线布局、optimizer_enable=0） | 已执行 | M0-B 演进为场景配置结构 |
+| `run_air_m0a_baseline_compare.m` | M0-A 验收：`air` 与 `air_spare` 同场景 10 s 比对 `pwm_cmd`/`Ve`/`quat`，并复核日志总线 | **PASS**：三信号逐样本最大绝对差 0.000e+00；总线 35×10001、标志语义与能量一致性通过 | 每次模型结构变更后重跑 |
 | `AIR_SLX_AUDIT.md` | `air.slx` 静态结构、依赖和差距审计 | 已完成；其中早期“尚未确认运行”的表述已被后续实际仿真验证覆盖 | 作为结构参考；以路线文件为执行依据 |
 | `PROJECT_EXECUTION_ROADMAP.md` | 全项目阶段、接口、验收、数据回灌与变更规则 | 当前执行基线 | 每次策略/接口/验收改变时同步更新 |
 | `CURRENT_WORKSPACE_STATUS.md` | 本文件 | 当前文件盘点 | 阶段交付后更新 |
@@ -31,20 +37,28 @@
 |---|---|---|
 | `results/air_baseline/20260831_161623/` | **PASS**：`air` 从 0 到 10 s，共 10001 样本，无错误 | `baseline.mat`、`summary.csv`、`top_level_blocks.csv` |
 | `results/air_interface_inspection/20260831_164903/` | **PASS**：发现 1 个 6DOF 块，导出 59 条端口连接 | `interface_inspection.mat`、`port_connectivity.csv` |
+| `results/m0a_config/20260831_195541/` | M0-A 场景配置：`optimizer_enable=0`、总线布局、标志阈值 | `m0a_scenario_config.mat`、`m0a_scenario_config.txt` |
+| `results/air_m0a_baseline_compare/20260831_201430/` | **PASS（M0-A 验收）**：`air` 与 `air_spare` 的 `pwm_cmd`/`Ve`/`quat` 逐样本最大绝对差 0；日志总线 35×10001 复核通过 | `summary.csv`、`comparison.mat` |
 
-这些结果是阶段 0 的证据，应保留。后续每次实验使用新时间戳目录，不覆盖此处内容。
+这些结果是阶段 0 与 M0-A 的证据，应保留。后续每次实验使用新时间戳目录，不覆盖此处内容。
 
 ## 4. 当前模型能力与缺口
 
 已有：RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至推力/力矩、6DOF、姿态/角速度/加速度反馈。
 
-已新增：从 6DOF `Ve` 分支的 `m0a_Ve_inertial_mps` 与 `m0a_horizontal_speed_mps`；后者定义为 `sqrt(Ve_x^2 + Ve_y^2)`，目前仅是无风条件的地速代理。已在 `air_spare` 的 0–10 s 仿真中验证，日志包含 10001 个样本。
+已新增（M0-A 完成）：从 6DOF `Ve` 分支的 `m0a_Ve_inertial_mps` 与 `m0a_horizontal_speed_mps`（`sqrt(Ve_x^2 + Ve_y^2)`，无风地速代理）；从 `AttitudeControl/Demux` 分支的 `m0a_motor_pwm_us[8]`（uint16 量化命令，1 kHz）与 `m0a_motor_rpm_est[8]`（`rpm = (PWM_us-1000)·60/(2π)` 命令转速估算，非实测）。
 
-已新增：从 `AttitudeControl/Demux` 分支的 `m0a_motor_pwm_us[8]` 与 `m0a_motor_rpm_est[8]`。RPM 依据当前植株的即时映射 `rpm = (PWM_us-1000) * 60/(2*pi)` 估算；它反映当前模型的命令转速，不等同于带电机动态与传感器误差的实测 RPM。
+已新增（本次交付）：`M0A Power Measurement` 可替换子系统输出 `m0a_P_est_W`、`m0a_E_est_J` 与 `m0a_power_source`（0=estimated）。`P_est = C_M·Σω³`（`ω=clip(PWM,1000,2000)-1000`，`C_M=2.51e-7` 与植株扭矩系数严格一致），从植株实际消费的根级 PWM 指令网（未量化、250 Hz）分支；悬停约 251 W，10 s 积分 `E_est` 与均值功率×时长相对误差 4e-8。**未校准估算，不得宣称真实节能率。**
 
-尚缺：标准速度接口、速度参考与速度外环、8 路 RPM 输出、功率/能耗模型、`eta_ref` 和 X8 受约束分配器、统一约束总线、Harness、真实数据校准与 SITL 接口。
+已新增（本次交付）：`M0A Constraint Flags` 8 位（pwm/rpm 饱和、姿态、偏航率、速度失跟、功率异常、信号缺失、预留；阈值均为文档化占位值）；35 维统一日志总线 `m0a_log_bus` @1 ms：`[v, P_est, E_est, power_source, att(6)=φθψ pqr, pwm(8), rpm_est(8), flags(8), optimizer_enable]`（4 ms 的 pwm/P_est 经 ZOH 对齐到 1 ms）；`m0a_optimizer_enable=0` 固定基线模式。名义 10 s 运行中，初始化窗（t<5 ms）后仅速度失跟标志按占位 `v_ref=0` 语义激活（飞机实际飞行约 8.4 m/s），其余标志全零。
 
-因此当前模型是“可运行飞控与动力学基座”，不是已经完成的能耗优化仿真平台。
+已验收：`air` 与 `air_spare` 在相同 10 s 场景下 `pwm_cmd`/`Ve`/`quat` 逐样本最大绝对差为 0——观测层完全不改变飞行轨迹、姿态与执行器命令。姿态/角速度取自 `Attitude Control/quat2eul` 三输出与 `control_and_mix` 第 5 输入口 `pqr`（按已核验函数签名顺序），悬停段 φ 与 p 同相振荡（±0.207 rad / ±0.206 rad/s），量级合理。
+
+已知细节：根级 PWM 指令网在 t=0 输出 0（包装层滞后一拍，air 原模型固有行为）；内部 `m0a_motor_pwm_us` 为 uint16 量化版（与根网最大差 1 us）。
+
+尚缺：速度参考与速度外环（M0-B）、`eta_ref` 和 X8 受约束分配器（M2）、真实 RPM/电功率模型与校准、Harness、SITL 接口。
+
+因此当前模型是“可运行、可观测、可安全比较的飞控与动力学基座”，尚未接入任何能耗优化闭环（M0-B 起才建立速度通道）。
 
 ## 5. 建议的未来 Git 结构（暂不移动）
 

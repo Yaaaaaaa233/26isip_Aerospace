@@ -1,0 +1,5 @@
+check,size,max_abs_diff,pass
+"pwm_cmd",[2501 8],0,1
+"Ve",[3 3 10001],0,1
+"quat",[10001 4],0,1
+"m0a_log_bus(35x10001, flags, E)",[10001 35],0,1
