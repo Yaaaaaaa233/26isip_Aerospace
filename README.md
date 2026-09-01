@@ -2,15 +2,18 @@
 
 共轴八旋翼在线能耗优化协作仓库。
 
-仓库包含**优化算法线**的三个可运行模块与**验证平台线**的 PX4 X8 仿真平台：上下桨转速比在线极值寻优（`ratio_esc`）、平飞速度在线极值寻优（`speed_esc`）、速度基线之上的 TD3 残差修正（`speed_rl_residual`），以及用于把慢层算法安全接入飞控快层的 `models/px4_x8`。所有模块当前都使用明确标注的**虚拟/代理功率对象**：它们不是实机飞控、不是电子调速器（ESC），也不构成真实 X8 节能率或偏航稳定性结论。
+仓库包含**优化算法线**的五个可运行模块、**统一指标层**与**验证平台线**：上下桨转速比在线极值寻优（`ratio_esc`）、平飞速度在线极值寻优（`speed_esc`）、速度基线之上的 TD3 残差修正（`speed_rl_residual`）、平移曲线黑箱直搜（`speed_shift_search`）、崎岖多峰滤波全局寻优（`speed_rugged_search`），统一 MOP/MOE 指标与场景入口（`harness`），以及用于把慢层算法安全接入飞控快层的 `models/px4_x8`。所有模块当前都使用明确标注的**虚拟/代理功率对象**：它们不是实机飞控、不是电子调速器（ESC），也不构成真实 X8 节能率或偏航稳定性结论。
 
 ## 技术路线：四个模块的关系
 
 ```text
-第 1 层  转速比 ESC      ratio_esc          优化 η = Ωu/Ωl（恒推力代理）        已完成验收
-第 2 层  平飞速度 ESC    speed_esc          优化 v_ref（η=1，虚拟功率曲线）      已完成验收（算法线）
-第 3 层  残差速度 RL     speed_rl_residual  v_ref = guard(v_base + Δv)，TD3      代理对象预研
-第 4 层  平台接入        models/px4_x8      慢层算法安全接入飞控快层             M0-A/B/C/M1 完成，下一步 M2
+第 1 层  转速比 ESC      ratio_esc            优化 η = Ωu/Ωl（恒推力代理）        已完成验收
+第 2 层  平飞速度 ESC    speed_esc            优化 v_ref（η=1，虚拟功率曲线）      已完成验收（算法线）
+第 2+ 层 速度直搜研究    speed_shift_search   平移曲线瞬时跳变黑箱直搜（任务1）     已完成验收（研究线）
+第 2+ 层 速度直搜研究    speed_rugged_search  崎岖多峰滤波全局寻优（任务2）         已完成验收（研究线）
+第 3 层  残差速度 RL     speed_rl_residual    v_ref = guard(v_base + Δv)，TD3      代理对象预研
+第 4 层  平台接入        models/px4_x8        慢层算法安全接入飞控快层             M0-A/B/C/M1 完成，下一步 M2
+指标层  MOP/MOE        harness              统一场景、评价窗与能耗效能指标        已实现（代理口径）
 ```
 
 - 第 1、2 层是两个单变量 ESC：优化变量不同（η 与 v），代理对象与验收口径相互独立，结论不可互相搬用。
@@ -52,6 +55,22 @@ cd ../speed_rl_residual
 START_HERE                 % 圆周+正弦风接口演示（不训练）
 run_checks(false)          % 单元测试、适配器契约与20个不规则风种子
 run_checks(true)           % 额外执行1回合TD3训练冒烟
+
+% 平移曲线黑箱直搜（速度优化任务1）
+cd ../speed_shift_search
+START_HERE                 % 动画面板：黄金分割/Brent+平移监测重夹逼
+run_task1_acceptance       % 144幕算法横评验收
+tests_task1                % 16项单元测试
+
+% 崎岖多峰滤波全局寻优（速度优化任务2）
+cd ../speed_rugged_search
+START_HERE                 % 动画面板：扫描+SG滤波+pattern search+对称顶点
+run_task2_acceptance       % 滤波研究+算法消融+无偏移门槛验收
+tests_task2                % 13项单元测试
+
+% 统一指标层 MOP/MOE
+cd ../../harness
+run_harness                % 三模块接线测试 + 1小时窗五算法MOE横比
 ```
 
 ## 当前成果
@@ -78,6 +97,24 @@ run_checks(true)           % 额外执行1回合TD3训练冒烟
 - 11 项单元测试与适配器契约通过；20 个未见不规则风种子零硬约束违规；可观测风解析残差 19/20 种子优于固定基准（约 -1.25% 代理功率）；TD3 候选恒定风 -3.02%、不规则风尚未胜出（0–1/20，如实记录为训练起点）。
 - 证据见 [docs/evidence/speed_rl_residual/](docs/evidence/speed_rl_residual/)。
 
+### 平移曲线黑箱直搜（modules/speed_shift_search，2026-09-01 并入）
+
+- 速度优化任务1：曲线上下左右平移、速度可瞬时跳变的黑箱搜索；推荐方案 tracker = Brent 混合搜索 + 锁定 + 斜率迟滞双阈值平移监测重夹逼。
+- 六算法横评（网格/三分/黄金/Brent/tracker/ESC）：静态场景 tracker 6 次评估入带；dx 跳变 9–20 步恢复；纯上下平移零误触发；跳变场景全程能耗 0.21%（ESC 0.64%、网格 19.7%）。
+- 16 项单元测试、8 项 tracker 性能门槛全过；搜索能耗开关（续航纪录口径）两档均评估。证据见 [docs/evidence/speed_shift_search/](docs/evidence/speed_shift_search/)。
+
+### 崎岖多峰滤波全局寻优（modules/speed_rugged_search，2026-09-01 并入）
+
+- 速度优化任务2：调试二次曲线基准 + 绕 v=6 对称负余弦崎岖项（7 个局部谷，全局最优精确在 6，无平移）+ 相对噪声；推荐方案 multistart = 均匀扫描 → 中心对称 Savitzky-Golay 滤波选谷 → pattern search 重定位 → 对称 stencil 最小二乘抛物线顶点（无偏定位）。
+- "无偏移"量化验收：20 种子全局命中 100%、跨种子系统偏置 −0.044 m/s（门槛 ±0.05）；滤波研究 25 组（5 法×5 窗）给出结构偏置/噪声残差数据；2% 噪声压力场景精度极限如实记录（约 ±0.46 m/s）。
+- 13 项单元测试、6 项性能门槛全过。证据见 [docs/evidence/speed_rugged_search/](docs/evidence/speed_rugged_search/)。
+
+### 统一指标层 MOP/MOE（harness，2026-09-01 实现）
+
+- 落地预留的 harness 指标层：三模块架构（environment 风的模型 / aircraft 速度+功率双表盘黑箱 / console 算法）+ 1 小时任务窗评价。
+- MOE_energy = Emin/E_actual（Emin=Pmin×T 先验理论最低能耗），MOE=1/(1+能耗超额%) 解析关系入测试；7 项 MOP（搜索步数、末段误差、稳态/全程超额、锁定占空等）。
+- 首次横比（同一评价窗）：fixed（上界参照）MOE=1.0000、multistart 0.9912、grid 0.9905、esc 0.9819、single_golden（局部谷陷阱）0.9226。证据见 [docs/evidence/mop_moe/](docs/evidence/mop_moe/)。
+
 ### 飞控验证平台（models/px4_x8）
 
 与算法模块并行开发，角色是把慢层算法安全地接入飞控快层，并把台架/飞行数据回灌以校准模型。M0-C 已完成 `ratio_esc` 内核的速度语义接入；该结果验证的是接口、闭环机制和安全链，不代表真实节能。
@@ -99,9 +136,13 @@ run_checks(true)           % 额外执行1回合TD3训练冒烟
 modules/ratio_esc/           转速比在线ESC：可运行MATLAB、Simulink与RL接口模块
 modules/speed_esc/           平飞速度在线ESC：回归梯度估计、Python对齐与74场景验收
 modules/speed_rl_residual/   残差速度RL：TD3残差修正、风场/电池/轨迹代理与公平评估
-models/px4_x8/               PX4 X8验证平台：基线、M0-A/M0-B/M0-C快照与M1入口
+modules/speed_shift_search/  平移曲线黑箱直搜（任务1）：Brent+迟滞监测tracker
+modules/speed_rugged_search/ 崎岖多峰滤波全局寻优（任务2）：无偏移量化验收
+models/px4_x8/               PX4 X8验证平台：基线、M0-A/M0-B/M0-C/M1快照与M2入口
 integration/air_esc/         慢层算法接入与安全层（预留）
-harness/                     场景、指标与验收入口（预留）
+harness/                     统一指标层：三模块架构 + MOP/MOE + 1小时任务窗横比
+docs/TASKS_1_5_ROUTE.md      速度优化五任务技术路线
+docs/ARCHITECTURE_MOP_MOE.md 三模块架构与MOP/MOE设计
 docs/COLLABORATION.md        模块边界、接口和协作约定
 docs/DEVELOPMENT_STATUS.md   当前完成项、局限与下一步
 docs/evidence/               已核验的报告、过程图和模型结构图（含 speed_esc、speed_rl_residual 子目录）

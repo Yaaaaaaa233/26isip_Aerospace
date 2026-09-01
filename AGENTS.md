@@ -9,6 +9,9 @@
 - `modules/ratio_esc/` — 上下桨转速比在线极值寻优（ESC）可运行模块（MATLAB/Simulink + RL 环境接口），对象是恒推力假设下的归一化代理功率模型。
 - `modules/speed_esc/` — 平飞速度在线 ESC 模块（配比固定 η=1），窗口回归梯度估计为主、同频解调为对照；虚拟功率曲线代理对象上完成 74 场景性能验收，并与原 Python 方案逐样本对齐。
 - `modules/speed_rl_residual/` — 在速度基线（固定值/ESC/解析式）之上叠加 TD3 残差修正 `v_ref = guard(v_base + Δv)` 的算法线预研模块；对象为不规则风场下的虚拟代理，含电池与圆周/直线轨迹工况。
+- `modules/speed_shift_search/` — 速度优化任务1研究模块：平移曲线上可瞬时跳变速度的黑箱直搜（黄金分割/Brent 主干 + 斜率迟滞监测重夹逼 tracker），含搜索能耗开关与六算法横评验收。
+- `modules/speed_rugged_search/` — 速度优化任务2研究模块：崎岖多峰曲线上的滤波全局寻优（扫描 → 中心对称 SG 滤波选谷 → pattern search → 对称 stencil 抛物线顶点无偏定位），"无偏移"以跨种子系统偏置门槛量化验收。
+- `harness/` — 统一指标层（已实现，替代原预留占位的指标部分）：三模块架构（environment 风 / aircraft 双表盘黑箱 / console 算法）+ 1 小时任务窗 MOP/MOE（MOE_energy=Emin/E_actual 及 7 项 MOP）；对象与搜索器复用 `modules/speed_rugged_search` 的 `+task2` 包。
 - `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C、M1 已完成；M0-C 已把 `ratio_esc` 内核作速度语义映射后接入，M1 已通过噪声/时延/组合扰动鲁棒性验收，当前下一项为 M2 上下桨转速比 ESC（`eta` 分配器与受约束 `X8 Control Allocator`）。
 
 ## 必读文档
@@ -40,6 +43,19 @@ cd ../speed_rl_residual
 run_checks(false)     % 单元测试、适配器契约与20个不规则风种子（提交前必须全绿）
 run_checks(true)      % 另外执行 1 回合 TD3 训练冒烟
 run_demo              % 圆周+正弦风接口演示
+
+cd ../speed_shift_search
+tests_task1               % 16项单元测试
+run_task1_acceptance      % 144幕横评验收
+qa_task1_demo             % 改动面板时额外运行
+
+cd ../speed_rugged_search
+tests_task2               % 13项单元测试
+run_task2_acceptance      % 滤波研究+消融+门槛验收
+qa_task2_demo             % 改动面板时额外运行
+
+cd ../../harness
+run_harness               % 指标层单元测试 + 1小时窗MOE横比
 ```
 
 换新机器后的第一件事：先跑通对应模块的验收脚本确认基线为绿，再开始任何修改。
