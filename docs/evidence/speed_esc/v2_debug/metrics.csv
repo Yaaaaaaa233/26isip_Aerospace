@@ -1,0 +1,2 @@
+meanSpeed,centerError,speedError,regretPercent,speedStd,meanTruePower,normalizedEnergySeconds,boundViolations,rateViolations,frozenSamples,convergenceSeconds,reconvergenceSeconds
+6.08582738886197,0.0105156921277417,0.0858273888619753,0.0220357207873065,0.257072094840122,1.00022035720787,121.031495473279,0,0,0,55.1,NaN

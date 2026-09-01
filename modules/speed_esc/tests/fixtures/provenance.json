@@ -1,0 +1,12 @@
+{
+  "purpose": "Original Python execution fixtures; no real flight data",
+  "dt_s": 0.1,
+  "steps_per_case": 500,
+  "source_sha256": {
+    "demo_kit.py": "6763baf5bae06ada87e1f3a80dcf2d17f8211c5c4671a6196a41bcd1ef0d0837",
+    "esc_core.py": "11669da93d530bb8ddefdce42453e93435c86795d14a8bfa9d0d8ee8ca68ec71",
+    "v1_static.py": "6799627473d7d9c26570d768a15374ad933f86dd67948b584487c89bb752776e",
+    "v2_dynamics.py": "636aaa3188f02a800252a0d005db1b885458091945b4afbf8119be40b8401c51",
+    "v3_robust.py": "d61f4f3efa0588e9c7174a0d5fd7958c7814ef4f285946f1ba1f022472047caf"
+  }
+}

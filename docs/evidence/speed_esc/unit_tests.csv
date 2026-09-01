@@ -1,0 +1,15 @@
+Test,Passed,Failed
+test_speed/testProxyCurves,1,0
+test_speed/testExactSpeedResponse,1,0
+test_speed/testPairedDelay,1,0
+test_speed/testRegressionDirection,1,0
+test_speed/testWarmupAndWeakExcitation,1,0
+test_speed/testDuplicateMeasurementNotCounted,1,0
+test_speed/testFreezeAndRecovery,1,0
+test_speed/testInvalidAndOldSamples,1,0
+test_speed/testReferenceBoundsAndSlew,1,0
+test_speed/testControllerNoTruthLeak,1,0
+test_speed/testDeterministicReplay,1,0
+test_speed/testVersionFactors,1,0
+test_speed/testRlSharesFixedPlant,1,0
+test_speed/testTelemetryShadowPairing,1,0

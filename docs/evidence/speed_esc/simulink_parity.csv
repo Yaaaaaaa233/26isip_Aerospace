@@ -1,0 +1,7 @@
+Method,Version,MaximumError,Passed
+regression,1,1.77635683940025e-15,1
+regression,2,1.24344978758018e-14,1
+regression,3,1.24344978758018e-14,1
+demod,1,0,1
+demod,2,1.24344978758018e-14,1
+demod,3,1.24344978758018e-14,1
