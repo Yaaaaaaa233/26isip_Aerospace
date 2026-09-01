@@ -1,0 +1,5 @@
+scenario,fault,bit,preQuiet,preActive,t_fire_s,t_frozen_s,t_fallback_s,fbRefOK,recoveryOK,ok
+F1_pwm_edge,pwm_edge,1,1,1,0,0,0.5,1,1,1
+F2_yaw_rate,yaw_rate,4,1,1,0,0,0.5,1,1,1
+F3_nan_power,nan_power,7,1,1,0,0,0.5,1,1,1
+F4_power_rec,power_rec,6,1,1,0,0,0.5,1,1,1

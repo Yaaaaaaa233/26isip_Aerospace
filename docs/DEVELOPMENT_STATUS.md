@@ -1,15 +1,15 @@
 # 开发状态与下一步
 
-## 总览：算法线三模块并行，平台线已完成 M0-C 初次接口集成
+## 总览：算法线三模块并行，平台线已完成 M0-C 接口集成与 M1 鲁棒性验收
 
 | 工作线 | 当前状态 | 可作出的结论 | 不能作出的结论 |
 |---|---|---|---|
 | `modules/ratio_esc` | 可运行的单变量在线 ESC、Simulink 一致性与代理对象验收 | 代理对象上存在受边界约束的因果寻优行为 | 真实 X8 节能、偏航安全、已部署飞控 |
 | `modules/speed_esc` | 2026-09-01 并入。平飞速度 ESC（η=1），窗口回归估计为主、解调为对照；14 单元测试、14 组 Python 逐样本复现、6 组 Simulink 一致性、74 性能场景 | 代理功率曲线上速度变量因果寻优行为成立，且与原 Python 方案逐样本一致 | 真实 X8 节能、速度定位全场景达标（63/74，未达标场景如实记录）、实机飞控 |
 | `modules/speed_rl_residual` | 2026-09-01 并入。速度基线之上的 TD3 残差修正（虚拟风场/电池/轨迹代理）；11 单元测试、20 未见风种子零硬约束违规 | 代理对象上残差接口可用：可观测风解析残差 -1.25% 功率（19/20 种子）、TD3 恒定风候选 -3.02% | 不规则风下 RL 有效（TD3 候选 0–1/20 种子胜出，如实记录为训练起点）、任何飞行相关结论 |
-| `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C 完成（M0-C 于 2026-09-01 验收通过） | 旁路与原基线零差异（真 `Ve` 维度断言）；速度俯仰通道名义误差 0.03 m/s 量级、扰动下有界；位 1/4/6/7 故障注入全链保护通过（含 13 s 严格恢复）；M0-C：ESC 接口封装 + 四组 fixed/ESC 配对及一组复现（平坦功率面，无可宣称节能） | `eta` 分配器（M2）、真实功率模型校准、M1 扰动/噪声/时延、扰动场景长稳定窗口 |
+| `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1 完成（M1 于 2026-09-01 验收通过） | 旁路与原基线零差异（真 `Ve` 维度断言）；速度俯仰通道名义误差 0.03 m/s 量级、扰动下有界；位 1/4/6/7 故障注入全链保护通过（含 13 s 严格恢复）；M0-C：ESC 接口封装 + 四组配对（平坦功率面，无可宣称节能）；M1：2% 噪声/0.5 s 时延/组合扰动下 27 场景零误触发、11 组配对 regret 最大 |0.000133%|、确定性复现差 0、噪声背景故障回归 4/4 | `eta` 分配器（M2）、真实功率模型校准、扰动场景长稳定窗口、真实传感器/风场外推 |
 
-飞控平台的唯一执行基线是 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并通过独立再验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)、[`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)）。**M0-C 已于 2026-09-01 完成并通过验收（执行基线 [`interfaces/M0C_SPEED_ESC.md`](interfaces/M0C_SPEED_ESC.md)，证据 [`evidence/M0C_TRIALS_20260901.md`](evidence/M0C_TRIALS_20260901.md)）：`ratio_esc` 内核封装为 `m0c_vref_esc` 接口并替换优化器占位，快照 `air_m0c.slx`。当前下一项是 M1：扰动、噪声与时延鲁棒性**；不接入转速比 ESC，也不做 RL。
+飞控平台的唯一执行基线是 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并通过独立再验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)、[`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)）。**M0-C 已于 2026-09-01 完成并通过验收（执行基线 [`interfaces/M0C_SPEED_ESC.md`](interfaces/M0C_SPEED_ESC.md)，证据 [`evidence/M0C_TRIALS_20260901.md`](evidence/M0C_TRIALS_20260901.md)）：`ratio_esc` 内核封装为 `m0c_vref_esc` 接口并替换优化器占位，快照 `air_m0c.slx`。M1 已于同日完成并通过验收（执行基线 [`interfaces/M1_ROBUSTNESS.md`](interfaces/M1_ROBUSTNESS.md)，证据 [`evidence/M1_ROBUSTNESS_20260901.md`](evidence/M1_ROBUSTNESS_20260901.md)），全程零 `.slx` 变更。当前下一项是 M2：上下桨转速比 ESC（`eta` 分配器）**；不做 RL。
 
 **独立复验确认（2026-09-01，`00fd67e`）**：基线、四个速度场景、四类故障注入均实际复跑通过；另在保存快照上验证姿态保护和完整功率故障恢复（9.001 s 释放 fallback、11 s 回到 active/9 m/s）。详细证据与非阻塞建议见 [`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)。M0-B 阶段可放行；M0-C 开始实现成本窗口前须统一路线中状态 1/2 的歧义，排除 warmup、仅使用满足稳定条件的 active 样本。通过范围限于当前模型的速度通道及监视器/参考回退，不扩展为真实飞行安全或真实节能结论。
 
@@ -21,6 +21,7 @@
 - M0-A 历史验收（2026-08-31）：三个命名信号逐样本最大差 0，见 [`evidence/air_m0a_baseline_compare_20260831_201430.csv`](evidence/air_m0a_baseline_compare_20260831_201430.csv)；稳定快照 `models/px4_x8/air_m0a.slx`。2026-09-01 发现旧脚本将 DCM 误标为 `Ve`；本次已额外核验当前 M0-B 旁路下真正的 `[10001 3]` 惯性速度，与 `air` 差异仍为 0，详见独立复核报告。
 - M0-B 修复与再验收（2026-09-01，[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)）：flags_raw 链路修复后逐位注入位 1/4/6/7 全链"触发→frozen 0.000 s→fallback 0.500 s→（位 6）恢复"；速度验收双口径——名义（roll 正弦置 0）9 m/s 均值误差 0.032 m/s、失跟 0%，扰动 5/9 m/s 1.615/1.598 m/s（与复核复跑一致）；旁路比对修正 `Ve` 端口后三信号差 0。稳定快照 `models/px4_x8/air_m0b.slx` 已替换为修复版。
 - M0-C 验收（2026-09-01，[`evidence/M0C_TRIALS_20260901.md`](evidence/M0C_TRIALS_20260901.md)）：`ratioesc` 内核白名单封装 `m0c_vref_esc`（输入仅 t/v/P_e/E_e/attitude/flags，输出仅 v_ref），Interpreted MATLAB Fcn + 每输入 0.05 s ZOH 接入 selector 入 3；成本窗口按 status==2 且位 5 静默口径；三组名义配对（7/9/11 m/s）esc 均收敛（4/4/8 s）、无饱和无触发，复现组逐样本差 0；配对能量按相同连续 `[20,30] s` 网格重算后 `|ΔE|≤0.00013%`（平坦功率面，无可宣称节能）；安装器脏模型保护、旁路差 0 与注入回归（含 13 s 恢复）全绿。稳定快照 `models/px4_x8/air_m0c.slx`。
+- M1 鲁棒性验收（2026-09-01，[`evidence/M1_ROBUSTNESS_20260901.md`](evidence/M1_ROBUSTNESS_20260901.md)）：27 场景矩阵（名义/5 种子 2% 噪声/0.5 s 时延/基线正弦扰动/三种子组合/四类噪声背景故障注入），全程内存注入零 `.slx` 变更；R0/WN/DL 组 8 位约束标志与 frozen/fallback 全程为零（保护链无误报）；esc 收敛 4–20 s（噪声放慢收敛，如实记录）；11 组配对 regret 最大 |0.000133%| ≪ 3% 门槛（平坦面，仅证明机制未变坏）；DL 确定性差 0；F1–F4 时序与 M0-B 验收一致且 pre 窗 8 位静默。成本统计保持注入点上游真实功率日志口径。
 
 ### 算法线速度模块证据（2026-09-01 并入）
 
@@ -47,7 +48,7 @@
 
 ## 下一步优先级
 
-1. 平台线进入 M1：按固定种子注入功率/速度测量噪声、反馈时延和风扰动，验证冻结、回退、恢复及统计窗口；不得把当前平坦 `P_est` 上的结果表述为真实节能。
+1. 平台线进入 M2（上下桨转速比 ESC）：明确八电机上下桨配对与 `eta` 定义，新建受约束的 `X8 Control Allocator`，把 `ratio_esc` 代理代价换接平台 `P_est`（仍是未校准估算口径），按配对基线验收；在此之前不宣称二维优化成果。
 2. 用台架、CFD/BEMT或文献校准数据替换代理功率对象，明确参数来源、适用区间和误差。
 3. 建立给定总推力与零偏航力矩条件下的上下桨分配器，输出可行性、饱和和约束违规标志。
 4. 将 `measuredPower` 对接真实或SITL的电压、电流与时间戳；加入日志回放测试。

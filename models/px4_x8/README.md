@@ -7,6 +7,7 @@
 - `air_m0a.slx` / `air_m0b.slx` / `air_m0c.slx`：M0-A / M0-B / M0-C 各阶段**验收通过后的冻结快照**，后续阶段不再修改（`air_m0c.slx` SHA256 `f9be88df…`）。
 - `m0c_vref_esc.m` + `add_air_m0c_esc.m`：M0-C 优化器接口（包装 `modules/ratio_esc` 内核，输入仅 t/v/P_e/E_e/attitude/flags，输出仅 v_ref）与其原子安装脚本；安装器检测到 GUI 中有未保存的 `air_spare` 时会拒绝执行。`test_m0c_esc_unit.m`、`test_m0c_installer_dirty_guard.m`、`run_air_m0c_trials.m` 分别验证适配器、安装器保护和配对试验。
 - `run_air_m0b_tests.m`、`run_air_m0b_safety_injection.m`、`run_air_m0a_baseline_compare.m`：结构变更回归三件套（速度双口径验收、逐位故障注入、旁路零差异）。
+- `run_air_m1_robustness.m` + `diag_m1_probe.m`：M1 鲁棒性场景矩阵（2% 功率噪声、0.5 s 时延、风扰动与组合、噪声背景故障回归；27 场景固定种子，全程内存注入、零 `.slx` 变更）与 P_est 拓扑探针。
 - `init_model.m`：添加模型路径并加载模型。
 - `run_baseline.m`、`inspect_interfaces.m`：非破坏性基线运行与接口导出入口；生成的原始结果写到本地 `results/`，默认不提交。
 
@@ -28,10 +29,14 @@ run_air_m0c_trials
 m0cResult = result
 baselineResult = run_air_m0a_baseline_compare
 safetyResult = run_air_m0b_safety_injection
+
+% M1 鲁棒性矩阵（27 场景，约 3--4 分钟）
+run_air_m1_robustness
+m1Result = result
 ```
 
 模型依赖 MATLAB/Simulink R2022b、Stateflow，以及模型引用的 `px4lib`、`px4Sensorslib`、`shared6dof` 和 `sharedtransform` 库。若缺少这些库，先恢复本机原有的 PX4/Simulink 支持包路径。
 
 ## 边界与下一步
 
-当前模型已具备 RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至力/力矩、6DOF、姿态反馈、M0-B 速度外环/安全回退和 M0-C 速度 ESC 接口。它仍没有电池、电流、真实 RPM、校准后的真实电功率、`eta_ref` 受约束分配器或 Harness；因此不能据此宣称真实节能率或算法已经部署飞控。当前下一步为 M1 扰动、噪声与时延鲁棒性。详细观测接口见 [`M0A_OBSERVABILITY.md`](../../docs/interfaces/M0A_OBSERVABILITY.md)，阶段门槛见 [`PROJECT_EXECUTION_ROADMAP.md`](../../docs/PROJECT_EXECUTION_ROADMAP.md)。
+当前模型已具备 RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至力/力矩、6DOF、姿态反馈、M0-B 速度外环/安全回退和 M0-C 速度 ESC 接口，并已通过 M1 鲁棒性验收（噪声/时延/组合扰动 27 场景）。它仍没有电池、电流、真实 RPM、校准后的真实电功率、`eta_ref` 受约束分配器或 Harness；因此不能据此宣称真实节能率或算法已经部署飞控。当前下一步为 M2 上下桨转速比 ESC（`eta` 分配器）。详细观测接口见 [`M0A_OBSERVABILITY.md`](../../docs/interfaces/M0A_OBSERVABILITY.md)，阶段门槛见 [`PROJECT_EXECUTION_ROADMAP.md`](../../docs/PROJECT_EXECUTION_ROADMAP.md)。

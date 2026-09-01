@@ -51,6 +51,7 @@ cd models/px4_x8
 test_m0c_esc_unit
 test_m0c_installer_dirty_guard
 run_air_m0c_trials
+run_air_m1_robustness
 run_air_m0a_baseline_compare
 run_air_m0b_safety_injection
 ```
