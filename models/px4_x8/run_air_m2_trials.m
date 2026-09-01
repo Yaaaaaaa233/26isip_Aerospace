@@ -14,6 +14,18 @@ modelDir = fileparts(mfilename('fullpath'));
 wsRoot = fileparts(fileparts(modelDir));
 
 global M2_ETA_PARAMS M2_ETA_APPLIED
+% R2-F1 (round-2 reacceptance): the trials are themselves a stale-state
+% source -- snapshot the caller's globals on entry and restore them on
+% exit (success or error), so a standalone trials run leaves the session
+% as it found it. The session chain normalizes explicitly BEFORE calling.
+trialsSavedParams = [];
+trialsSavedApplied = [];
+if ~isempty(M2_ETA_PARAMS), trialsSavedParams = M2_ETA_PARAMS; end
+if ~isempty(M2_ETA_APPLIED) && isfinite(M2_ETA_APPLIED)
+    trialsSavedApplied = M2_ETA_APPLIED;
+end
+trialsCleanup = onCleanup(@() m2trials_restore_globals( ...
+    trialsSavedParams, trialsSavedApplied)); %#ok<NASGU>
 M2_ETA_PARAMS = struct('mode', 'fixed', 'center0', 1.0);
 M2_ETA_APPLIED = 1.0;
 
@@ -351,5 +363,22 @@ if c
     s = a;
 else
     s = b;
+end
+end
+
+function m2trials_restore_globals(savedParams, savedApplied)
+%M2TRIALS_RESTORE_GLOBALS R2-F1: put M2 globals back to their entry-time
+%   values (empty stays empty -- the safe identity default) after the
+%   trials, on success and on any error path.
+global M2_ETA_PARAMS M2_ETA_APPLIED
+if isempty(savedParams)
+    M2_ETA_PARAMS = [];
+else
+    M2_ETA_PARAMS = savedParams;
+end
+if isempty(savedApplied)
+    M2_ETA_APPLIED = [];
+else
+    M2_ETA_APPLIED = savedApplied;
 end
 end

@@ -42,7 +42,9 @@ if ~isempty(M2_ETA_PARAMS), savedParams = M2_ETA_PARAMS; end
 if ~isempty(M2_ETA_APPLIED) && isfinite(M2_ETA_APPLIED)
     savedApplied = M2_ETA_APPLIED;
 end
-restoreGlobals = onCleanup(@() m2test_restore_globals( ...
+% R2-F3: ONE unified cleanup restores the globals AND clears the adapter
+% persistent state on the success path AND on any error/assert path
+restoreGlobals = onCleanup(@() m2test_cleanup( ...
     savedParams, savedApplied)); %#ok<NASGU>
 
 PASS = true;
@@ -149,14 +151,12 @@ assert(r4.heldDuringInvalid, 'U4 reference moved during invalid window');
 assert(r4.converged, 'U4 no convergence after recovery');
 fprintf('  U4: held during invalid window, converged after recovery\n');
 
-% Z1 session isolation (success path; the onCleanup object covers errors):
+% Z1/R2-F3 session isolation (success path fires the onCleanup immediately;
+% the onCleanup object covers error/assert paths with the same cleanup):
 % restore the entry-time globals and wipe the adapter persistent state so
 % the platform regression chain can run in this session without a manual
 % `clear global`
 restoreGlobals = [];   % fire the onCleanup now (removes it from scope exit)
-M2_ETA_APPLIED = savedApplied;
-M2_ETA_PARAMS = savedParams;
-clear m2_eta_esc       % clears m2_eta_esc persistent state
 
 fprintf('M2 UNIT TESTS PASS (gain = %g)\n', chosen);
 
@@ -231,9 +231,11 @@ g = @(x) (1 + x^3) / (1 + x^2)^1.5;
 P = 251.0 * g(eta) / g(1.0);
 end
 
-function m2test_restore_globals(savedParams, savedApplied)
-%M2TEST_RESTORE_GLOBALS Z1: put M2 globals back to their entry-time values
-%   (empty stays empty -- the safe identity default for every consumer).
+function m2test_cleanup(savedParams, savedApplied)
+%M2TEST_CLEANUP R2-F3: put M2 globals back to their entry-time values
+%   (empty stays empty -- the safe identity default for every consumer) and
+%   clear the m2_eta_esc persistent state. Runs on success AND on any
+%   error/assert path (single onCleanup callback).
 global M2_ETA_PARAMS M2_ETA_APPLIED
 if isempty(savedParams)
     M2_ETA_PARAMS = [];
@@ -245,4 +247,5 @@ if isempty(savedApplied)
 else
     M2_ETA_APPLIED = savedApplied;
 end
+clear('m2_eta_esc');   % function-form clear: wipes persistent state
 end
