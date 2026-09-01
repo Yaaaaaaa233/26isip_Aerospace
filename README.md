@@ -10,7 +10,7 @@
 第 1 层  转速比 ESC      ratio_esc          优化 η = Ωu/Ωl（恒推力代理）        已完成验收
 第 2 层  平飞速度 ESC    speed_esc          优化 v_ref（η=1，虚拟功率曲线）      已完成验收（算法线）
 第 3 层  残差速度 RL     speed_rl_residual  v_ref = guard(v_base + Δv)，TD3      代理对象预研
-第 4 层  平台接入        models/px4_x8      慢层算法安全接入飞控快层             M0-A/M0-B/M0-C 完成，下一步 M1
+第 4 层  平台接入        models/px4_x8      慢层算法安全接入飞控快层             M0-A/B/C/M1 完成，下一步 M2
 ```
 
 - 第 1、2 层是两个单变量 ESC：优化变量不同（η 与 v），代理对象与验收口径相互独立，结论不可互相搬用。
@@ -86,7 +86,8 @@ run_checks(true)           % 额外执行1回合TD3训练冒烟
 - M0-A 已完成：速度、8 路 PWM、RPM 估算、`P_est`/`E_est`、8 位约束标志、35 维统一日志总线与固定基线模式；观测层与原基线逐样本零差异。
 - M0-B 已完成（2026-09-01 复核修复后再验收通过）：受保护速度闭环与安全回退，逐位故障注入全链保护通过。
 - M0-C 已完成并通过验收：四组 fixed/ESC 配对及一组确定性复现全绿，稳定快照为 `air_m0c.slx`；见 [接口与验收基线](docs/interfaces/M0C_SPEED_ESC.md) 和 [证据报告](docs/evidence/M0C_TRIALS_20260901.md)。
-- 当前下一项是 M1：扰动、功率/速度测量噪声、反馈时延及冻结/恢复鲁棒性。
+- M1 已完成并通过验收（2026-09-01）：噪声/时延/组合扰动 27 场景零安全误触发，11 组配对 regret 最大 |0.000133%|；见 [接口与验收基线](docs/interfaces/M1_ROBUSTNESS.md) 和 [证据报告](docs/evidence/M1_ROBUSTNESS_20260901.md)。
+- 当前下一项是 M2：上下桨转速比 ESC（`eta` 分配器与受约束 `X8 Control Allocator`）。
 
 完整路线、阶段门槛和当前文件清单见 [开发状态](docs/DEVELOPMENT_STATUS.md)、[执行路线](docs/PROJECT_EXECUTION_ROADMAP.md) 与 [模型说明](models/px4_x8/README.md)。
 

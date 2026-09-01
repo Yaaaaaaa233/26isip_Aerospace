@@ -9,7 +9,7 @@
 - `modules/ratio_esc/` — 上下桨转速比在线极值寻优（ESC）可运行模块（MATLAB/Simulink + RL 环境接口），对象是恒推力假设下的归一化代理功率模型。
 - `modules/speed_esc/` — 平飞速度在线 ESC 模块（配比固定 η=1），窗口回归梯度估计为主、同频解调为对照；虚拟功率曲线代理对象上完成 74 场景性能验收，并与原 Python 方案逐样本对齐。
 - `modules/speed_rl_residual/` — 在速度基线（固定值/ESC/解析式）之上叠加 TD3 残差修正 `v_ref = guard(v_base + Δv)` 的算法线预研模块；对象为不规则风场下的虚拟代理，含电池与圆周/直线轨迹工况。
-- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C 已完成；M0-C 已把 `ratio_esc` 内核作速度语义映射后接入，当前下一项为 M1 扰动、噪声与时延鲁棒性。
+- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C、M1 已完成；M0-C 已把 `ratio_esc` 内核作速度语义映射后接入，M1 已通过噪声/时延/组合扰动鲁棒性验收，当前下一项为 M2 上下桨转速比 ESC（`eta` 分配器与受约束 `X8 Control Allocator`）。
 
 ## 必读文档
 
