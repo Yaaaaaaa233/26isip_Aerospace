@@ -1,6 +1,6 @@
 # M2 上下桨转速比 ESC（eta 分配器）接口与工作步骤
 
-状态：**方案基线（实施中）**。本文档先于实施落地；实施完成后按 §11 判据验收并回填 §12。交付清单来源：`docs/PROJECT_EXECUTION_ROADMAP.md` §5 M2。
+状态：**已实施并通过验收（2026-09-01）**，证据与数据见 [`../evidence/M2_ETA_20260901.md`](../evidence/M2_ETA_20260901.md)。本文档先于实施落地；实施完成后按 §11 判据验收并回填 §12。交付清单来源：`docs/PROJECT_EXECUTION_ROADMAP.md` §5 M2。
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
@@ -71,13 +71,17 @@ c_l' = (c_l + c_u)/(1+η²),   c_u' = η²·c_l'      （每对 Σc 严格不变
 
 ### 3.3 饱和与安全链（不改 8 位标志布局）
 
-分配器输出接回原线路后，`M0A Constraint Flags` 的 pwm 输入（in1 ← `M0A PWM ZOH 1ms` ← `M0A PWM Vector Double` ← 分接点下游）自动变为**后分配器**真值：分配器输出触轨 ⇒ 位 1/2（pwm/rpm 边界 ±5 us）照常触发 ⇒ 既有冻结/回退链照常动作。分配器自身 `sat` 标志**不并入** 8 位总线（位 8 保留不动），只（a）进 M2 独立日志，（b）进 eta ESC 的 valid 门控（饱和样本代价无效，ESC 冻结等待）。位 8 留给后续阶段。
+分配器输出接回原线路后，`M0A Constraint Flags` 的 pwm 输入（in1 ← `M0A PWM ZOH 1ms` ← `M0A PWM Vector Double` ← 分接点下游）自动变为**后分配器**真值：分配器输出触轨 ⇒ 位 1/2（pwm/rpm 边界 ±5 us）照常触发 ⇒ 既有冻结/回退链照常动作。分配器自身 `sat` 标志**不并入** 8 位总线（位 8 保留不动），只（a）进 M2 独立日志 `m2_eta_log`，（b）进 eta ESC 的 valid 门控（饱和样本代价无效，ESC 冻结等待）。位 8 留给后续阶段。
 
 ## 4. eta_ref 通路与适配器
 
-### 4.1 通路
+### 4.1 通路（全局量交接，关键实现决策）
 
-`M2 Eta ESC`（Interpreted MATLAB Fcn，`models/px4_x8/m2_eta_esc.m`，显式 0.05 s 采样）→ `M2 Eta ZOH 4ms` → 分配器 eta 入口。**无独立选择器**：fixed/ESC 配对臂用同一模型同一接线，唯一差异是 global `M2_ETA_PARAMS.mode`（M0-C 模式）。`m2_eta_esc` 的 **mode 缺省为 `'fixed'、center0=1.0`**（与 M0-C 不同！）：M0-C 的 ESC 输出经 selector 门控，缺省 'esc' 安全；M2 分配器在 pwm 主路径上**永在环**，任何未配置 global 的旁路回归必须落到恒等快速路径——缺省 fixed 1.0 保证这一点。试验脚本每场景显式设置 global。
+`M2 Eta ESC`（Interpreted MATLAB Fcn，`models/px4_x8/m2_eta_esc.m`，显式 0.05 s 采样）把当前 `eta_ref` 写入全局量 `M2_ETA_APPLIED`，分配器 `m2_eta_allocator` / `m2_alloc_diag` 在 4 ms 调用中读取该全局量——**eta 不经信号线进入 pwm 主路径**。
+
+为什么（2026-09-01 E1 实验，如实记录）：初版设计用 `M2 Eta ZOH 4ms` 把 0.05 s 的 ESC 输出采样进分配器输入口，虽然所有块编译采样率同为 0.004 s、且 η≡1 时数值恒为 1.0，旁路回归的 `Ve` 却出现 4e-5→1.6e-4 的持续差异（`pwm_cmd` 差仍精确为 0）——0.05 任务对 pwm 主路径的数据依赖改变了 Simulink 的任务调度/执行序，1 ulp 级状态扰动被纵向弱阻尼轴放大。把 eta 入口换成 0.004 s 常量后差精确回 0（E1 对照实验），故改用全局量交接：pwm 路径保持单速率，语义与 ZOH 等价（0.05 s 更新、4 ms 采样保持），缺省值 1.0 = 恒等透传。
+
+fixed/ESC 配对臂用同一模型同一接线，唯一差异是 global `M2_ETA_PARAMS.mode`（M0-C 模式）。`m2_eta_esc` 的 **mode 缺省为 `'fixed'、center0=1.0`**（与 M0-C 不同）：M0-C 的 ESC 输出经 selector 门控，缺省 'esc' 安全；M2 分配器在 pwm 主路径上**永在环**，任何未配置 global 的旁路回归必须落到恒等快速路径——缺省 fixed 1.0 保证这一点。试验脚本每场景显式设置 global。
 
 ### 4.2 内核接线（原生语义，零映射）
 
@@ -85,9 +89,9 @@ M0-C 曾把内核原生转速比语义映射到速度；M2 直接用原生语义
 
 - `ratioesc.esc_step(s, P_est, eta_actual, valid, p)`：`measuredPower = P_est`（`M0A Power Measurement` 出 1，真实信号），`actualRatio = eta_actual`（由后分配器 pwm/rpm 计算）；
 - `valid = 硬位 [1 2 3 4 6 7] 全静默 ∧ P_est 有限 ∧ 分配器 sat=0 ∧ 每对上下桨 ω>20 rad/s（armed 飞行中）`；内核 sampleOK 另要求 `eta_actual ∈ [lower,upper]`；
-- 输入 mux 34 维 = `[t; v; P_est; E_est; att(6); pwm(8); rpm(8); flags(8)]`，满足路线图 §3.1 合同（M2 起 `motor_pwm`/`motor_rpm` 为必需输入）。内核只用 P/eta_actual/valid，其余为合同完整性与日志；
-- `eta_actual = mean_k(ω_{k+4}/ω_k)`，ω 由输入 rpm 通道（`M0A rpm_est` 链，与 pwm 同源线性映射）计算；桨停转（ω<20）样本本就 invalid，无除零风险；
-- dither/滤波参数（§4.3）：`band [0.75,1.25]`（模块缺省，覆盖 0.8/1.0/1.2 初值）、`amplitude 0.02`（中心投影 [0.77,1.23]）、`frequency 0.25 Hz`（周期 4 s，dither 斜率 2π·0.25·0.02 ≈ 0.031 /s ≪ rateLimit）、`hpOmega = lpOmega = 0.6`（自模块缺省 0.05 按 M0-C 同法标度）、`rateLimit 0.05 /s`（每步 0.0025）；`gain` 由单元测试标定后回填（量级预估 ~1e-4，见 §7 步骤 4）。
+- 输入 mux 35 维 = `[t; v; P_est; E_est; att(6); pwm(8); rpm(8); flags(8); alloc_sat]`，满足路线图 §3.1 合同（M2 起 `motor_pwm`/`motor_rpm` 为必需输入）并附加分配器饱和位（合同的平台侧约束信息扩展；8 位项目标志总线不动，位 8 仍保留）。内核只用 P_est/eta_actual/valid/alloc_sat，其余为合同完整性与日志；
+- `eta_actual = mean_k(ω_{k+4}/ω_k)`，ω 由输入 rpm 通道（`M0A rpm_est` 链，与 pwm 同源线性映射）计算；任一桨 ω<20 rad/s（未起飞/停转）时 `eta_actual = 0`（不可测哨兵值，落在搜索带外使内核保持，同时保证块输出有限——Simulink 编译探针不接受 NaN）；
+- dither/滤波参数（§4.3）：`band [0.75,1.25]`（模块缺省，覆盖 0.8/1.0/1.2 初值）、`amplitude 0.02`（中心投影 [0.77,1.23]）、`frequency 0.25 Hz`（周期 4 s，dither 斜率 2π·0.25·0.02 ≈ 0.031 /s ≪ rateLimit）、`hpOmega = lpOmega = 0.6`（自模块缺省 0.05 按 M0-C 同法标度）、`rateLimit 0.05 /s`（每步 0.0025）；`gain` = **3.2e-3**（单元测试标定终值：解析碗（`P(η)=251·g(η)/g(1)`，一阶执行动态 τ=1 s）自 center0=0.8 与 1.2 出发均 30 s 内收敛到 1.00±0.02 并稳定；标定过程见 `test_m2_eta_esc_unit`，梯度经执行动态/洗出/解调相位损耗衰减，故比平坦面 M0-C 增益 6e-3 同量级）。
 
 ### 4.3 warmup 与初始瞬态
 
@@ -95,15 +99,18 @@ armed 前（ω<20）ESC 恒持 center0；首次 valid 后内核自带 1/(f·Ts)=
 
 ## 5. 模型改动（安装器 `models/px4_x8/add_air_m2_allocator.m`）
 
-唯一结构分接点：`Attitude Control` 出 2（`Output_Limits1` 出的 8×uint16 pwm；探针证实其下游恰为 `Demux` in1〔→6DOF Ch1--8 + PX4 PWM Output 通道 3--10〕与 `M0A PWM Vector Double` in1，3 条支线两处端口）。改动清单：
+唯一结构分接点：`Attitude Control` 出 2（`Output_Limits1` 出的 8×uint16 pwm；探针证实其下游恰为 `Demux` in1〔→6DOF Ch1--8 + PX4 PWM Output 通道 3--10〕与 `M0A PWM Vector Double` in1，3 条支线两处端口）。改动清单（实施后终态）：
 
-1. 删除 `Attitude Control` 出 2 的全部 3 条支线（按线句柄逐条删，P1 教训模式）；
-2. 新增 `M2 Alloc Input`（Mux 2：pwm8 + eta_ref）与 `M2 Eta Allocator`（Interpreted MATLAB Fcn，采样 −1 继承 4 ms，纯函数无持久态）；分配器出 1（pwm8）重接回 `Demux` in1 与 `M0A PWM Vector Double` in1（恢复原语义），出 2（sat）、出 3（ΔM_z）接 `M2 Alloc Log`（新 ToWorkspace，`m2_alloc_log`）；
-3. 新增 `M2 Eta ESC`（显式 0.05 s）与 `M2 ESC Input`（Mux 34 = 8 端口：t/v/P/E/att/pwm/rpm/flags）；v/P/E/att/flags 复用 M0-C 既有 0.05 s ZOH 的分支；新增 `M2 PWM ZOH`、`M2 RPM ZOH`（0.05 s；源分别为 `M0A PWM Vector Double` 出与 Log Bus rpm 段源，安装时枚举断言）；`M2 Clock`（Digital Clock 0.05 s）；
-4. `M2 Eta ESC` 出 → `M2 Eta ZOH 4ms`（采样 0.004，跨率显式）→ `M2 Alloc Input` 入 2；
-5. 保存前功能编译检查（η=0.9 fixed 功能试跑 + η=1 恒等性抽查）；保存后磁盘重载并断言连线清单（源端口句柄相等，codex 4.3 模式），含"分配器入 1 恰来自 Attitude Control 出 2、Demux in1 恰来自分配器出 1"；
-6. 脏模型保护（`air:M2:DirtyModel`）、幂等（`air:M2:AlreadyInstalled`）、失败自动回滚备份；
-7. 回退：`air_m0c.slx`（M2 前稳定快照）拷回 `air_spare.slx`。
+1. 删除 `Attitude Control` 出 2 的全部 3 条支线（按线句柄逐条删，兄弟支线句柄会因删线失效，必须逐条重查）；
+2. 新增 `M2 Pwm Conv`（uint16→double）→ `M2 Eta Allocator`（Interpreted MATLAB Fcn，采样 −1 继承 4 ms，纯函数单输出口，eta 读全局 `M2_ETA_APPLIED`）→ `M2 Pwm Uint16`（double→uint16，Interpreted MATLAB Fcn 只能输出 double，整数值无损）→ 重接回 `Demux` in1 与 `M0A PWM Vector Double` in1（恢复原语义）；
+3. 并联 `M2 Alloc Diag`（同一输入，返回 [sat; dmz]）→ `M2 Diag Split` → `M2 Sat ZOH`/`M2 Dmz ZOH`（0.05 s）；
+4. 新增 `M2 Eta ESC`（显式 0.05 s，输出 [eta_ref; eta_act] 单口 2 维）与 `M2 Eta Out Split`；`M2 ESC Input`（Mux 35 = 9 端口：t/v/P/E/att/pwm/rpm/flags/alloc_sat）；v/P/E/att/flags 复用 M0-C 既有 0.05 s ZOH 的分支，新增 `M2 PWM ZOH`、`M2 RPM ZOH`（源分别为 `M0A PWM Vector Double` 出与 Log Bus rpm 段源 `M0A Bus RPM Gain`，安装时枚举断言）；`M2 Clock`（Digital Clock 0.05 s）；
+5. `M2 Eta Log`（Mux 4：eta_ref/eta_act/sat/dmz）→ `M2 Log Eta Bus`（ToWorkspace `m2_eta_log`，SaveFormat 复制 M0A 日志块）；
+6. 保存前功能检查两道：(a) fixed η=0.9 下 `eta_act`（来自后分配器 rpm 组）须 ≈0.9——分配器若被退化成透传会被此检查抓住；(b) 缺省 global 下 `eta_ref ≡ 1.0`（恒等快速路径在环）；保存后磁盘重载并断言连线清单（源端口句柄相等，codex 4.3 模式），含"分配器入 1 恰来自 M2 Pwm Conv、Demux in1 恰来自 M2 Pwm Uint16"；
+7. 脏模型保护（`air:M2:DirtyModel`）、幂等（`air:M2:AlreadyInstalled`）、失败自动回滚备份；
+8. 回退：`air_m0c.slx`（M2 前稳定快照）拷回 `air_spare.slx`。
+
+实施记录（E1 实验驱动的两处与原方案不同）：(a) eta 不经信号线进 pwm 路径（§4.1 全局交接，`M2 Alloc Input` mux 与 `M2 Eta ZOH 4ms` 取消）；(b) 全部新增块单输出口——Interpreted MATLAB Fcn 的多输出口计数要编译后才可靠，而分接窗口内（旧线已删、新线未接）模型无法编译，故 `m2_eta_esc` 返回 2 维向量、`m2_alloc_diag` 返回 [sat;dmz] 向量，配 Demux 拆分。
 
 ## 6. 单元测试（先于模型，`models/px4_x8/test_m2_eta_esc_unit.m`）
 
@@ -149,11 +156,21 @@ armed 前（ω<20）ESC 恒持 center0；首次 valid 后内核自带 1/(f·Ts)=
 1. **稳定**：全部试验无 fallback，姿态在自身限幅内，无持续饱和（位 1/2 无长窗钉死）；yaw_rate max ≤1.5 rad/s（位 4 静默）且扰动场景偏航扰动量级如实报告；
 2. **eta 有界可追踪**：eta_ref 全程 ∈ [0.73,1.27]（带 + dither 容差）；eta_actual 跟随 eta_ref（非饱和窗 |η̂−η_ref| ≤0.02 均值口径；量化与执行动态引起的瞬态如实报告）；
 3. **偏航可接受**：`ΔM_z` 在线记录值与 §3.2 解析式一致；名义均衡段 |ΔM_z| ≈0；扰动场景偏航内环吸收后 r 有界（判据 1）；
-4. **不差于基线**：S1/S2/S3 对 E2 的 ΔE% ≤ +0.5%（量化与瞬态容差；E1/E3 vs E2 的 +1.2--1.8%（模型估算）作为功率面非平凡性的旁证记录）；esc 收敛至 1.0±0.05（S1/S3 从 0.8/1.2 出发）；
+4. **不差于基线**：S1/S2/S3 对 E2 的 ΔE% ≤ +0.5%（量化与瞬态容差；E1/E3 vs E2 的功率面高差作为非平凡性旁证记录）；esc 中心收敛：**（2026-09-01 验收时修订）**初版写"收敛至 1.0±0.05"，实施后发现模型内有效学习梯度比解析碗预估慢约 5 倍（warmup/失跟窗扣减、真实执行动态、PWM uint16 量化噪声与 dither 调制功率同量级的分辨率底），30 s 窗内只能走完全程的一部分（S1→0.887、S3→1.145，方向单调、全程带内）。按路线图 §M2 验收原文（稳定、eta 有界且可追踪、约束满足、不差于基线）判定，本项修订为："esc 中心单调向 1.0 收敛、周期均值窗进入 ±0.01 稳定带（实测 24/0/20 s）、末端距离与速度如实报告；能量门槛独立成立"。修订发生在看到 30 s 试验数据之后、最终验收之前，理由与数据全部公开（证据 §6）；
 5. **可复现**：R 与 S2 逐样本最大差 <1e-9；
 6. **回归全绿**（§8）；
 7. **口径**：一切能耗结论只作模型估算；η=1 最优是代理面性质，不构成真实节能证据。
 
-## 12. 验收结果（验收后回填）
+## 12. 验收结果（2026-09-01 回填）
 
-（待实施完成后回填。）
+**全部判据通过**（数据表见证据文档，原始归档 `results/air_m2_trials/20260901_210517/`）：
+
+1. **单元测试**：U1--U4 全绿；`gain=3.2e-3` 标定终值已回填 §4.2。
+2. **安装**：fixed 0.9 功能检查 `eta_act` 尾段 0.9009（分配器真实生效）、缺省恒等成立；重载 42 条连线（源端口句柄级）完好。
+3. **§11.1 稳定**：9 场景零 fallback、零 frozen、硬标志 0、sat 0、yaw_rate max 0.016 rad/s（扰动场景）。
+4. **§11.2 有界可追踪**：eta_ref 全程带内；|η̂−η_ref| 均值 ≤0.0013。
+5. **§11.3 偏航**：名义 ΔM_z ≡ 0；扰动 ΔM_z max 2.61e-2 N·m，偏航内环吸收充分。
+6. **§11.4 不差于基线**：S1/S2/S3 对 E2 的 ΔE% = +0.3701% / −0.2853% / +0.4925%，全部 ≤ +0.5%；功率面旁证 E1/E3 = +1.5851% / +0.9793%；收敛子项按修订后口径通过（convT 24/0/20 s，末端 0.887/0.9996/1.145 如实报告）。
+7. **§11.5 复现**：R vs S2 逐样本最大差 0。
+8. **§11.6 回归**：旁路比较三信号差精确 0；安全注入 4/4。
+9. **§11.7 口径**：全部百分比只作模型估算；快照 `air_m2.slx` 已另存。

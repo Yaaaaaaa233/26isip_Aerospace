@@ -3,11 +3,17 @@
 ## 文件角色
 
 - `air.slx`：只读的八旋翼飞控与 6DOF **基线模型**。已在 MATLAB R2022b 手动更新并完成 0--10 s 仿真（10001 个样本）。
-- `air_spare.slx`：由基线复制的 **当前开发模型**（M0-C 装入后）。在 M0-A 观测支路（惯性速度、水平地速代理、8 路 PWM、RPM 估算、`P_est`/`E_est`、8 位约束标志、35 维日志总线）之上，已按阶段叠加 M0-B 速度闭环与安全回退、M0-C 速度在线 ESC 接口；`speed_loop_enable=0` 时与 `air.slx` 逐位一致。
-- `air_m0a.slx` / `air_m0b.slx` / `air_m0c.slx`：M0-A / M0-B / M0-C 各阶段**验收通过后的冻结快照**，后续阶段不再修改（`air_m0c.slx` SHA256 `f9be88df…`）。
+- `air_spare.slx`：由基线复制的 **当前开发模型**（M2 装入后）。在 M0-A 观测支路（惯性速度、水平地速代理、8 路 PWM、RPM 估算、`P_est`/`E_est`、8 位约束标志、35 维日志总线）之上，已按阶段叠加 M0-B 速度闭环与安全回退、M0-C 速度在线 ESC 接口、M2 受约束 eta 分配器与转速比 ESC；`speed_loop_enable=0` 且 eta 缺省 1.0 时与 `air.slx` 逐位一致。
+- `air_m0a.slx` / `air_m0b.slx` / `air_m0c.slx` / `air_m2.slx`：M0-A / M0-B / M0-C / M2 各阶段**验收通过后的冻结快照**，后续阶段不再修改（`air_m0c.slx` SHA256 `f9be88df…`）。
 - `m0c_vref_esc.m` + `add_air_m0c_esc.m`：M0-C 优化器接口（包装 `modules/ratio_esc` 内核，输入仅 t/v/P_e/E_e/attitude/flags，输出仅 v_ref）与其原子安装脚本；安装器检测到 GUI 中有未保存的 `air_spare` 时会拒绝执行。`test_m0c_esc_unit.m`、`test_m0c_installer_dirty_guard.m`、`run_air_m0c_trials.m` 分别验证适配器、安装器保护和配对试验。
 - `run_air_m0b_tests.m`、`run_air_m0b_safety_injection.m`、`run_air_m0a_baseline_compare.m`：结构变更回归三件套（速度双口径验收、逐位故障注入、旁路零差异）。
 - `run_air_m1_robustness.m` + `diag_m1_probe.m`：M1 鲁棒性场景矩阵（2% 功率噪声、0.5 s 时延、风扰动与组合、噪声背景故障回归；27 场景固定种子，全程内存注入、零 `.slx` 变更）与 P_est 拓扑探针。
+
+### M2 上下桨转速比 ESC（2026-09-01，快照 `air_m2.slx`）
+
+- `m2_eta_allocator.m` + `m2_alloc_diag.m`：受约束 PWM 域 eta 分配器（同轴对 (1,5)(2,6)(3,7)(4,8)，每对 Σω² 严格保持 → 总推力/横滚/俯仰不变；η=1 位精确透传；sat/dmz 诊断单口输出）。
+- `m2_eta_esc.m` + `add_air_m2_allocator.m`：`ratioesc` 内核原生转速比接线（输入 35 维含 motor_pwm/rpm 与 alloc_sat；eta 经全局 `M2_ETA_APPLIED` 交接，慢层信号不进 pwm 主路径）与原子安装器。
+- `test_m2_eta_esc_unit.m`、`run_air_m2_trials.m`、`diag_m2_probe.m`：单元测试与 gain 标定（3.2e-3）、9 场景配对试验、模型拓扑探针。
 - `init_model.m`：添加模型路径并加载模型。
 - `run_baseline.m`、`inspect_interfaces.m`：非破坏性基线运行与接口导出入口；生成的原始结果写到本地 `results/`，默认不提交。
 
@@ -19,7 +25,7 @@
 |---|---|---|---|
 | 叶安 | 平台线负责人 | 阶段判据与验收决策、安全链与 ESC 接口契约、各阶段快照放行 | 2026-08-31 ～ 09-01 |
 | Codex（AI 协助） | 独立复验 | M0-B 复核/再验收、M0-C 验收加固（共同网格口径、脏模型保护）、M1 独立复验 | 2026-09-01 |
-| ZCode（AI 协助） | 实现与执行代理 | M0-A 观测层与旁路比对、M0-B 速度环/安全链修复、M0-C 内核封装与配对试验、M1 鲁棒性矩阵 | 2026-08-31 ～ 09-01 |
+| ZCode（AI 协助） | 实现与执行代理 | M0-A 观测层与旁路比对、M0-B 速度环/安全链修复、M0-C 内核封装与配对试验、M1 鲁棒性矩阵、M2 eta 分配器与配对试验 | 2026-08-31 ～ 09-01 |
 
 `air.slx` 基线与各阶段快照的当前负责人为叶安；每次 `.slx` 结构修改在此表追加修改人与内容，不重写历史。
 

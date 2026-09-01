@@ -12,7 +12,7 @@
 - `modules/speed_shift_search/` — 速度优化任务1研究模块：平移曲线上可瞬时跳变速度的黑箱直搜（黄金分割/Brent 主干 + 斜率迟滞监测重夹逼 tracker），含搜索能耗开关与六算法横评验收。
 - `modules/speed_rugged_search/` — 速度优化任务2研究模块：崎岖多峰曲线上的滤波全局寻优（扫描 → 中心对称 SG 滤波选谷 → pattern search → 对称 stencil 抛物线顶点无偏定位），"无偏移"以跨种子系统偏置门槛量化验收。
 - `harness/` — 统一指标层（已实现，替代原预留占位的指标部分）：三模块架构（environment 风 / aircraft 双表盘黑箱 / console 算法）+ 1 小时任务窗 MOP/MOE（MOE_energy=Emin/E_actual 及 7 项 MOP）；对象与搜索器复用 `modules/speed_rugged_search` 的 `+task2` 包。
-- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C、M1 已完成；M0-C 已把 `ratio_esc` 内核作速度语义映射后接入，M1 已通过噪声/时延/组合扰动鲁棒性验收，当前下一项为 M2 上下桨转速比 ESC（`eta` 分配器与受约束 `X8 Control Allocator`）。
+- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C、M1、M2 已完成；M0-C 已把 `ratio_esc` 内核作速度语义映射后接入，M1 已通过噪声/时延/组合扰动鲁棒性验收，M2 已接入受约束 eta 分配器与原生转速比 ESC（快照 `air_m2.slx`），当前下一项为 M3 速度与转速比交替协同优化。
 
 ## 必读文档
 
@@ -68,6 +68,8 @@ test_m0c_esc_unit
 test_m0c_installer_dirty_guard
 run_air_m0c_trials
 run_air_m1_robustness
+test_m2_eta_esc_unit
+run_air_m2_trials
 run_air_m0a_baseline_compare
 run_air_m0b_safety_injection
 ```
