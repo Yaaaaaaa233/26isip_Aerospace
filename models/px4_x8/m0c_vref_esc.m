@@ -72,9 +72,19 @@ function ensureKernelPath()
 %   addpath state: the Git module lives at <workspace>/26isip_Aerospace/
 %   modules/ratio_esc, located relative to this file.
 if isempty(which('ratioesc.esc_step'))
+    % resolve from this file's location; works both inside the repository
+    % (<repo>/models/px4_x8) and in the frozen external dev directory
+    % (<ws>/models/px4_x8)
     adapterDir = fileparts(mfilename('fullpath'));
     wsRoot = fileparts(fileparts(adapterDir));
-    addpath(fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc'));
+    cands = {fullfile(wsRoot, 'modules', 'ratio_esc'), ...
+        fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc')};
+    for k = 1:numel(cands)
+        addpath(cands{k});
+        if ~isempty(which('ratioesc.esc_step'))
+            return
+        end
+    end
 end
 assert(~isempty(which('ratioesc.esc_step')), 'm0c:KernelMissing', ...
     'ratio_esc module not found next to %s', mfilename('fullpath'));

@@ -20,7 +20,8 @@
 model = 'air_spare';
 modelDir = fileparts(mfilename('fullpath'));
 wsRoot = fileparts(fileparts(modelDir));
-addpath(fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc'));
+addpath(fullfile(wsRoot, 'modules', 'ratio_esc'));            % repo layout
+addpath(fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc')); % frozen dev layout
 
 stamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
 cfgDir = fullfile(wsRoot, 'results', 'm0c_config', stamp);
