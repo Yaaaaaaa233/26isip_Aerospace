@@ -11,6 +11,8 @@
 
 飞控平台的唯一执行基线是 [`interfaces/PROJECT_EXECUTION_ROADMAP.md`](interfaces/PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并重新验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)）。**当前下一项是 M0-C：把单变量速度 ESC 在 [`interfaces/M0B_SPEED_LOOP.md`](interfaces/M0B_SPEED_LOOP.md) 固定的接口内接入（替换 `M0B v Ref Optimizer` 占位）**；不接入转速比 ESC，也不做 RL。
 
+**独立复验确认（2026-09-01，`00fd67e`）**：基线、四个速度场景、四类故障注入均实际复跑通过；另在保存快照上验证姿态保护和完整功率故障恢复（9.001 s 释放 fallback、11 s 回到 active/9 m/s）。详细证据与非阻塞建议见 [`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)。M0-B 阶段可放行；M0-C 开始实现成本窗口前须统一路线中状态 1/2 的歧义，排除 warmup、仅使用满足稳定条件的 active 样本。通过范围限于当前模型的速度通道及监视器/参考回退，不扩展为真实飞行安全或真实节能结论。
+
 ### 已验证的模型平台证据
 
 - `air.slx`：MATLAB R2022b 手动更新、仿真 0--10 s 成功，10001 个样本；摘要见 [`evidence/air_baseline_20260831_161623_summary.csv`](evidence/air_baseline_20260831_161623_summary.csv)。
