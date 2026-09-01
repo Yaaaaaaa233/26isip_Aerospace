@@ -1,5 +1,11 @@
 # 开发状态与下一步
 
+## 架构与问题定义（2026-09-01）
+
+新增 [`architecture/01_problem_definition.md`](architecture/01_problem_definition.md) 至 [`architecture/05_verification_traceability.md`](architecture/05_verification_traceability.md)，形成 Wind-Plane-Control-Evaluation 的建议逻辑架构、运行场景、接口字典及需求-MoE/MoP-证据追溯。建议将“固定高度圆周盘旋等待下的在线平均功率最小化”作为待指导教师确认的最终主任务，直线无风速度ESC保留为开发基线；详见待确认的 [`decisions/ADR-001-objective-selection.md`](decisions/ADR-001-objective-selection.md)。
+
+[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 已记录当前决策：正式RL开发暂缓，现有 `speed_rl_residual` 仅保留为接口预研和候选插件；在任务口径、功率对象、统一接口、Harness、强基线及未见场景门槛成立前，不扩大训练或作“RL优于基线”结论。该架构文档不改变平台唯一执行路线的当前顺序，下一项仍为M2。
+
 ## 总览：算法线三模块并行，平台线已完成 M0-C 接口集成与 M1 鲁棒性验收
 
 | 工作线 | 当前状态 | 可作出的结论 | 不能作出的结论 |
