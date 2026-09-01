@@ -100,3 +100,4 @@ s = speedesc.esc_reset(10,p);
 2. 算法、对象和展示改动分成独立提交，提交信息使用动词开头，例如 `Add constrained power-map adapter`。
 3. 修改算法或对象后运行 `run_acceptance`；修改UI、结果图或导出后运行 `qa_ui`。
 4. 只提交源代码、模型、测试、文档和经过筛选的证据。默认仿真输出可在本地重建，不进入版本库。
+5. 新文件和重要修改按 [`AUTHORSHIP.md`](AUTHORSHIP.md) 补充署名与贡献说明；保留已有作者记录，AI协助单独注明。
