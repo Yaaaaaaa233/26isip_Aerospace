@@ -13,7 +13,7 @@
 - `modules/speed_rugged_search/` — 速度优化任务2研究模块：崎岖多峰曲线上的滤波全局寻优（扫描 → 中心对称 SG 滤波选谷 → pattern search → 对称 stencil 抛物线顶点无偏定位），"无偏移"以跨种子系统偏置门槛量化验收。
 - `harness/` — 统一指标层（已实现，替代原预留占位的指标部分）：三模块架构（environment 风 / aircraft 双表盘黑箱 / console 算法）+ 1 小时任务窗 MOP/MOE（MOE_energy=Emin/E_actual 及 7 项 MOP）；对象与搜索器复用 `modules/speed_rugged_search` 的 `+task2` 包。
 - `modules/unified_search/` — 统一速度寻优程序（任务1平移 × 任务2崎岖 × 能耗感知 ea_multistart），代理对象上的 MOP/MOE 横比；验收入口 `run_unified_acceptance`（单元/性能门槛未全过时硬失败）。
-- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C、M1 已完成；M2 已接入受约束 eta 分配器与原生转速比 ESC（快照 `air_m2.slx`），修订数值协议和正常完整链通过，链尾硬断言已关闭，但第三轮真实错误注入证明脚本异常退出不恢复 global；先关闭 `M2_REACCEPT_ROUND3_CODEX_20260902.md` 的 R3-F1/F2，再做 M3 `.slx` 结构集成。
+- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C、M1、M2 已完成（M2 三轮复验问题 2026-09-02 关闭，第四轮错误注入矩阵 10/10 PASS）；当前下一项为 M3 速度与转速比交替协同优化（方案文档先行）。
 
 ## 必读文档
 
@@ -81,6 +81,14 @@ run_air_m0b_safety_injection
 2. **对象升级位置**：物理对象升级只替换 `power_map`、`plant_advance`、`measure`（约束量在对象侧输出 `constraint_flags`），不得修改 ESC 的因果接口签名。
 3. **结论边界**：仓库内验收结果只支持 `docs/DEVELOPMENT_STATUS.md` "当前可引用的结果边界"所列表述；不得在任何文档或对外输出中宣称真实节能百分比、偏航安全、RL 优于 ESC 或已部署飞控。
 4. **版本控制**：不提交 `slprj/`、`*.slxc`、临时动画帧、重复日志、本地自动保存文件（见 `.gitignore`）。
+
+## 验收基础设施规则
+
+改动验收入口、验收链或全局量状态管理时，必须遵循 [`docs/ACCEPTANCE_AUTOMATION_RULES.md`](docs/ACCEPTANCE_AUTOMATION_RULES.md)。三条硬要求：
+
+1. 验收入口必须是**函数**并返回机器可查的 `result`；链内每一段必须硬断言，禁止只打印 FAIL。
+2. 写全局量的入口必须"快照 → 规范化 → onCleanup 恢复（成功与错误路径）"；新增全局量先登记 `ACCEPTANCE_AUTOMATION_RULES.md` §7 注册表。
+3. 清理/恢复/确定性等运行时声明只能以**真实注入失败的测试**为证；验收基础设施修复必须跑全"入口状态 × 退出路径"覆盖矩阵，数值结论同时报告裕量与抖动。
 
 ## 提交约定
 

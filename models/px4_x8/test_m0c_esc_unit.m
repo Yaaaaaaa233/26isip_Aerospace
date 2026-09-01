@@ -21,6 +21,13 @@ assert(isfolder(ratioRoot), 'm0c:KernelMissing', ...
 addpath(ratioRoot);
 clear m0c_vref_esc;
 global M0C_ESC_PARAMS
+% global-state hygiene (ACCEPTANCE_AUTOMATION_RULES.md rule 3.1):
+% snapshot the caller's M0C_ESC_PARAMS and restore it on exit. Legacy
+% script entry: the restore is reliable on the success path; the error
+% path is a registered known limitation (rule 3.4).
+m0cSavedParams = [];
+if ~isempty(M0C_ESC_PARAMS), m0cSavedParams = M0C_ESC_PARAMS; end
+m0cParamsCleanup = onCleanup(@() m0c_restore_params(m0cSavedParams)); %#ok<NASGU>
 pass = true;
 
 GAIN = 6e-3;  % calibrated by this test; see doc section 2.4
@@ -67,6 +74,8 @@ else
     error('m0c:UnitTestFail', 'M0-C ESC UNIT FAIL - see log above');
 end
 
+m0cParamsCleanup = [];   % explicit fire: script workspaces do not destroy onCleanup at end
+
 function P = bowlP(v)
 P = 251 + 40 * (v - 8.0) ^ 2;
 end
@@ -83,5 +92,16 @@ for k = 1:n
     vr(k) = m0c_vref_esc([tt(k), v, P, 0, zeros(1, 6), flagFcn(k)]);
     vv(k) = v;
     v = r * v + (1 - r) * vr(k);
+end
+end
+
+function m0c_restore_params(savedParams)
+%M0C_RESTORE_PARAMS ACCEPTANCE_AUTOMATION_RULES.md rule 3: put
+%   M0C_ESC_PARAMS back to its entry-time value (empty stays empty).
+global M0C_ESC_PARAMS
+if isempty(savedParams)
+    M0C_ESC_PARAMS = [];
+else
+    M0C_ESC_PARAMS = savedParams;
 end
 end

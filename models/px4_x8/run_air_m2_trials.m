@@ -1,13 +1,26 @@
 %RUN_AIR_M2_TRIALS M2 paired eta trials (plan: M2_ETA_ALLOCATOR.md section 7).
 %   Fixed-eta baselines E1/E2/E3 (0.8/1.0/1.2; E2 = passthrough identity),
 %   esc runs S1/S2/S3 started from each center, a disturbed-scenario pair,
-%   and one reproducibility repeat. Every run: 30 s, speed loop + optimizer
-%   enabled, same model and wiring, only the global M2_ETA_PARAMS differs.
+%   and one reproducibility repeat. Runs: 120 s for the nominal pairs
+%   (settled [90,120] s gate window, [20,30] s continuity reported),
+%   30 s for the disturbed pair. Speed loop + optimizer enabled, same
+%   model and wiring, only the global M2_ETA_PARAMS differs.
 %   Metrics per run: eta tracking, allocator sat/dmz, yaw rate, flags,
-%   PWM spread, convergence (period-mean of eta_ref); pair delta-energy on
-%   the same continuous [20,30] s grid (932c55d hardened convention);
+%   PWM spread, convergence (period-mean of eta_ref); pair delta-energy
+%   over the same continuous time grid (932c55d hardened convention);
 %   fixed-vs-fixed power deltas E1/E3 vs E2 as the non-trivial P(eta)
 %   surface evidence (model-estimated only).
+%
+%   FUNCTION ENTRY (ACCEPTANCE_AUTOMATION_RULES.md rule 2.1): returns the
+%   machine-checkable result; failures never rely on printed output.
+%   injectError = 'trials' short-circuits with result.pass = false after
+%   the entry/exit state contract is set up (controlled-failure hook for
+%   the round-4 closure verification; default '' = normal behaviour).
+
+function result = run_air_m2_trials(injectError)
+if nargin < 1
+    injectError = '';
+end
 
 model = 'air_spare';
 modelDir = fileparts(mfilename('fullpath'));
@@ -16,8 +29,8 @@ wsRoot = fileparts(fileparts(modelDir));
 global M2_ETA_PARAMS M2_ETA_APPLIED
 % R2-F1 (round-2 reacceptance): the trials are themselves a stale-state
 % source -- snapshot the caller's globals on entry and restore them on
-% exit (success or error), so a standalone trials run leaves the session
-% as it found it. The session chain normalizes explicitly BEFORE calling.
+% exit (success or error; reliable here because this is a function frame).
+% The session chain normalizes explicitly BEFORE calling.
 trialsSavedParams = [];
 trialsSavedApplied = [];
 if ~isempty(M2_ETA_PARAMS), trialsSavedParams = M2_ETA_PARAMS; end
@@ -28,6 +41,16 @@ trialsCleanup = onCleanup(@() m2trials_restore_globals( ...
     trialsSavedParams, trialsSavedApplied)); %#ok<NASGU>
 M2_ETA_PARAMS = struct('mode', 'fixed', 'center0', 1.0);
 M2_ETA_APPLIED = 1.0;
+
+% controlled-failure hook (round-4 closure condition 3): short-circuit
+% AFTER the entry/exit state contract so the restore is exercised without
+% running any simulation
+if strcmp(injectError, 'trials')
+    result = struct('pass', false, 'reproducible', false, ...
+        'archiveDir', "injected");
+    fprintf('run_air_m2_trials: injected controlled failure (pass=false)\n');
+    return;
+end
 
 % Protocol (reacceptance F1/Z4, pre-registered 2026-09-01 BEFORE the
 % verification reruns): the nominal pair runs extend 30 -> 120 s and the
@@ -243,6 +266,7 @@ else
     fprintf('M2 TRIALS FAIL (see summary above)\n');
 end
 fprintf('Archive: %s\n', outDir);
+end
 
 % ---------------------------------------------------------------------------
 function [dE, Pf, Pe2] = pairDeltaE(Sf, Se, commonWin)

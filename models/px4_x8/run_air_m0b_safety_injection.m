@@ -41,6 +41,14 @@ scenarios = {'pwm_edge', 'yaw_rate', 'nan_power', 'power_rec'};
 rows = {};
 pass = true;
 
+% global-state hygiene (ACCEPTANCE_AUTOMATION_RULES.md rule 3.1): snapshot
+% the caller's M0C_ESC_PARAMS before applyCommon writes it, restore on
+% exit -- reliable here because this is a function frame.
+global M0C_ESC_PARAMS
+m0bSavedParams = [];
+if ~isempty(M0C_ESC_PARAMS), m0bSavedParams = M0C_ESC_PARAMS; end
+m0bParamsCleanup = onCleanup(@() m0b_restore_params(m0bSavedParams)); %#ok<NASGU>
+
 outDir = fullfile(wsRoot, 'results', 'air_m0b_safety_injection', ...
     char(datetime('now', 'Format', 'yyyyMMdd_HHmmss')));
 if ~exist(outDir, 'dir')
@@ -287,4 +295,15 @@ delete_line(model, realSrc, dst);
 add_line(model, get_param(src, 'PortHandles').Outport(1), dst, ...
     'autorouting', 'on');
 set_param(model, 'SimulationCommand', 'update');
+end
+
+function m0b_restore_params(savedParams)
+%M0B_RESTORE_PARAMS ACCEPTANCE_AUTOMATION_RULES.md rule 3: put
+%   M0C_ESC_PARAMS back to its entry-time value (empty stays empty).
+global M0C_ESC_PARAMS
+if isempty(savedParams)
+    M0C_ESC_PARAMS = [];
+else
+    M0C_ESC_PARAMS = savedParams;
+end
 end

@@ -30,6 +30,13 @@ modelDir = fileparts(mfilename('fullpath'));
 wsRoot = fileparts(fileparts(modelDir));
 
 global M0C_ESC_PARAMS
+% global-state hygiene (ACCEPTANCE_AUTOMATION_RULES.md rule 3.1):
+% snapshot the caller's M0C_ESC_PARAMS and restore it on exit. Legacy
+% script entry: the restore is reliable on the success path; the error
+% path is a registered known limitation (rule 3.4).
+m0cSavedParams = [];
+if ~isempty(M0C_ESC_PARAMS), m0cSavedParams = M0C_ESC_PARAMS; end
+m0cParamsCleanup = onCleanup(@() m0c_restore_params(m0cSavedParams)); %#ok<NASGU>
 % compile-probe safe: the global exists before the first update/sim
 M0C_ESC_PARAMS = struct('mode', 'esc', 'center0', 9.0);
 
@@ -278,6 +285,8 @@ end
 fprintf('Archive: %s\n', outDir);
 
 % ---------------------------------------------------------------------------
+m0cParamsCleanup = [];   % explicit fire: script workspaces do not destroy onCleanup at end
+
 function spliceDegradation(model, wantNoise, wantDelay, seed)
 %SPLICEDEGRADATION wire the measurement-degradation chain between
 %   'M0A Power Measurement' out 1 and its two consumers. The original
@@ -596,4 +605,15 @@ function printFault(s)
         'fallback %.3f s  fbRef %d  recovery %d\n'], s.preQuiet, ...
         s.preActive, s.t_fire_s, s.t_frozen_s, s.t_fallback_s, ...
         s.fallback_ref_ok, s.recovery_ok);
+end
+
+function m0c_restore_params(savedParams)
+%M0C_RESTORE_PARAMS ACCEPTANCE_AUTOMATION_RULES.md rule 3: put
+%   M0C_ESC_PARAMS back to its entry-time value (empty stays empty).
+global M0C_ESC_PARAMS
+if isempty(savedParams)
+    M0C_ESC_PARAMS = [];
+else
+    M0C_ESC_PARAMS = savedParams;
+end
 end

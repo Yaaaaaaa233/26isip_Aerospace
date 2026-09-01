@@ -11,7 +11,7 @@
 
 ### M2 上下桨转速比 ESC（2026-09-01，快照 `air_m2.slx`）
 
-状态：修订后的 120 s 数值协议与脏入口背靠背完整链通过，九场景硬断言已关闭；第三轮真实错误注入证明脚本异常退出不恢复调用者 global，工程自动化仍为部分通过。当前证据见 [`M2_REACCEPT_ROUND3_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md)。
+状态：三轮复验问题全部关闭（2026-09-02）。120 s 数值协议、脏入口背靠背完整链、九场景硬断言与脚本异常退出恢复均验证通过（三入口函数化 + 错误注入矩阵 10/10 PASS）。当前证据见 [`M2_REACCEPT_ROUND3_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND3_FIX_20260902.md)。
 
 - `m2_eta_allocator.m` + `m2_alloc_diag.m`：受约束 PWM 域 eta 分配器（同轴对 (1,5)(2,6)(3,7)(4,8)，每对 Σω² 严格保持 → 总推力/横滚/俯仰不变；η=1 位精确透传；sat/dmz 诊断单口输出）。
 - `m2_eta_esc.m` + `add_air_m2_allocator.m`：`ratioesc` 内核原生转速比接线（输入 35 维含 motor_pwm/rpm 与 alloc_sat；eta 经全局 `M2_ETA_APPLIED` 交接，慢层信号不进 pwm 主路径）与原子安装器。

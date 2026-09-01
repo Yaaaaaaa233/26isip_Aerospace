@@ -14,13 +14,20 @@
 %   starts; the chosen value is printed for backfill into
 %   docs/interfaces/M2_ETA_ALLOCATOR.md section 4.2.
 %
-%   SESSION ISOLATION (reacceptance F2/Z1): the test snapshots
-%   M2_ETA_PARAMS / M2_ETA_APPLIED on entry and restores them on exit
-%   (onCleanup, also on error), and clears the m2_eta_esc persistent
-%   state at the end, so running the platform regression chain in the
-%   same MATLAB session right after this test needs no manual
-%   `clear global`. Never leaves the allocator global at a non-identity
-%   value.
+%   SESSION ISOLATION (reacceptance F2/Z1, R3-F2): the test snapshots
+%   M2_ETA_PARAMS / M2_ETA_APPLIED on entry and restores them on exit --
+%   success AND error paths -- and clears the m2_eta_esc persistent state,
+%   so running the platform regression chain in the same MATLAB session
+%   right after this test needs no manual `clear global`. FUNCTION ENTRY
+%   (ACCEPTANCE_AUTOMATION_RULES.md rules 2.1/4.2): the function frame
+%   makes the onCleanup restore reliable on the error path, and
+%   injectError = 'unit' triggers one controlled internal assertion
+%   failure (after the globals were touched) to exercise that path.
+
+function ok = test_m2_eta_esc_unit(injectError)
+if nargin < 1
+    injectError = '';
+end
 
 adapterDir = fileparts(mfilename('fullpath'));
 addpath(adapterDir);
@@ -42,8 +49,9 @@ if ~isempty(M2_ETA_PARAMS), savedParams = M2_ETA_PARAMS; end
 if ~isempty(M2_ETA_APPLIED) && isfinite(M2_ETA_APPLIED)
     savedApplied = M2_ETA_APPLIED;
 end
-% R2-F3: ONE unified cleanup restores the globals AND clears the adapter
-% persistent state on the success path AND on any error/assert path
+% R2-F3/R3-F2: ONE unified cleanup restores the globals AND clears the
+% adapter persistent state on the success path AND on any error/assert
+% path (function frame: the onCleanup runs on error unwinding too)
 restoreGlobals = onCleanup(@() m2test_cleanup( ...
     savedParams, savedApplied)); %#ok<NASGU>
 
@@ -53,6 +61,12 @@ pwmIn0 = [1500; 1490; 1510; 1495; 1505; 1480; 1520; 1490];
 M2_ETA_APPLIED = 1.0;
 pwm1 = m2_eta_allocator(pwmIn0);
 sd1 = m2_alloc_diag(pwmIn0);
+% controlled-failure hook (round-4 closure condition 1): fires after the
+% globals were touched so the error-path restore is genuinely exercised
+if strcmp(injectError, 'unit')
+    assert(false, 'air:M2Test:InjectedFailure', ...
+        'controlled failure injection after globals were touched');
+end
 assert(isequal(pwm1, double([1500; 1490; 1510; 1495; 1505; 1480; ...
     1520; 1490])), 'U1 identity failed');
 assert(sd1(1) == 0 && sd1(2) == 0, 'U1 identity sat/dmz not zero');
@@ -158,7 +172,9 @@ fprintf('  U4: held during invalid window, converged after recovery\n');
 % `clear global`
 restoreGlobals = [];   % fire the onCleanup now (removes it from scope exit)
 
+ok = true;
 fprintf('M2 UNIT TESTS PASS (gain = %g)\n', chosen);
+end
 
 % ---------------------------------------------------------------------------
 function r = bowlRun(mode, center0, gain, stopT, invalidWin)

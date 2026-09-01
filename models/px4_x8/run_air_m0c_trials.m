@@ -17,6 +17,13 @@ modelDir = fileparts(mfilename('fullpath'));
 wsRoot = fileparts(fileparts(modelDir));
 
 global M0C_ESC_PARAMS
+% global-state hygiene (ACCEPTANCE_AUTOMATION_RULES.md rule 3.1):
+% snapshot the caller's M0C_ESC_PARAMS and restore it on exit. Legacy
+% script entry: the restore is reliable on the success path; the error
+% path is a registered known limitation (rule 3.4).
+m0cSavedParams = [];
+if ~isempty(M0C_ESC_PARAMS), m0cSavedParams = M0C_ESC_PARAMS; end
+m0cParamsCleanup = onCleanup(@() m0c_restore_params(m0cSavedParams)); %#ok<NASGU>
 % compile-probe safe: the global exists before the first update/sim
 M0C_ESC_PARAMS = struct('mode', 'esc', 'center0', 9.0);
 
@@ -188,6 +195,8 @@ end
 fprintf('Archive: %s\n', outDir);
 
 % ---------------------------------------------------------------------------
+m0cParamsCleanup = [];   % explicit fire: script workspaces do not destroy onCleanup at end
+
 function r = evalRun(name, mode, center0, nominal, Mb, tb, A, ta, Pe, Ee, ...
     band, period, stopT)
 %EVALRUN per-run metrics on the clean window (status in {1,2}, flag5 quiet).
@@ -276,5 +285,16 @@ if c
     s = a;
 else
     s = b;
+end
+end
+
+function m0c_restore_params(savedParams)
+%M0C_RESTORE_PARAMS ACCEPTANCE_AUTOMATION_RULES.md rule 3: put
+%   M0C_ESC_PARAMS back to its entry-time value (empty stays empty).
+global M0C_ESC_PARAMS
+if isempty(savedParams)
+    M0C_ESC_PARAMS = [];
+else
+    M0C_ESC_PARAMS = savedParams;
 end
 end

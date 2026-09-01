@@ -1,6 +1,6 @@
 # M2 上下桨转速比 ESC（eta 分配器）接口与工作步骤
 
-状态：**已实施；数值协议与正常完整链通过，工程自动化部分通过（2026-09-02）**。原始证据见 [`../evidence/M2_ETA_20260901.md`](../evidence/M2_ETA_20260901.md)，第三轮复验见 [`../evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md`](../evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md)。链级入口规范化和九场景硬断言已在正常路径关闭；当前待关闭的是脚本异常退出时 global/persistent 不恢复。本文档先于实施落地，交付清单来源为 `docs/PROJECT_EXECUTION_ROADMAP.md` §5 M2。
+状态：**已实施并通过三轮复验闭环（2026-09-02）**。原始证据见 [`../evidence/M2_ETA_20260901.md`](../evidence/M2_ETA_20260901.md)；三轮复验与修复见 [`../evidence/PROJECT_REACCEPT_CODEX_20260901.md`](../evidence/PROJECT_REACCEPT_CODEX_20260901.md)、[`../evidence/M2_REACCEPT_ROUND2_CODEX_20260901.md`](../evidence/M2_REACCEPT_ROUND2_CODEX_20260901.md)、[`../evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md`](../evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md) 与第四轮关闭验证 [`../evidence/M2_REACCEPT_ROUND3_FIX_20260902.md`](../evidence/M2_REACCEPT_ROUND3_FIX_20260902.md)（三入口函数化 + 错误注入矩阵 10/10 PASS）。本文档先于实施落地，交付清单来源为 `docs/PROJECT_EXECUTION_ROADMAP.md` §5 M2。
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
