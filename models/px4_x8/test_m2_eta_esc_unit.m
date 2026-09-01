@@ -1,6 +1,8 @@
 %TEST_M2_ETA_ESC_UNIT M2 unit tests, pure MATLAB, no model (plan §6).
-%   U1 allocator pure function: eta=1 identity, pair-sum preservation,
-%      clamping/sat, dmz analytic agreement (balanced => exactly 0)
+%   U1 allocator pure function: eta=1 identity, pair-sum preservation
+%      (checked AFTER the model-identical uint16 quantization, matching
+%      the Simulink 'M2 Pwm Uint16' DataTypeConversion), clamping/sat,
+%      dmz analytic agreement (balanced => exactly 0)
 %   U2 analytic bowl convergence through the full adapter: P(eta) =
 %      251 * g(eta)/g(1), g = (1+eta^3)/(1+eta^2)^1.5, first-order
 %      actuator tau = 1 s; esc from center0 = 0.8 and 1.2 must settle at
@@ -11,6 +13,14 @@
 %   Gain calibration: smallest gain on the sweep meeting U2 for both
 %   starts; the chosen value is printed for backfill into
 %   docs/interfaces/M2_ETA_ALLOCATOR.md section 4.2.
+%
+%   SESSION ISOLATION (reacceptance F2/Z1): the test snapshots
+%   M2_ETA_PARAMS / M2_ETA_APPLIED on entry and restores them on exit
+%   (onCleanup, also on error), and clears the m2_eta_esc persistent
+%   state at the end, so running the platform regression chain in the
+%   same MATLAB session right after this test needs no manual
+%   `clear global`. Never leaves the allocator global at a non-identity
+%   value.
 
 adapterDir = fileparts(mfilename('fullpath'));
 addpath(adapterDir);
@@ -24,6 +34,16 @@ assert(isfolder(ratioRoot), 'm2test:KernelMissing', ...
 addpath(ratioRoot);
 
 global M2_ETA_PARAMS M2_ETA_APPLIED
+% snapshot for restoration (empty global in a fresh session restores to
+% the safe identity default, not to stale numbers)
+savedParams = [];
+savedApplied = [];
+if ~isempty(M2_ETA_PARAMS), savedParams = M2_ETA_PARAMS; end
+if ~isempty(M2_ETA_APPLIED) && isfinite(M2_ETA_APPLIED)
+    savedApplied = M2_ETA_APPLIED;
+end
+restoreGlobals = onCleanup(@() m2test_restore_globals( ...
+    savedParams, savedApplied)); %#ok<NASGU>
 
 PASS = true;
 fprintf('=== U1 allocator pure function ===\n');
@@ -42,15 +62,19 @@ assert(all(pwmL == 1000) && sdL(1) == 0 && sdL(2) == 0, ...
 pwmH = m2_eta_allocator(2000 * ones(8, 1));
 assert(all(pwmH == 2000), 'U1 max-rail identity');
 
-% pair-sum preservation at eta = 0.8 and 1.2 (continuous-domain math,
-% measured through the 1-us uint16 quantization: <= 0.3% per pair)
+% pair-sum preservation at eta = 0.8 and 1.2, checked AFTER the uint16
+% quantization the Simulink 'M2 Pwm Uint16' conversion applies (1-us pwm
+% grid): <= 0.3% per pair (reacceptance F3/Z3 -- the raw allocator output
+% preserves pair sums to floating-point exactness; the quantizer is what
+% the acceptance bound covers)
 for etaTest = [0.8, 1.2]
     pwmIn = [1500; 1490; 1510; 1495; 1505; 1480; 1520; 1490];
     M2_ETA_APPLIED = etaTest;
     pwmOut = m2_eta_allocator(pwmIn);
     satOut = m2_alloc_diag(pwmIn);
+    pwmOutQ = double(uint16(pwmOut));   % model-identical quantizer
     omIn = double(pwmIn) - 1000;
-    omOut = double(pwmOut) - 1000;
+    omOut = pwmOutQ - 1000;
     for kk = 1:4
         cB = omIn(kk)^2 + omIn(kk + 4)^2;
         cA = omOut(kk)^2 + omOut(kk + 4)^2;
@@ -125,6 +149,15 @@ assert(r4.heldDuringInvalid, 'U4 reference moved during invalid window');
 assert(r4.converged, 'U4 no convergence after recovery');
 fprintf('  U4: held during invalid window, converged after recovery\n');
 
+% Z1 session isolation (success path; the onCleanup object covers errors):
+% restore the entry-time globals and wipe the adapter persistent state so
+% the platform regression chain can run in this session without a manual
+% `clear global`
+restoreGlobals = [];   % fire the onCleanup now (removes it from scope exit)
+M2_ETA_APPLIED = savedApplied;
+M2_ETA_PARAMS = savedParams;
+clear m2_eta_esc       % clears m2_eta_esc persistent state
+
 fprintf('M2 UNIT TESTS PASS (gain = %g)\n', chosen);
 
 % ---------------------------------------------------------------------------
@@ -196,4 +229,20 @@ function P = bowlPower(eta)
 %   g(eta) = (1 + eta^3)/(1 + eta^2)^(3/2), g(1) is the minimum.
 g = @(x) (1 + x^3) / (1 + x^2)^1.5;
 P = 251.0 * g(eta) / g(1.0);
+end
+
+function m2test_restore_globals(savedParams, savedApplied)
+%M2TEST_RESTORE_GLOBALS Z1: put M2 globals back to their entry-time values
+%   (empty stays empty -- the safe identity default for every consumer).
+global M2_ETA_PARAMS M2_ETA_APPLIED
+if isempty(savedParams)
+    M2_ETA_PARAMS = [];
+else
+    M2_ETA_PARAMS = savedParams;
+end
+if isempty(savedApplied)
+    M2_ETA_APPLIED = [];
+else
+    M2_ETA_APPLIED = savedApplied;
+end
 end

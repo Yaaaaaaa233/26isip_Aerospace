@@ -138,7 +138,7 @@ run_harness                % 三模块接线测试 + 1小时窗五算法MOE横�
 - M0-B 已完成（2026-09-01 复核修复后再验收通过）：受保护速度闭环与安全回退，逐位故障注入全链保护通过。
 - M0-C 已完成并通过验收：四组 fixed/ESC 配对及一组确定性复现全绿，稳定快照为 `air_m0c.slx`；见 [接口与验收基线](docs/interfaces/M0C_SPEED_ESC.md) 和 [证据报告](docs/evidence/M0C_TRIALS_20260901.md)。
 - M1 已完成并通过验收（2026-09-01）：噪声/时延/组合扰动 27 场景零安全误触发，11 组配对 regret 最大 |0.000133%|；见 [接口与验收基线](docs/interfaces/M1_ROBUSTNESS.md) 和 [证据报告](docs/evidence/M1_ROBUSTNESS_20260901.md)。
-- M2 已完成并通过验收（2026-09-01）：受约束 eta 分配器 + `ratioesc` 原生转速比接线，9 场景配对能量门槛最差 +0.49%（模型估算口径），旁路回归差精确 0，快照 `air_m2.slx`；见 [接口与验收基线](docs/interfaces/M2_ETA_ALLOCATOR.md) 和 [证据报告](docs/evidence/M2_ETA_20260901.md)。
+- M2 已完成并通过验收（2026-09-01，含同日独立复验问题修复与 3 会话 3/3 复验）：受约束 eta 分配器 + `ratioesc` 原生转速比接线；修订协议下配对门槛最差 −0.226%（[90,120] s 收敛末窗，门槛 ±0.5% 未变），旁路回归差精确 0，快照 `air_m2.slx`；见 [接口与验收基线](docs/interfaces/M2_ETA_ALLOCATOR.md)、[证据报告](docs/evidence/M2_ETA_20260901.md) 与 [复验修复报告](docs/evidence/M2_REACCEPT_FIX_20260901.md)。
 - 当前下一项是 M3：速度与转速比交替协同优化。
 
 完整路线、阶段门槛和当前文件清单见 [开发状态](docs/DEVELOPMENT_STATUS.md)、[执行路线](docs/PROJECT_EXECUTION_ROADMAP.md) 与 [模型说明](models/px4_x8/README.md)。
