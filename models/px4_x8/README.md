@@ -11,6 +11,8 @@
 
 ### M2 上下桨转速比 ESC（2026-09-01，快照 `air_m2.slx`）
 
+状态：修订后的 120 s 数值协议通过；第二轮独立复验重新打开完整链入口 global 规范化与九场景硬断言问题。当前证据见 [`M2_REACCEPT_ROUND2_CODEX_20260901.md`](../../docs/evidence/M2_REACCEPT_ROUND2_CODEX_20260901.md)。
+
 - `m2_eta_allocator.m` + `m2_alloc_diag.m`：受约束 PWM 域 eta 分配器（同轴对 (1,5)(2,6)(3,7)(4,8)，每对 Σω² 严格保持 → 总推力/横滚/俯仰不变；η=1 位精确透传；sat/dmz 诊断单口输出）。
 - `m2_eta_esc.m` + `add_air_m2_allocator.m`：`ratioesc` 内核原生转速比接线（输入 35 维含 motor_pwm/rpm 与 alloc_sat；eta 经全局 `M2_ETA_APPLIED` 交接，慢层信号不进 pwm 主路径）与原子安装器。
 - `test_m2_eta_esc_unit.m`、`run_air_m2_trials.m`、`diag_m2_probe.m`：单元测试与 gain 标定（3.2e-3）、9 场景配对试验、模型拓扑探针。
@@ -24,7 +26,7 @@
 | 姓名 | 角色 | 主要文件/功能 | 日期 |
 |---|---|---|---|
 | 叶安 | 平台线负责人 | 阶段判据与验收决策、安全链与 ESC 接口契约、各阶段快照放行 | 2026-08-31 ～ 09-01 |
-| Codex（AI 协助） | 独立复验 | M0-B 复核/再验收、M0-C 验收加固（共同网格口径、脏模型保护）、M1 独立复验 | 2026-09-01 |
+| Codex（AI 协助） | 独立复验 | M0-B 复核/再验收、M0-C 验收加固、M1 独立复验、M2 两轮独立复验与自动化闭环审查 | 2026-09-01 |
 | ZCode（AI 协助） | 实现与执行代理 | M0-A 观测层与旁路比对、M0-B 速度环/安全链修复、M0-C 内核封装与配对试验、M1 鲁棒性矩阵、M2 eta 分配器与配对试验 | 2026-08-31 ～ 09-01 |
 
 `air.slx` 基线与各阶段快照的当前负责人为叶安；每次 `.slx` 结构修改在此表追加修改人与内容，不重写历史。
@@ -51,10 +53,13 @@ safetyResult = run_air_m0b_safety_injection
 % M1 鲁棒性矩阵（27 场景，约 3--4 分钟）
 run_air_m1_robustness
 m1Result = result
+
+% M2 完整链（当前第二轮复验仍要求先修复链级状态规范化）
+run_m2_session_chain
 ```
 
 模型依赖 MATLAB/Simulink R2022b、Stateflow，以及模型引用的 `px4lib`、`px4Sensorslib`、`shared6dof` 和 `sharedtransform` 库。若缺少这些库，先恢复本机原有的 PX4/Simulink 支持包路径。
 
 ## 边界与下一步
 
-当前模型已具备 RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至力/力矩、6DOF、姿态反馈、M0-B 速度外环/安全回退和 M0-C 速度 ESC 接口，并已通过 M1 鲁棒性验收（噪声/时延/组合扰动 27 场景）。它仍没有电池、电流、真实 RPM、校准后的真实电功率、`eta_ref` 受约束分配器或 Harness；因此不能据此宣称真实节能率或算法已经部署飞控。当前下一步为 M2 上下桨转速比 ESC（`eta` 分配器）。详细观测接口见 [`M0A_OBSERVABILITY.md`](../../docs/interfaces/M0A_OBSERVABILITY.md)，阶段门槛见 [`PROJECT_EXECUTION_ROADMAP.md`](../../docs/PROJECT_EXECUTION_ROADMAP.md)。
+当前模型已具备 RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至力/力矩、6DOF、姿态反馈、M0-B 速度外环/安全回退、M0-C 速度 ESC 接口，以及 M2 `eta_ref` 受约束分配器与转速比 ESC；M1 鲁棒性矩阵和 M2 修订数值协议已通过。它仍没有电池、电流、真实 RPM、校准后的真实电功率或完整 Harness 接入，因此不能据此宣称真实节能率或算法已经部署飞控。当前先关闭 M2 完整链的会话状态与硬失败问题，再进入 M3 `.slx` 结构集成。详细观测接口见 [`M0A_OBSERVABILITY.md`](../../docs/interfaces/M0A_OBSERVABILITY.md)，阶段门槛见 [`PROJECT_EXECUTION_ROADMAP.md`](../../docs/PROJECT_EXECUTION_ROADMAP.md)。

@@ -13,7 +13,7 @@
 第 2+ 层 速度直搜研究    speed_rugged_search  崎岖多峰滤波全局寻优（任务2）         已完成验收（研究线）
 第 2+ 层 整合研究程序    unified_search       任务1+2整合+能耗感知+MOP/MOE评价      已完成验收（研究线）
 第 3 层  残差速度 RL     speed_rl_residual    v_ref = guard(v_base + Δv)，TD3      代理对象预研
-第 4 层  平台接入        models/px4_x8        慢层算法安全接入飞控快层             M0-A/B/C/M1/M2 完成，下一步 M3
+第 4 层  平台接入        models/px4_x8        慢层算法安全接入飞控快层             M2数值通过，自动化闭环待修后进入M3
 指标层  MOP/MOE        harness              统一场景、评价窗与能耗效能指标        已实现（代理口径）
 ```
 
