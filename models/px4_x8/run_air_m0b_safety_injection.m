@@ -10,21 +10,29 @@ function result = run_air_m0b_safety_injection()
 %   = 9 m/s, v_ref_manual = 5 m/s. The reference therefore completes its
 %   warm-up ramp and reaches ACTIVE (status 2) before the fault.
 %
-%   Scenarios (fault injected at t = 6 s into the M0-A monitor inputs):
-%     pwm_edge   flags/pwm_us  <- Step 1500 -> 2000 us   (bit 1)
-%     yaw_rate   flags/attitude<- Constant [0 0 0 0 0 2] (bit 4, rad/s)
-%     nan_power  flags/P_est   <- Constant NaN           (bit 7)
-%     power_rec  flags/P_est   <- 251 + Step(6s:+1349) + Step(7.5s:-1349)
-%                (bit 6, includes recovery: clear at 7.5 s, re-engage ~9 s)
+%   Scenarios (fault injected at t = 6 s into the M0-A monitor inputs;
+%   every fault source is time-gated so the pre-fault phase runs on the
+%   real signals and reaches ACTIVE before the fault):
+%     pwm_edge   flags/pwm_us  <- Step 1500 -> 2000 us @ 6 s      (bit 1)
+%     yaw_rate   flags/attitude<- Mux(5 zeros) + Step 0 -> 2 rad/s @ 6 s
+%                                                                 (bit 4)
+%     nan_power  flags/P_est   <- P_est * (s-1)/(s-1): 1 until 6 s, 0/0
+%                  = NaN afterwards                              (bit 7)
+%     power_rec  flags/P_est   <- 251 + Step(6 s:+1349) + Step(7.5 s:-1349)
+%                  (bit 6, recovery: pulse clears at 7.5 s, fallback
+%                  releases ~9 s, re-active with restored reference ~11 s;
+%                  this scenario runs to 13 s)
 %
 %   PASS per scenario (pwm_edge / yaw_rate / nan_power):
 %     - pre  (t in [5,6)): status == 2 (active) and v_ref == 9
 %     - downstream bus bit i fires within 0.05 s of the injection
 %     - status 3 (frozen) within 0.10 s; status 4 (fallback) within 1.0 s
-%     - during fallback v_ref stays <= manual 5 + 0.51
-%   power_rec additionally:
-%     - after the fault clears at 8 s the selector re-engages: some sample
-%       with t >= 9.5 has status == 2 again (clear_max = 1.5 s)
+%     - during fallback v_ref stays <= 9.01 while ramping to manual
+%   power_rec additionally (strict recovery, codex reacceptance 4.2):
+%     - some sample with t >= 9.5 has status == 2 again (clear_max = 1.5 s
+%       after the 7.5 s clear, plus warm-up ramp)
+%     - at some t >= 11 the reference is back at the optimizer value
+%       (|v_ref - 9| <= 0.5)
 
 model = 'air_spare';
 modelDir = fileparts(mfilename('fullpath'));
@@ -49,6 +57,9 @@ for si = 1:numel(scenarios)
     try
         set_param(model, 'SimulationCommand', 'update');
         applyCommon(model);
+        if strcmp(name, 'power_rec')
+            set_param(model, 'StopTime', '13');  % needs the full recovery
+        end
         bitIdx = applyInjection(model, name);
 
         out = sim(model);
@@ -156,7 +167,11 @@ function applyCommon(model)
 set_param([model '/M0B Speed Loop Enable'], 'Value', '1');
 set_param([model '/M0A Optimizer Enable'], 'Value', '1');
 set_param([model '/M0B v Ref Manual'], 'Value', '5');
-set_param([model '/M0B v Ref Optimizer'], 'Value', '9');
+% since M0-C the optimizer reference comes from the ESC interface; pin it
+% to the fixed baseline (constant 9) so these safety regressions keep the
+% exact M0-B semantics they were written for
+global M0C_ESC_PARAMS
+M0C_ESC_PARAMS = struct('mode', 'fixed', 'center0', 9.0);
 end
 
 function bitIdx = applyInjection(model, name)

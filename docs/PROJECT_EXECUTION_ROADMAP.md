@@ -74,7 +74,7 @@ v、姿态、角速度、PWM、RPM、功率、能耗、约束标志
 
 ## 4. 当前所处位置
 
-**阶段 0、M0-A 已完成并通过验收；M0-B 于 2026-09-01 完成复核缺陷修复并通过重新验收（P1 安全链路修复 + 逐位故障注入 + 名义/扰动双口径速度验收，证据 `docs/evidence/M0B_RERUN_20260901.md`）。下一步进入 M0-C 速度在线 ESC。**
+**阶段 0、M0-A、M0-B 已完成并通过验收（M0-B 于 2026-09-01 复核缺陷修复并通过独立再验收）；M0-C 于 2026-09-01 完成并通过验收（速度在线 ESC 接口封装 + 五组配对试验 + 复现组，证据 `docs/evidence/M0C_TRIALS_20260901.md`）。下一步进入 M1 扰动、噪声与时延鲁棒性。**
 
 已完成：
 
@@ -198,19 +198,23 @@ v、姿态、角速度、PWM、RPM、功率、能耗、约束标志
 
 （说明：`modules/speed_rl_residual` 属**优化算法线**在虚拟代理对象上的 TD3 预研，不属本节所述的平台接入，其结果不得作为任何平台或飞行结论。）
 
-## 6. 下一次实际工作：M0-C 的具体交付
+## 6. 下一次实际工作
 
-M0-B 修复轮已于 2026-09-01 完成并通过再验收（证据 `docs/evidence/M0B_RERUN_20260901.md`）。M0-C 只作用于 `air_spare.slx`，顺序为：
+（历史：M0-C 交付清单已全部完成并通过验收（2026-09-01），存档于 `docs/evidence/M0C_TRIALS_20260901.md`；执行基线 `docs/interfaces/M0C_SPEED_ESC.md` §8。下一项实际工作为 **M1：扰动、噪声与时延鲁棒性**（路线图 §5），起步前建议顺带清理 `M0B Flags Override/Att Demux` 空支路告警（非阻塞）。）
+
+<details><summary>历史：M0-C 交付清单（已完成）</summary>
+
+M0-C 只作用于 `air_spare.slx`，顺序为：
 
 1. 将算法接口限制为仅输出小范围 `v_ref`（在现有 `v_ref ∈ [0,15]` 与变化率 2 m/s² 限制内收紧到搜索带）；固定 `eta_ref=1`。
-2. 采用稳定窗口计算评价值：排除 `status ≠ 1/2`（未进入 active/warm-up 完成前）、速度失跟（位 5 置位）阶段；名义场景可得 ≥3 s 干净窗，扰动场景如实报告窗口受限（最长 0.87–1.59 s），窗口长度作为显式配置归档。
+2. 采用稳定窗口计算评价值：排除 `status ≠ 1/2`（未进入 active/warm-up 完成前）、速度失跟（位 5 置位）阶段；名义场景可得 ≥3 s 干净窗，扰动场景如实报告窗口受限（最长 0.87–1.59 s），窗口长度作为显式配置归档。（2026-09-01 codex 复验意见 4.1 统一口径：成本窗口仅取 status==2 且位 5 静默样本，warmup/参考爬坡（status 1）一律排除，见 `docs/interfaces/M0C_SPEED_ESC.md` §3。）
 3. 将 Git 算法模块（`modules/ratio_esc` 的 ESC 内核语义）封装为可替换的 MATLAB/Simulink 接口：输入仅 `t、v、P_e、E_e、attitude、yaw_rate、constraint_flags`，输出仅 `v_ref`；替换 `M0B v Ref Optimizer` 常量占位；不得向算法暴露模型内部最优值或 PWM 控制权。
 4. 运行至少三组不同初始速度/初始参考的无噪声试验，每组与固定参考基线配对（复用名义/扰动双口径与 `run_air_m0b_safety_injection` 的保护回归）。
 5. 输出速度误差、平均/积分功率、能耗差、收敛时间、约束触发次数与 8 路执行器变化；每次结构变更后重跑 `run_air_m0a_baseline_compare`（已含真 `Ve` 维度断言）。
 
 当前不接入 `eta` 分配器，也不做 RL。
 
-M0-C 执行基线（方案文档，2026-09-01 定稿）：`docs/interfaces/M0C_SPEED_ESC.md`——接口封装、ESC 参数、稳定窗口口径、五组配对试验矩阵、回归与验收判据均以该文档为准。
+</details>
 
 算法线进展备注（2026-09-01）：`modules/speed_esc`（平飞速度 ESC，虚拟功率代理上完成 74 场景性能验收与 Python 逐样本对齐）与 `modules/speed_rl_residual`（速度基线之上的 TD3 残差修正预研）已并入本仓库。二者均属优化算法线在代理对象上的预研，**不改变本路线的平台线计划**：M0-C 仍按 `M0C_SPEED_ESC.md` 采用 `modules/ratio_esc` 内核做速度语义映射；`modules/speed_esc` 的回归梯度估计器、窗口选择与验收结论可作为后续内核替换与参数整定的候选依据。
 

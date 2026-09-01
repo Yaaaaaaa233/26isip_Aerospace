@@ -771,11 +771,14 @@ end
 
 function verifyLink(sysPath, srcName, srcPort, dstName, dstPort)
 %VERIFYLINK Assert that sys/dstName#dstPort is fed by sys/srcName#srcPort.
+%   The source port handle itself is compared (codex reacceptance 4.3), so
+%   feeding the right block through the WRONG output port now fails too.
     dstPh = get_param(sprintf('%s/%s', sysPath, dstName), 'PortHandles');
     l = get_param(dstPh.Inport(dstPort), 'Line');
     assert(l ~= -1, 'air:M0B:LinkMissing', ...
         '%s/%s input %d has no line.', sysPath, dstName, dstPort);
-    srcParent = getfullname(get_param(get_param(l, 'SrcPortHandle'), 'Parent'));
+    sp = get_param(l, 'SrcPortHandle');
+    srcParent = getfullname(get_param(sp, 'Parent'));
     assert(strcmp(srcParent, sprintf('%s/%s', sysPath, srcName)), ...
         'air:M0B:LinkWrongSource', ...
         '%s/%s input %d is fed by %s, expected %s#%d.', ...
@@ -783,6 +786,10 @@ function verifyLink(sysPath, srcName, srcPort, dstName, dstPort)
     srcPh = get_param(sprintf('%s/%s', sysPath, srcName), 'PortHandles');
     assert(numel(srcPh.Outport) >= srcPort, 'air:M0B:LinkSrcPort', ...
         '%s/%s has fewer than %d outputs.', sysPath, srcName, srcPort);
+    assert(sp == srcPh.Outport(srcPort), 'air:M0B:LinkWrongPort', ...
+        '%s/%s input %d uses %s output %d, expected output %d.', ...
+        sysPath, dstName, dstPort, srcName, ...
+        find(srcPh.Outport == sp), srcPort);
 end
 
 function tf = isBlock(path)
