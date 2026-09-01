@@ -15,6 +15,7 @@
 | `modules/speed_rl_residual` | 2026-09-01 并入。速度基线之上的 TD3 残差修正（虚拟风场/电池/轨迹代理）；11 单元测试、20 未见风种子零硬约束违规 | 代理对象上残差接口可用：可观测风解析残差 -1.25% 功率（19/20 种子）、TD3 恒定风候选 -3.02% | 不规则风下 RL 有效（TD3 候选 0–1/20 种子胜出，如实记录为训练起点）、任何飞行相关结论 |
 | `modules/speed_shift_search` | 2026-09-01 并入。速度优化任务1：平移曲线瞬时跳变黑箱直搜（tracker=Brent+迟滞监测）；16 单元测试、144 幕横评 | 代理曲线上直搜类算法的样本效率/再跟踪/能耗量化：tracker 跳变恢复 9–20 步、全程能耗 0.21%，优于连续 ESC（0.64%）与网格（19.7%） | 真实 X8 节能、实机瞬时跳变假设（实机有速度动态，见 speed_esc） |
 | `modules/speed_rugged_search` | 2026-09-01 并入。速度优化任务2：崎岖多峰曲线滤波全局寻优（multistart）；13 单元测试、滤波研究 25 组、20 种子消融 | 对称崎岖代理上"无偏移"量化达成：全局命中 100%、跨种子偏置 −0.044 m/s（门槛 ±0.05）；滤波 argmin 结构偏置已量化（选谷/定位分层依据） | 非对称曲线下的无偏性（对称设计是前提）、2% 噪声下精度极限约 ±0.46 m/s（如实记录） |
+| `modules/unified_search` | 2026-09-01 并入。速度优化任务1+2整合：调试二次曲线+对称崎岖+平移调度统一对象，能耗感知算法 ea_multistart，统一 MOP/MOE 评价；13 单元测试、8 门槛 | 计入搜索能耗后全遍历非最优：崎岖静态 1 小时窗 ea 平均 MOE=0.9927 > multistart 0.9924，搜索步数 165 vs 400（20 种子）；jumpUp 恢复 67 步、jumpDown 29 步、dy 零误触发 | 慢漂（ramp）恢复慢于跳变（9/10 种子 ≤1.6，尾部种子如实记录）；演示面板仅 tracker/esc（定稿口径），ea 等其余算法在包内供验收横比；真实 X8 节能 |
 | `harness`（指标层） | 2026-09-01 实现。三模块架构（environment/aircraft 黑箱/console）+ 1 小时任务窗 MOP/MOE；4 单元测试 | 统一口径横比成立：MOE_energy=Emin/E_actual，fixed 上界 1.0000、multistart 0.9912、grid 0.9905、esc 0.9819、single_golden 0.9226 | 风场场景（任务3-5 待接入）、真实瓦级标定（Pmin_W 为代理换算） |
 | `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1、M2 完成（M2 于 2026-09-01 验收通过） | 旁路与原基线零差异（真 `Ve` 维度断言；M2 后仍差 0）；速度俯仰通道名义误差 0.03 m/s 量级、扰动下有界；位 1/4/6/7 故障注入全链保护通过（含 13 s 严格恢复）；M0-C：ESC 接口封装 + 四组配对（平坦功率面，无可宣称节能）；M1：2% 噪声/0.5 s 时延/组合扰动下 27 场景零误触发、11 组配对 regret 最大 |0.000133%|、确定性复现差 0、噪声背景故障回归 4/4；M2：受约束 eta 分配器 + 9 场景配对（能量门槛最差 +0.49%，复现差 0，快照 `air_m2.slx`） | 交替协同优化（M3）、真实功率模型校准、扰动场景长稳定窗口、真实传感器/风场外推 |
 
@@ -38,6 +39,7 @@
 
 - `modules/speed_esc`：14 项单元测试、14 组原 Python 逐样本复现（最大误差 5.33e-15）、6 组 MATLAB/Simulink 一致性（最大差 1.25e-14）全部通过；正式种子 11--20 性能验收功率指标 74/74 达标、速度定位指标 63/74（11 个未达标场景多为二次曲线噪声场景，如实列出）。证据：[`evidence/speed_esc/report.md`](evidence/speed_esc/report.md)、[`evidence/speed_esc/scenarios.csv`](evidence/speed_esc/scenarios.csv)。
 - `modules/speed_rl_residual`：11 项单元测试与适配器契约通过；20 个未见不规则风种子零硬约束违规；可观测风解析脚本 19/20 种子优于固定基准（平均功率 480.255→474.229 W，约 -1.25%）；TD3 恒定风候选同类场景 477.825→463.379 W（-3.02%），但迁移到不规则风 0/20 胜出，随机恒定风候选 1/20——均为课程训练起点而非最终策略。证据：[`evidence/speed_rl_residual/report.md`](evidence/speed_rl_residual/report.md)、[`evidence/speed_rl_residual/policy_evaluation.csv`](evidence/speed_rl_residual/policy_evaluation.csv)、TD3 检查点 `td3_candidate_*.mat`。
+- `modules/unified_search`：13 项单元测试、8 项验收门槛通过（含"ea 搜索步数 < multistart 全遍历步数（全部种子）""1 小时窗 ea 平均 MOE > multistart 平均 MOE"两条能耗感知主张门槛；tracker 平坦无噪 jumpDown 恢复 ≤30 步 ≥9/10 种子；能耗开关=关时 MOE 与能耗列全部 NaN）。1 小时窗横比：ea_multistart 平均 MOE 0.9927（0.9905–0.9938）、multistart 0.9924、fixed 1.0000（不可达上界）。证据：[`evidence/unified_search/report.md`](evidence/unified_search/report.md)、[`evidence/unified_search/scenarios.csv`](evidence/unified_search/scenarios.csv)、[`evidence/unified_search/moe_1h.csv`](evidence/unified_search/moe_1h.csv)。
 
 ## 已完成
 
