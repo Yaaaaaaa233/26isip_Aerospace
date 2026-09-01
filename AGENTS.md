@@ -9,7 +9,7 @@
 - `modules/ratio_esc/` — 上下桨转速比在线极值寻优（ESC）可运行模块（MATLAB/Simulink + RL 环境接口），对象是恒推力假设下的归一化代理功率模型。
 - `modules/speed_esc/` — 平飞速度在线 ESC 模块（配比固定 η=1），窗口回归梯度估计为主、同频解调为对照；虚拟功率曲线代理对象上完成 74 场景性能验收，并与原 Python 方案逐样本对齐。
 - `modules/speed_rl_residual/` — 在速度基线（固定值/ESC/解析式）之上叠加 TD3 残差修正 `v_ref = guard(v_base + Δv)` 的算法线预研模块；对象为不规则风场下的虚拟代理，含电池与圆周/直线轨迹工况。
-- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B 已完成，M0-C（速度在线 ESC 接入）进行中；尚未接入任何优化模块。
+- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C 已完成；M0-C 已把 `ratio_esc` 内核作速度语义映射后接入，当前下一项为 M1 扰动、噪声与时延鲁棒性。
 
 ## 必读文档
 
@@ -17,7 +17,7 @@
 |---|---|
 | 每次开工前 | `docs/DEVELOPMENT_STATUS.md`（当前状态、已知局限、下一步优先级） |
 | 改动 ESC / RL 接口 | `docs/COLLABORATION.md`（接口签名与因果约定） |
-| 涉及飞控平台线 | `docs/interfaces/PROJECT_EXECUTION_ROADMAP.md`（唯一执行基线）与 `docs/interfaces/M0A_OBSERVABILITY.md` |
+| 涉及飞控平台线 | `docs/PROJECT_EXECUTION_ROADMAP.md`（唯一执行基线）与 `docs/interfaces/M0A_OBSERVABILITY.md` |
 | 改动速度 ESC / 残差 RL 模块 | `modules/speed_esc/docs/`（整合说明、数据与RL边界、验证记录）、`modules/speed_rl_residual/docs/`（接口契约、验证记录） |
 | 需要引用已核验事实 | `docs/evidence/`（只有这里的内容可作为结论引用） |
 
@@ -43,6 +43,17 @@ run_demo              % 圆周+正弦风接口演示
 ```
 
 换新机器后的第一件事：先跑通对应模块的验收脚本确认基线为绿，再开始任何修改。
+
+飞控平台线改动至少运行：
+
+```matlab
+cd models/px4_x8
+test_m0c_esc_unit
+test_m0c_installer_dirty_guard
+run_air_m0c_trials
+run_air_m0a_baseline_compare
+run_air_m0b_safety_injection
+```
 
 ## 硬性红线
 

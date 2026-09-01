@@ -12,8 +12,13 @@
 modelDir = fileparts(mfilename('fullpath'));
 wsRoot = fileparts(fileparts(modelDir));
 addpath(modelDir);
-addpath(fullfile(wsRoot, 'modules', 'ratio_esc'));            % repo layout
-addpath(fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc')); % frozen dev layout
+ratioRoot = fullfile(wsRoot, 'modules', 'ratio_esc');
+if ~isfolder(ratioRoot)
+    ratioRoot = fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc');
+end
+assert(isfolder(ratioRoot), 'm0c:KernelMissing', ...
+    'ratio_esc module not found relative to %s.', modelDir);
+addpath(ratioRoot);
 clear m0c_vref_esc;
 global M0C_ESC_PARAMS
 pass = true;

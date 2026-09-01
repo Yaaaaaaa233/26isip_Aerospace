@@ -80,6 +80,9 @@ if isempty(which('ratioesc.esc_step'))
     cands = {fullfile(wsRoot, 'modules', 'ratio_esc'), ...
         fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc')};
     for k = 1:numel(cands)
+        if ~isfolder(cands{k})
+            continue
+        end
         addpath(cands{k});
         if ~isempty(which('ratioesc.esc_step'))
             return

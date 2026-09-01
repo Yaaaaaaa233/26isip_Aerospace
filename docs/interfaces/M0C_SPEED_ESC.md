@@ -52,6 +52,7 @@ Simulink 侧用 **Interpreted MATLAB Fcn 普通方块**（避开本环境 chart 
 - 新增 `M0C v Ref ESC`（Interpreted MATLAB Fcn）+ `M0C ESC Input`（Mux 18）+ `M0C Clock`；
 - 删除 `M0B v Ref Optimizer` 常量 → selector 入 3 的连线（**按"源→具体目标端口"逐支路删除**，P1 教训），改接 ESC 出；常量块保留但断开（手动对照用）；
 - 保存前功能编译检查（`set_param(model,'SimulationCommand','update')`）；保存后**磁盘重载并断言连线清单**（M0-B 重载验证模式）；
+- 若 MATLAB GUI 中的 `air_spare` 有未保存改动，安装器在关闭模型前报 `air:M0C:DirtyModel` 并保持内存与磁盘文件不变；回归入口为 `test_m0c_installer_dirty_guard`；
 - 幂等：重复运行报 `AlreadyInstalled`；
 - 回退方案：`air_m0b.slx` 是 M0-C 前稳定快照，异常时拷回 `air_spare.slx` 即回退。
 
@@ -94,7 +95,7 @@ Simulink 侧用 **Interpreted MATLAB Fcn 普通方块**（避开本环境 chart 
 
 公共设置：`speed_loop_enable=1`、`optimizer_enable=1`、无噪声；每场景磁盘重载模型。30 s ≥ 1 个初始化周期 + ≥5 个评估周期（0.25 Hz）。
 
-每对记录：`mean|v−v_ref|`、`mean P`、`∫P`（clean 窗内）、`ΔE%`（esc−fixed）、**收敛时间**（中心序列在最后一个完整扰动周期内变化幅度 <0.1 m/s 的首次时刻，自 active 起算；未收敛记 NaN）、frozen/fallback 次数、位 5 占比、PWM 8 通道 min/max/均值（`Aw(:,11:18)`）。
+每对记录：`mean|v−v_ref|`、`mean P`、`∫P`（clean 窗内）、`ΔE%`（esc−fixed）、**收敛时间**（中心序列在最后一个完整扰动周期内变化幅度 <0.1 m/s 的首次时刻，自 active 起算；未收敛记 NaN）、frozen/fallback 次数、位 5 占比、PWM 8 通道 min/max/均值（`Aw(:,11:18)`）。其中配对 `ΔE%` 必须在 fixed/ESC 两次运行的**相同连续时间网格**和公共 `[20,30] s` 窗上积分，不使用各自不同的 active 掩码；active 窗仅用于稳态跟踪和安全统计。
 
 ## 6. 结构变更回归（红线，每次结构变更后必跑）
 
@@ -113,7 +114,7 @@ Simulink 侧用 **Interpreted MATLAB Fcn 普通方块**（避开本环境 chart 
 
 ## 8. 验收结果（2026-09-01 回填）
 
-**全部判据通过**（数据表见证据文档 §4，原始归档 `results/air_m0c_trials/20260901_121516/`）：
+**全部判据通过**（数据表见证据文档 §4，复核原始归档 `results/air_m0c_trials/20260901_144953/`）：
 
 1. **单元测试**：U1–U4 全过；`gain=6e-3`、`rateLimit=2.0` 标定终值已回填 §2.4。
 2. **安装**：功能检查 engaged 通过（active 0.84 为移动目标下的 2↔1 边缘爬坡抖动，§5）、`v_ref=[8.70,9.30]`（center 9±dither）、重载 35 条连线完好（端口句柄级断言）。
@@ -122,13 +123,13 @@ Simulink 侧用 **Interpreted MATLAB Fcn 普通方块**（避开本环境 chart 
 5. **§7.3 带宽**：爬坡完成后 v_ref 全程在带内（band 1）。
 6. **§7.4 复现**：R_esc 与 T2_esc 逐样本最大差 **0**（<1e-9）。
 7. **§7.5 回归**：compare 四信号差 0；注入 4/4 含 13 s 严格恢复（v_ref 末端 9.00）。
-8. **§7.6 能耗**：ΔE −0.12%～−0.36% 为 active 掩码密度差的窗口伪差（P 均值 251 W 逐位一致）；平坦 P–v 面预判成立，**无可宣称的节能改善**，M0-C 闭环机制/可复现性/安全链验收成立。
+8. **§7.6 能耗**：fixed/ESC 使用相同连续 `[20,30] s` 时间网格后，T1/T2/T3/DT2 的 ΔE 分别为 −0.00002496%、−0.00002112%、−0.00005280%、+0.00012930%；平坦 P–v 面预判成立，**无可宣称的节能改善**，M0-C 闭环机制/可复现性/安全链验收成立。旧 `−0.12%～−0.36%` 结果是两次运行各自 active 掩码导致的不可比积分，已撤销。
 
-实施中发现并修正的环境级问题（详见证据文档 §2 与 worklog）：编译期维度推断调用污染持久状态（块显式采样时间 + `k<=lastK` 复位）、`rateLimit` 量纲误配、P_est 4 ms 与 E_est 1 ms 双网格对齐。
+实施及复核中发现并修正的问题（详见证据文档与 worklog）：编译期维度推断调用污染持久状态（块显式采样时间 + `k<=lastK` 复位）、`rateLimit` 量纲误配、P_est 4 ms 与 E_est 1 ms 双网格对齐、配对积分使用不同 active 掩码，以及安装器可能关闭未保存 GUI 模型。安装器脏模型保护测试已通过。
 
 ## 9. 交付物清单
 
 - 文档：本文档、`docs/evidence/M0C_TRIALS_20260901.md`、worklog `2026-09-01-zcode-m0c-speed-esc.md`、roadmap §5/§6 状态、`CURRENT_WORKSPACE_STATUS`、`DEVELOPMENT_STATUS`；
-- 代码：`m0c_vref_esc.m`、`add_air_m0c_esc.m`、`test_m0c_esc_unit.m`、`run_air_m0c_trials.m`（均落 `models/px4_x8/`，终态同步仓库镜像）；
+- 代码：`m0c_vref_esc.m`、`add_air_m0c_esc.m`、`test_m0c_esc_unit.m`、`test_m0c_installer_dirty_guard.m`、`run_air_m0c_trials.m`（均落 `models/px4_x8/`，终态同步仓库镜像）；
 - 模型：`air_spare.slx`（M0-C 安装后）、快照 `air_m0c.slx`（验收全绿后）；
 - 结果：`results/air_m0c_trials/<时间戳>/`（summary.csv + 每场景 mat）、`results/air_m0a_baseline_compare/` 与注入回归新时间戳目录。

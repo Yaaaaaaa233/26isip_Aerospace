@@ -28,4 +28,4 @@
 3. 每次优化试验必须与 `optimizer_enable=0` 的同条件固定参考基线配对。
 4. 数据源必须显式标注为 `estimated` 或 `measured`。未校准的 `P_est` 只用于模型内部对照，不得报告真实节能率。
 
-M0-B（速度闭环与安全回退）已完成，接口见 [`M0B_SPEED_LOOP.md`](M0B_SPEED_LOOP.md)。注意 M0-B 起 `Attitude Control` 新增输入 13/14（`m0b_pitch_cmd`、`m0b_speed_loop_enable`），`Subsystem` 新增出口 9（`Ve_x`）。下一步按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 的 M0-C 项 1--5 接入单变量速度 ESC。
+M0-B（速度闭环与安全回退）与 M0-C（速度在线 ESC 接入）均已完成；接口分别见 [`M0B_SPEED_LOOP.md`](M0B_SPEED_LOOP.md) 和 [`M0C_SPEED_ESC.md`](M0C_SPEED_ESC.md)。注意 M0-B 起 `Attitude Control` 新增输入 13/14（`m0b_pitch_cmd`、`m0b_speed_loop_enable`），`Subsystem` 新增出口 9（`Ve_x`）。当前下一步按 [`PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) 进入 M1 扰动、噪声与时延鲁棒性。

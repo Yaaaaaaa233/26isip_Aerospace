@@ -10,12 +10,12 @@
 第 1 层  转速比 ESC      ratio_esc          优化 η = Ωu/Ωl（恒推力代理）        已完成验收
 第 2 层  平飞速度 ESC    speed_esc          优化 v_ref（η=1，虚拟功率曲线）      已完成验收（算法线）
 第 3 层  残差速度 RL     speed_rl_residual  v_ref = guard(v_base + Δv)，TD3      代理对象预研
-第 4 层  平台接入        models/px4_x8      M0-C 起把慢层算法接入飞控快层        M0-A/M0-B 完成，M0-C 进行中
+第 4 层  平台接入        models/px4_x8      慢层算法安全接入飞控快层             M0-A/M0-B/M0-C 完成，下一步 M1
 ```
 
 - 第 1、2 层是两个单变量 ESC：优化变量不同（η 与 v），代理对象与验收口径相互独立，结论不可互相搬用。
 - 第 3 层在第 2 层基线之上叠加学习残差，应对不规则风场工况；属于算法线预研，不接入平台。
-- 第 4 层是验证平台线：M0-C 将按 `docs/interfaces/M0C_SPEED_ESC.md` 采用 `ratio_esc` 内核（速度语义映射）接入；`speed_esc` 的回归估计器是后续内核替换候选。**算法线与平台线尚未集成。**
+- 第 4 层是验证平台线：M0-C 已按 `docs/interfaces/M0C_SPEED_ESC.md` 将 `ratio_esc` 内核作速度语义映射后接入；`speed_esc` 的回归估计器是后续内核替换候选。`speed_esc` 与 `speed_rl_residual` 尚未接入平台。
 
 ```mermaid
 flowchart LR
@@ -80,14 +80,15 @@ run_checks(true)           % 额外执行1回合TD3训练冒烟
 
 ### 飞控验证平台（models/px4_x8）
 
-与算法模块并行开发，角色是把后续确定的慢层算法安全地接入飞控快层，并把台架/飞行数据回灌以校准模型；它**尚未**接入任何优化模块。
+与算法模块并行开发，角色是把慢层算法安全地接入飞控快层，并把台架/飞行数据回灌以校准模型。M0-C 已完成 `ratio_esc` 内核的速度语义接入；该结果验证的是接口、闭环机制和安全链，不代表真实节能。
 
 - 阶段 0 已完成：`air.slx` 已更新并成功仿真 0--10 s（10001 样本）；结构与端口已导出。
 - M0-A 已完成：速度、8 路 PWM、RPM 估算、`P_est`/`E_est`、8 位约束标志、35 维统一日志总线与固定基线模式；观测层与原基线逐样本零差异。
 - M0-B 已完成（2026-09-01 复核修复后再验收通过）：受保护速度闭环与安全回退，逐位故障注入全链保护通过。
-- M0-C（速度在线 ESC 接入）方案已定稿：见 [docs/interfaces/M0C_SPEED_ESC.md](docs/interfaces/M0C_SPEED_ESC.md)。
+- M0-C 已完成并通过验收：四组 fixed/ESC 配对及一组确定性复现全绿，稳定快照为 `air_m0c.slx`；见 [接口与验收基线](docs/interfaces/M0C_SPEED_ESC.md) 和 [证据报告](docs/evidence/M0C_TRIALS_20260901.md)。
+- 当前下一项是 M1：扰动、功率/速度测量噪声、反馈时延及冻结/恢复鲁棒性。
 
-完整路线、阶段门槛和当前文件清单见 [开发状态](docs/DEVELOPMENT_STATUS.md)、[执行路线](docs/interfaces/PROJECT_EXECUTION_ROADMAP.md) 与 [模型说明](models/px4_x8/README.md)。
+完整路线、阶段门槛和当前文件清单见 [开发状态](docs/DEVELOPMENT_STATUS.md)、[执行路线](docs/PROJECT_EXECUTION_ROADMAP.md) 与 [模型说明](models/px4_x8/README.md)。
 
 ![在线ESC过程](docs/evidence/online_process.gif)
 
@@ -97,7 +98,7 @@ run_checks(true)           % 额外执行1回合TD3训练冒烟
 modules/ratio_esc/           转速比在线ESC：可运行MATLAB、Simulink与RL接口模块
 modules/speed_esc/           平飞速度在线ESC：回归梯度估计、Python对齐与74场景验收
 modules/speed_rl_residual/   残差速度RL：TD3残差修正、风场/电池/轨迹代理与公平评估
-models/px4_x8/               PX4 X8验证平台：基线、M0-A/M0-B快照与M0-C计划
+models/px4_x8/               PX4 X8验证平台：基线、M0-A/M0-B/M0-C快照与M1入口
 integration/air_esc/         慢层算法接入与安全层（预留）
 harness/                     场景、指标与验收入口（预留）
 docs/COLLABORATION.md        模块边界、接口和协作约定

@@ -20,8 +20,13 @@
 model = 'air_spare';
 modelDir = fileparts(mfilename('fullpath'));
 wsRoot = fileparts(fileparts(modelDir));
-addpath(fullfile(wsRoot, 'modules', 'ratio_esc'));            % repo layout
-addpath(fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc')); % frozen dev layout
+ratioRoot = fullfile(wsRoot, 'modules', 'ratio_esc');
+if ~isfolder(ratioRoot)
+    ratioRoot = fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc');
+end
+assert(isfolder(ratioRoot), 'air:M0C:KernelMissing', ...
+    'ratio_esc module not found relative to %s.', modelDir);
+addpath(ratioRoot);
 
 stamp = char(datetime('now', 'Format', 'yyyyMMdd_HHmmss'));
 cfgDir = fullfile(wsRoot, 'results', 'm0c_config', stamp);
@@ -31,6 +36,11 @@ if ~wasLoaded
     load_system(fullfile(modelDir, [model '.slx']));
 end
 dirtyBefore = get_param(model, 'Dirty');
+if strcmp(dirtyBefore, 'on')
+    error('air:M0C:DirtyModel', [ ...
+        'air_spare has unsaved changes. Save or discard them explicitly ' ...
+        'before running add_air_m0c_esc; no model changes were made.']);
+end
 
 try
     set_param(model, 'SimulationCommand', 'update');

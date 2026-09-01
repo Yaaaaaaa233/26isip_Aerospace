@@ -1,5 +1,5 @@
 %RUN_AIR_M0C_TRIALS M0-C paired no-noise trials (plan: M0C_SPEED_ESC.md §5).
-%   Five pairs (same model, same wiring; the optimizer is the m0c_vref_esc
+%   Four pairs (same model, same wiring; the optimizer is the m0c_vref_esc
 %   wrapper, 'fixed' = constant center0, 'esc' = online search) plus one
 %   reproducibility repeat:
 %     T1 nominal, center 7   T2 nominal, center 9   T3 nominal, center 11
@@ -10,7 +10,7 @@
 %   quiet; codex reacceptance 4.1 -- warm-up/ramp status 1 excluded),
 %   tracking error, mean/integral power, engagement counts, PWM spread,
 %   band respect; convergence time for esc runs (period-mean definition);
-%   pair delta-energy over the common [20,30] s window.
+%   pair delta-energy over the same continuous [20,30] s time grid.
 
 model = 'air_spare';
 modelDir = fileparts(mfilename('fullpath'));
@@ -88,7 +88,7 @@ for k = 1:size(plan, 1)
         Ee = interp1(te, E, ta, 'previous', E(1));
 
         r = evalRun(name, mode, center0, nominal, Mb, tb, A, ta, Pe, Ee, ...
-            BAND, PERIOD, COMMON_WIN, STOP_T);
+            BAND, PERIOD, STOP_T);
         R.(name) = r;
         printRun(r);
         save(fullfile(outDir, [name '.mat']), 'r', 'Mb', 'tb', 'A', 'ta', ...
@@ -135,9 +135,22 @@ for k = 1:numel(pairs)
             R.([pfx '_fixed']).ok && R.([pfx '_esc']).ok
         f = R.([pfx '_fixed']);
         e = R.([pfx '_esc']);
-        dE = 100 * (e.Ecommon - f.Ecommon) / max(f.Ecommon, eps);
-        prows(end + 1, :) = {pfx, f.Pcommon, e.Pcommon, f.Ecommon, ...
-            e.Ecommon, dE, e.convT}; %#ok<AGROW>
+        Sf = load(fullfile(outDir, [pfx '_fixed.mat']), 'ta', 'Pe');
+        Se = load(fullfile(outDir, [pfx '_esc.mat']), 'ta', 'Pe');
+        assert(numel(Sf.ta) == numel(Se.ta) && ...
+            max(abs(Sf.ta - Se.ta)) < 1e-12, ...
+            'air:M0C:PairTimeGridMismatch', ...
+            '%s fixed/esc runs do not share the same time grid.', pfx);
+        cw = Sf.ta >= COMMON_WIN(1) & Sf.ta <= COMMON_WIN(2);
+        assert(nnz(cw) >= 2, 'air:M0C:PairWindowEmpty', ...
+            '%s common comparison window is empty.', pfx);
+        Pfixed = mean(Sf.Pe(cw));
+        Pesc = mean(Se.Pe(cw));
+        Efixed = trapz(Sf.ta(cw), Sf.Pe(cw));
+        Eesc = trapz(Sf.ta(cw), Se.Pe(cw));
+        dE = 100 * (Eesc - Efixed) / max(Efixed, eps);
+        prows(end + 1, :) = {pfx, Pfixed, Pesc, Efixed, ...
+            Eesc, dE, e.convT}; %#ok<AGROW>
     end
 end
 if ~isempty(prows)
@@ -176,7 +189,7 @@ fprintf('Archive: %s\n', outDir);
 
 % ---------------------------------------------------------------------------
 function r = evalRun(name, mode, center0, nominal, Mb, tb, A, ta, Pe, Ee, ...
-    band, period, commonWin, stopT)
+    band, period, stopT)
 %EVALRUN per-run metrics on the clean window (status in {1,2}, flag5 quiet).
     status = Mb(:, 4);
     vref = Mb(:, 1);
@@ -198,12 +211,6 @@ function r = evalRun(name, mode, center0, nominal, Mb, tb, A, ta, Pe, Ee, ...
     errMean = mean(err(act));
     Pmean = mean(Pe(act));
     Eclean = trapz(tb(act), Pe(act));
-
-    % common comparison window (active samples only)
-    cw = base & tb >= commonWin(1) & tb <= commonWin(2) & ...
-        status == 2 & flag5 < 0.5;
-    Pcommon = mean(Pe(cw));
-    Ecommon = trapz(tb(cw), Pe(cw));
 
     % constraint activity
     hard = any(A(:, 27:30) > 0.5, 2) | any(A(:, 32:33) > 0.5, 2);
@@ -249,7 +256,7 @@ function r = evalRun(name, mode, center0, nominal, Mb, tb, A, ta, Pe, Ee, ...
         'nominal', nominal, 'ok', runOK, 'cleanFrac', cleanFrac, ...
         'engFrac', engFrac, 'gateEngaged', gateEngaged, ...
         'errMean', errMean, 'Pmean', Pmean, 'Eclean', Eclean, ...
-        'Pcommon', Pcommon, 'Ecommon', Ecommon, 'convT', convT, ...
+        'convT', convT, ...
         'nFrozen', nFrozen, 'nFb', nFb, 'hardMax', hardMax, ...
         'flag5Frac', flag5Frac, 'pwmMin', pwmMin, 'pwmMax', pwmMax, ...
         'bandOK', bandOK, 'vrefFinal', vref(end), 'stopT', stopT);

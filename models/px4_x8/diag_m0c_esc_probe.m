@@ -3,7 +3,13 @@
 modelDir = fileparts(mfilename('fullpath'));
 wsRoot = fileparts(fileparts(modelDir));
 addpath(modelDir);
-addpath(fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc'));
+ratioRoot = fullfile(wsRoot, 'modules', 'ratio_esc');
+if ~isfolder(ratioRoot)
+    ratioRoot = fullfile(wsRoot, '26isip_Aerospace', 'modules', 'ratio_esc');
+end
+assert(isfolder(ratioRoot), 'm0c:KernelMissing', ...
+    'ratio_esc module not found relative to %s.', modelDir);
+addpath(ratioRoot);
 global M0C_ESC_PARAMS
 M0C_ESC_PARAMS = struct('mode', 'esc', 'center0', 11.0, 'gain', 3e-3);
 Ts = 0.05; r = exp(-Ts / 1.0);

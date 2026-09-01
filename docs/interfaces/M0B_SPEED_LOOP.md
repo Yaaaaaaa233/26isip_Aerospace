@@ -64,4 +64,4 @@
 3. 每次优化试验与 `optimizer_enable=0`、`speed_loop_enable∈{0,1}` 的同条件基线配对归档。
 4. `P_est` 未校准；一切对比结论仅限"模型估算"口径。
 
-下一步按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) §6 的 M0-C 项 1–5 接入单变量速度 ESC。
+M0-C 已在本接口边界内完成，见 [`M0C_SPEED_ESC.md`](M0C_SPEED_ESC.md)。当前下一步按 [`PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) 进入 M1 扰动、噪声与时延鲁棒性。
