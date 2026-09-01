@@ -1,0 +1,12 @@
+Test,Passed,Failed
+test_speedrl/testConfigAndNames,1,0
+test_speedrl/testAdapterContractAndVectorWind,1,0
+test_speedrl/testTrainingRandomizesConstantWindAcrossEpisodes,1,0
+test_speedrl/testCircleTangent,1,0
+test_speedrl/testBaselineUsesMeasuredWindOnly,1,0
+test_speedrl/testHiddenWindObservation,1,0
+test_speedrl/testGuard,1,0
+test_speedrl/testEnvironmentModes,1,0
+test_speedrl/testDeterministicEpisode,1,0
+test_speedrl/testScriptedReferenceImprovesConstantWind,1,0
+test_speedrl/testFixedDurationAndMinimumSpeed,1,0

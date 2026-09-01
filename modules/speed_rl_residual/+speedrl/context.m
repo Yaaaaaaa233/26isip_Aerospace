@@ -1,0 +1,19 @@
+function x = context(sample,reference,lastDelta,meanPower,deltaPower,c)
+%CONTEXT Measured-only policy/baseline context; private truth is excluded.
+tangent=sample.path_tangent_ne; wind=sample.wind_velocity_ne_mps;
+if sample.velocity_valid, ground=dot(sample.ground_velocity_ne_mps,tangent); else, ground=NaN; end
+if sample.wind_valid
+    windAlong=dot(wind,tangent); normal=[-tangent(2);tangent(1)]; windNormal=dot(wind,normal);
+    airSpeed=norm(sample.ground_velocity_ne_mps-wind);
+    windAge=sample.time_s-sample.wind_sample_time_s;
+else
+    windAlong=NaN; windNormal=NaN; airSpeed=NaN; windAge=Inf;
+end
+x=struct('time',sample.time_s,'groundSpeed',ground,'airSpeed',airSpeed,...
+    'reference',reference,'lastDelta',lastDelta,'meanPower',meanPower,'deltaPower',deltaPower,...
+    'windNE',wind,'windAlong',windAlong,'windNormal',windNormal,'windAge',windAge,...
+    'windValid',sample.wind_valid,'velocityValid',sample.velocity_valid,...
+    'powerValid',sample.power_valid,'voltage',sample.voltage_v,'soc',sample.soc,...
+    'phase',sample.path_phase_rad,'tangentNE',tangent,'radialError',sample.radial_error_m,...
+    'baselineDefault',c.baselineSpeed,'optimumAirSpeed',c.optimumAirSpeed,'speedBounds',c.speedBounds);
+end

@@ -1,0 +1,4 @@
+policy,seed,windMode,windObservation,trajectory,meanPowerW,energyWh,estimatedEnduranceHours,minimumGroundSpeed,maximumGroundSpeed,rateViolations,boundViolations,meanBlockedFraction,radialRms,meanPowerCoverage
+固定速度,7,sine,observable,circle,465.83934233779,15.5279780779263,0.321999424194687,6.3,6.3,0,0,0,0,1
+风场解析基准,7,sine,observable,circle,460.071297699823,15.3357099233274,0.326036422506558,4.41754248666605,8.07021290218206,0,0,0,0,1
+残差接口参考（非RL）,7,sine,observable,circle,460.071297699823,15.3357099233274,0.326036422506558,4.41754248666605,8.07021290218206,0,0,0,0,1
