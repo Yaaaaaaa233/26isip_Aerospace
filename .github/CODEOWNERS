@@ -1,0 +1,17 @@
+# 顶层治理文件所有者（CODEOWNERS）
+# 作用：main 分支保护规则开启 "Require review from Code Owners" 后，
+#       任何修改下列文件的 PR 必须获得 @Zhoucmd6（创始人）批准才能合并；
+#       配合保护规则，其他人也无法直接 push main。
+# 注意：本文件自身在 /.github/ 保护范围内，调整保护清单须经创始人批准。
+
+/AGENTS.md                       @Zhoucmd6
+/README.md                       @Zhoucmd6
+/.gitignore                      @Zhoucmd6
+/docs/COLLABORATION.md           @Zhoucmd6
+/docs/PROJECT_EXECUTION_ROADMAP.md @Zhoucmd6
+/docs/interfaces/                @Zhoucmd6
+/.github/                        @Zhoucmd6
+
+# 有意不保护的路径（保持全员可改，无需创始人逐次审批）：
+# docs/DEVELOPMENT_STATUS.md、docs/worklog/ —— AGENTS.md 规定每次工作会话必须回写；
+# modules/、models/、harness/、integration/、docs/evidence/ —— 各成员的日常工作区。
