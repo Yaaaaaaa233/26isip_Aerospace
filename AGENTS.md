@@ -4,10 +4,12 @@
 
 ## 项目概要
 
-共轴八旋翼（X8）在线能耗优化研究仓库，当前有两条并行工作线：
+共轴八旋翼（X8）在线能耗优化研究仓库，当前有四个并行模块/工作线：
 
 - `modules/ratio_esc/` — 上下桨转速比在线极值寻优（ESC）可运行模块（MATLAB/Simulink + RL 环境接口），对象是恒推力假设下的归一化代理功率模型。
-- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0 已完成，M0-A 观测层进行中；尚未接入转速比 ESC。
+- `modules/speed_esc/` — 平飞速度在线 ESC 模块（配比固定 η=1），窗口回归梯度估计为主、同频解调为对照；虚拟功率曲线代理对象上完成 74 场景性能验收，并与原 Python 方案逐样本对齐。
+- `modules/speed_rl_residual/` — 在速度基线（固定值/ESC/解析式）之上叠加 TD3 残差修正 `v_ref = guard(v_base + Δv)` 的算法线预研模块；对象为不规则风场下的虚拟代理，含电池与圆周/直线轨迹工况。
+- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B 已完成，M0-C（速度在线 ESC 接入）进行中；尚未接入任何优化模块。
 
 ## 必读文档
 
@@ -16,6 +18,7 @@
 | 每次开工前 | `docs/DEVELOPMENT_STATUS.md`（当前状态、已知局限、下一步优先级） |
 | 改动 ESC / RL 接口 | `docs/COLLABORATION.md`（接口签名与因果约定） |
 | 涉及飞控平台线 | `docs/interfaces/PROJECT_EXECUTION_ROADMAP.md`（唯一执行基线）与 `docs/interfaces/M0A_OBSERVABILITY.md` |
+| 改动速度 ESC / 残差 RL 模块 | `modules/speed_esc/docs/`（整合说明、数据与RL边界、验证记录）、`modules/speed_rl_residual/docs/`（接口契约、验证记录） |
 | 需要引用已核验事实 | `docs/evidence/`（只有这里的内容可作为结论引用） |
 
 ## 环境
@@ -27,13 +30,23 @@ cd modules/ratio_esc
 run_acceptance   % 提交前必须全绿
 qa_ui            % 改动交互面板或导出逻辑时额外运行
 run_demo         % 生成 A--E 阶段结果图与动画
+
+cd ../speed_esc
+run_speed_acceptance  % 单元、Python复现、Simulink一致性与74场景性能验收
+run_speed_demo        % 两类曲线×三版本与解调对照图表
+qa_speed_ui           % 改动面板时额外运行
+
+cd ../speed_rl_residual
+run_checks(false)     % 单元测试、适配器契约与20个不规则风种子（提交前必须全绿）
+run_checks(true)      % 另外执行 1 回合 TD3 训练冒烟
+run_demo              % 圆周+正弦风接口演示
 ```
 
-换新机器后的第一件事：先跑通 `run_acceptance` 确认基线为绿，再开始任何修改。
+换新机器后的第一件事：先跑通对应模块的验收脚本确认基线为绿，再开始任何修改。
 
 ## 硬性红线
 
-1. **因果边界**：控制器与 RL 观测只能接收测量功率、实际转速比、采样时间和有效性标志；完整功率曲线、真实最优点、解析梯度不得进入控制器或 RL 观测。
+1. **因果边界**：控制器与 RL 观测只能接收测量功率、实际被控量（转速比或平飞速度）、采样时间和有效性标志；完整功率曲线、真实最优点、解析梯度不得进入控制器或 RL 观测。
 2. **对象升级位置**：物理对象升级只替换 `power_map`、`plant_advance`、`measure`（约束量在对象侧输出 `constraint_flags`），不得修改 ESC 的因果接口签名。
 3. **结论边界**：仓库内验收结果只支持 `docs/DEVELOPMENT_STATUS.md` "当前可引用的结果边界"所列表述；不得在任何文档或对外输出中宣称真实节能百分比、偏航安全、RL 优于 ESC 或已部署飞控。
 4. **版本控制**：不提交 `slprj/`、`*.slxc`、临时动画帧、重复日志、本地自动保存文件（见 `.gitignore`）。
