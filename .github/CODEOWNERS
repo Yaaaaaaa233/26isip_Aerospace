@@ -1,8 +1,11 @@
 # 顶层治理文件所有者（CODEOWNERS）
-# 作用：main 分支保护规则开启 "Require review from Code Owners" 后，
-#       任何修改下列文件的 PR 必须获得 @Zhoucmd6（创始人）批准才能合并；
-#       配合保护规则，其他人也无法直接 push main。
-# 注意：本文件自身在 /.github/ 保护范围内，调整保护清单须经创始人批准。
+# 作用：1) 声明下列文件的所有权归 @Zhoucmd6（创始人）；
+#       2) 任何人发起修改这些文件的 PR 时，GitHub 自动请求创始人 review。
+# 强制机制（另见 .github/workflows/governance-guard.yml）：
+#       - 非创始人直推 main 触及下列文件时，守卫工作流自动回退这些文件并判红；
+#       - 分支规则集禁止强推与删除 main（创始人豁免）。
+# 注意：本文件与守卫工作流自身都在 /.github/ 保护范围内；
+#       调整受保护清单须由创始人同时修改这两处。
 
 /AGENTS.md                       @Zhoucmd6
 /README.md                       @Zhoucmd6

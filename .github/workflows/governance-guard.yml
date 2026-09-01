@@ -1,0 +1,71 @@
+name: governance-guard
+
+# 顶层治理文件守卫：
+# - 创始人（Zhoucmd6）的推送直接跳过，不做任何检查；
+# - 其他人推送到 main 时，若改动触及受保护的顶层文件，
+#   本工作流会把【这些文件】自动回退到推送前状态并判红提示；
+# - 推送中其余文件（modules/、models/、docs/ 工作区等）不受影响、正常保留。
+# 受保护清单与 .github/CODEOWNERS 保持一致；调整清单需同时改两处。
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+env:
+  FOUNDER: Zhoucmd6
+  # 受保护路径（同时在 CODEOWNERS 中登记）
+  PROTECTED_PATHS: "AGENTS.md README.md .gitignore docs/COLLABORATION.md docs/PROJECT_EXECUTION_ROADMAP.md docs/interfaces .github"
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    if: github.actor != 'Zhoucmd6'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect protected-file changes in this push
+        id: detect
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          if [[ -z "$BEFORE" || "$BEFORE" == "0000000000000000000000000000000000000000" ]]; then
+            echo "首次推送或无基线，跳过检查"; exit 0
+          fi
+          CHANGED="$(git diff --name-only "$BEFORE" "$AFTER" || true)"
+          HIT="$(printf '%s\n' "$CHANGED" | grep -E '^(AGENTS\.md|README\.md|\.gitignore|docs/COLLABORATION\.md|docs/PROJECT_EXECUTION_ROADMAP\.md|docs/interfaces/|\.github/)' || true)"
+          if [ -n "$HIT" ]; then
+            {
+              echo "violation=true"
+              echo "hit<<EOF"
+              echo "$HIT"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Auto-revert protected files to pre-push state
+        if: steps.detect.outputs.violation == 'true'
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          git checkout "$BEFORE" -- $PROTECTED_PATHS
+          git config user.name "governance-guard"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "ci: 回退顶层治理文件至创始人版本 (governance-guard)"
+          git push
+
+      - name: Report violation
+        if: steps.detect.outputs.violation == 'true'
+        run: |
+          echo "::error::顶层治理文件仅创始人（@Zhoucmd6）可修改。本次推送中的以下文件已被自动回退，其余改动保留："
+          printf '%s\n' "${{ steps.detect.outputs.hit }}"
+          echo "如确需修改这些文件，请联系 @Zhoucmd6 由其提交，或发起 PR 并请其 review。"
+
+      - name: Fail check on violation
+        if: steps.detect.outputs.violation == 'true'
+        run: exit 1
