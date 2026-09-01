@@ -11,7 +11,7 @@
 
 ### M2 上下桨转速比 ESC（2026-09-01，快照 `air_m2.slx`）
 
-状态：修订后的 120 s 数值协议通过；第二轮独立复验重新打开完整链入口 global 规范化与九场景硬断言问题。当前证据见 [`M2_REACCEPT_ROUND2_CODEX_20260901.md`](../../docs/evidence/M2_REACCEPT_ROUND2_CODEX_20260901.md)。
+状态：修订后的 120 s 数值协议与脏入口背靠背完整链通过，九场景硬断言已关闭；第三轮真实错误注入证明脚本异常退出不恢复调用者 global，工程自动化仍为部分通过。当前证据见 [`M2_REACCEPT_ROUND3_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md)。
 
 - `m2_eta_allocator.m` + `m2_alloc_diag.m`：受约束 PWM 域 eta 分配器（同轴对 (1,5)(2,6)(3,7)(4,8)，每对 Σω² 严格保持 → 总推力/横滚/俯仰不变；η=1 位精确透传；sat/dmz 诊断单口输出）。
 - `m2_eta_esc.m` + `add_air_m2_allocator.m`：`ratioesc` 内核原生转速比接线（输入 35 维含 motor_pwm/rpm 与 alloc_sat；eta 经全局 `M2_ETA_APPLIED` 交接，慢层信号不进 pwm 主路径）与原子安装器。
@@ -54,7 +54,7 @@ safetyResult = run_air_m0b_safety_injection
 run_air_m1_robustness
 m1Result = result
 
-% M2 完整链（当前第二轮复验仍要求先修复链级状态规范化）
+% M2 完整链（正常路径可复现；异常清理仍待第四轮关闭）
 run_m2_session_chain
 ```
 
@@ -62,4 +62,4 @@ run_m2_session_chain
 
 ## 边界与下一步
 
-当前模型已具备 RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至力/力矩、6DOF、姿态反馈、M0-B 速度外环/安全回退、M0-C 速度 ESC 接口，以及 M2 `eta_ref` 受约束分配器与转速比 ESC；M1 鲁棒性矩阵和 M2 修订数值协议已通过。它仍没有电池、电流、真实 RPM、校准后的真实电功率或完整 Harness 接入，因此不能据此宣称真实节能率或算法已经部署飞控。当前先关闭 M2 完整链的会话状态与硬失败问题，再进入 M3 `.slx` 结构集成。详细观测接口见 [`M0A_OBSERVABILITY.md`](../../docs/interfaces/M0A_OBSERVABILITY.md)，阶段门槛见 [`PROJECT_EXECUTION_ROADMAP.md`](../../docs/PROJECT_EXECUTION_ROADMAP.md)。
+当前模型已具备 RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至力/力矩、6DOF、姿态反馈、M0-B 速度外环/安全回退、M0-C 速度 ESC 接口，以及 M2 `eta_ref` 受约束分配器与转速比 ESC；M1 鲁棒性矩阵、M2 修订数值协议和正常完整链已通过。它仍没有电池、电流、真实 RPM、校准后的真实电功率或完整 Harness 接入，因此不能据此宣称真实节能率或算法已经部署飞控。当前先函数化 M2 验收入口并关闭异常恢复，再进入 M3 `.slx` 结构集成；M3 方案文档可并行。详细观测接口见 [`M0A_OBSERVABILITY.md`](../../docs/interfaces/M0A_OBSERVABILITY.md)，阶段门槛见 [`PROJECT_EXECUTION_ROADMAP.md`](../../docs/PROJECT_EXECUTION_ROADMAP.md)。

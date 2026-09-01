@@ -1,6 +1,6 @@
 # M2 上下桨转速比 ESC（eta 分配器）接口与工作步骤
 
-状态：**已实施；数值协议通过，工程自动化部分通过（2026-09-01）**。原始证据见 [`../evidence/M2_ETA_20260901.md`](../evidence/M2_ETA_20260901.md)，修订协议与第二轮勘误分别见 [`../evidence/M2_REACCEPT_FIX_20260901.md`](../evidence/M2_REACCEPT_FIX_20260901.md)、[`../evidence/M2_REACCEPT_ROUND2_CODEX_20260901.md`](../evidence/M2_REACCEPT_ROUND2_CODEX_20260901.md)。当前待关闭链级 global 规范化、异常清理与九场景硬断言；本文档先于实施落地，交付清单来源为 `docs/PROJECT_EXECUTION_ROADMAP.md` §5 M2。
+状态：**已实施；数值协议与正常完整链通过，工程自动化部分通过（2026-09-02）**。原始证据见 [`../evidence/M2_ETA_20260901.md`](../evidence/M2_ETA_20260901.md)，第三轮复验见 [`../evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md`](../evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md)。链级入口规范化和九场景硬断言已在正常路径关闭；当前待关闭的是脚本异常退出时 global/persistent 不恢复。本文档先于实施落地，交付清单来源为 `docs/PROJECT_EXECUTION_ROADMAP.md` §5 M2。
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
