@@ -40,10 +40,20 @@
 
         results/batch_runs/<yyyyMMdd_HHmmss>/<stage>.attempt<N>.log
 
+    LOG ENCODING (round-9 R9-F2; rules v1.6 section 2 rule 9): MATLAB
+    -batch writes its console output in the system ANSI code page
+    (probe 2026-09-03: raw piped bytes were GBK on this machine), while
+    PowerShell decodes native command output with whatever
+    [Console]::OutputEncoding the launching console happened to set.
+    The round-9 batch logs were captured under a UTF-8 console and every
+    CJK character became U+FFFD. Invoke-LoggedNative therefore decodes
+    with the ANSI page explicitly and writes the log UTF-8; the driver
+    test S8 asserts a CJK round trip with zero U+FFFD.
+
     Driver-level behavior is covered by tools/test_m2_batch_driver.ps1
-    (retry classes, marker freshness, launcher-rc distrust and the
-    report archive-directory evidence check), which dot-sources this
-    file with -SourceOnly.
+    (retry classes, marker freshness, launcher-rc distrust, the report
+    archive-directory evidence check and the log-encoding round trip),
+    which dot-sources this file with -SourceOnly.
 
 .EXAMPLE
     pwsh -File tools\run_m2_batch.ps1
@@ -121,6 +131,27 @@ function Invoke-StageWithRetry {
     throw ("{0}: attempt budget exhausted ({1}); deterministic failure aborts the batch, all attempt logs kept in {2}" -f $Name, $Max, $LogDir)
 }
 
+function Invoke-LoggedNative {
+    # R9-F2: run a native command and write its full console output to a
+    # UTF-8 log, decoding the command's output with the system ANSI code
+    # page ([System.Text.Encoding]::Default in Windows PowerShell 5.1 =
+    # the ANSI page MATLAB -batch emits on a pipe; probe 2026-09-03).
+    # Without this, the ambient [Console]::OutputEncoding decides the
+    # decode and CJK output (paths, localized warnings) turns into
+    # U+FFFD. Kept free of MATLAB specifics so the driver tests can
+    # drive it with any native command (test S8). Returns the exit code.
+    param([string]$FilePath, [string[]]$Arguments, [string]$LogPath)
+    $saved = [Console]::OutputEncoding
+    try {
+        [Console]::OutputEncoding = [System.Text.Encoding]::Default
+        & $FilePath @Arguments 2>&1 | Out-File -FilePath $LogPath -Encoding utf8
+        $LASTEXITCODE
+    }
+    finally {
+        [Console]::OutputEncoding = $saved
+    }
+}
+
 if ($SourceOnly) { return }
 
 if ($MaxAttempts -lt 1 -or $MaxAttempts -gt 10) {
@@ -155,8 +186,7 @@ foreach ($p in $plan) {
     $invoke = { param($logPath)
         Push-Location $adapter
         try {
-            & $matlabExe -batch $stageArg 2>&1 | Out-File -FilePath $logPath -Encoding utf8
-            $LASTEXITCODE
+            Invoke-LoggedNative -FilePath $matlabExe -Arguments @('-batch', $stageArg) -LogPath $logPath
         }
         finally { Pop-Location }
     }.GetNewClosure()

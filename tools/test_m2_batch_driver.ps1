@@ -18,6 +18,10 @@
                                              20260902_225209); budget aborts when persistent
     S7  report-style archive evidence      -> a NEW directory under $DoneDir counts as the
                                              fresh done marker; no new dir -> retry
+    S8  log encoding round trip (R9-F2)    -> a native command emitting ANSI-page CJK
+                                             bytes is captured by the driver's own
+                                             Invoke-LoggedNative with the original text
+                                             intact and ZERO U+FFFD in the UTF-8 log
 
     Run under BOTH PowerShell 7 and Windows PowerShell 5.1:
         pwsh -File tools\test_m2_batch_driver.ps1
@@ -160,9 +164,27 @@ $dir2 = Join-Path $base 's7b'; New-Item -ItemType Directory -Force -Path $dir2 |
 $n2 = Invoke-StageWithRetry -Name 's7b' -Invoke $invoke2 -DoneFile $null -DoneDir $archRoot -Max 3 -LogDir $dir2
 Assert-True ($n2 -eq 1) 'S7b post-archive crash (nonzero rc, fresh dir) accepted as harmless pass'
 
+# --- S8: log encoding round trip through the driver's own capture path -------
+# Pure-ASCII test source (PS 5.1 reads no-BOM scripts as ANSI): the CJK
+# text is built from code points, and the fixture file is written with
+# the ANSI page bytes via cmd /c type -- the same decode layer MATLAB's
+# piped output goes through (probe 2026-09-03: MATLAB -batch emits ANSI
+# page bytes; the round-9 logs captured under a UTF-8 console were full
+# of U+FFFD).
+$cn = -join @([char]0x4E2D, [char]0x6587, [char]0x7B2C, [char]0x4E8C, [char]0x9636, [char]0x6BB5, [char]0x6D4B, [char]0x8BD5)
+$fixture = Join-Path $base 's8_ansi.txt'
+[System.IO.File]::WriteAllBytes($fixture, [System.Text.Encoding]::Default.GetBytes($cn + "`n"))
+$dir = Join-Path $base 's8'; New-Item -ItemType Directory -Force -Path $dir | Out-Null
+$log = Join-Path $dir 's8_native.log'
+$rc = Invoke-LoggedNative -FilePath 'cmd.exe' -Arguments @('/c', 'type', $fixture) -LogPath $log
+$captured = Get-Content -Raw -Encoding UTF8 $log
+Assert-True ($rc -eq 0) 'S8 native command exited 0'
+Assert-True $captured.Contains($cn) 'S8 ANSI-page CJK round-trips intact through Invoke-LoggedNative'
+Assert-True (-not $captured.Contains([string][char]0xFFFD)) 'S8 log contains zero U+FFFD replacement characters'
+
 # ---------------------------------------------------------------------------
 if ($script:Failures -eq 0) {
-    Write-Host 'DRIVER TESTS PASS (8 scenarios)'
+    Write-Host 'DRIVER TESTS PASS (9 scenarios)'
     exit 0
 }
 Write-Host ("DRIVER TESTS FAIL ({0} assertion(s))" -f $script:Failures)
