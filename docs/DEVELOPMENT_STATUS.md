@@ -13,6 +13,7 @@
 | `modules/ratio_esc` | 可运行的单变量在线 ESC、Simulink 一致性与代理对象验收 | 代理对象上存在受边界约束的因果寻优行为 | 真实 X8 节能、偏航安全、已部署飞控 |
 | `modules/speed_esc` | 2026-09-01 并入。平飞速度 ESC（η=1），窗口回归估计为主、解调为对照；14 单元测试、14 组 Python 逐样本复现、6 组 Simulink 一致性、74 性能场景 | 代理功率曲线上速度变量因果寻优行为成立，且与原 Python 方案逐样本一致 | 真实 X8 节能、速度定位全场景达标（63/74，未达标场景如实记录）、实机飞控 |
 | `modules/speed_rl_residual` | 2026-09-01 并入。速度基线之上的 TD3 残差修正（虚拟风场/电池/轨迹代理）；11 单元测试、20 未见风种子零硬约束违规 | 代理对象上残差接口可用：可观测风解析残差 -1.25% 功率（19/20 种子）、TD3 恒定风候选 -3.02% | 不规则风下 RL 有效（TD3 候选 0–1/20 种子胜出，如实记录为训练起点）、任何飞行相关结论 |
+| `modules/speed_rl_pytorch` | 2026-09-02 并入。speed_rl_residual 环境的 Python/PyTorch 逐行移植（对拍：确定性场景与 MATLAB 12 位小数一致）+ 课程 TD3 / BC 热启动 / 微调训练线（RTX 4060，训练 1730+400 回合）；4 场景 × 20 未见种子评估、全策略零硬约束违规 | Python 对拍口径下：BC 热启动（教师=真值风解析残差，仅用于生成监督数据）不规则可观测风 **-1.91%（20/20 优于固定，超过解析残差 -1.71%）**、缺测 -1.45%（20/20，超过解析 -0.95%）；从零 TD3 课程与 BC+TD3 微调均未胜出（+4~5%），失败定位在 RL 价值估计环节；隐藏风 BC 仍略差于固定（+0.4~0.8%），确认为信息瓶颈 | 隐藏风下有效、任何飞行相关结论、"RL 优于 ESC"；跨引擎（MATLAB/Python）横比仅限同口径对拍 |
 | `modules/speed_shift_search` | 2026-09-01 并入。速度优化任务1：平移曲线瞬时跳变黑箱直搜（tracker=Brent+迟滞监测）；16 单元测试、144 幕横评 | 代理曲线上直搜类算法的样本效率/再跟踪/能耗量化：tracker 跳变恢复 9–20 步、全程能耗 0.21%，优于连续 ESC（0.64%）与网格（19.7%） | 真实 X8 节能、实机瞬时跳变假设（实机有速度动态，见 speed_esc） |
 | `modules/speed_rugged_search` | 2026-09-01 并入。速度优化任务2：崎岖多峰曲线滤波全局寻优（multistart）；13 单元测试、滤波研究 25 组、20 种子消融 | 对称崎岖代理上"无偏移"量化达成：全局命中 100%、跨种子偏置 −0.044 m/s（门槛 ±0.05）；滤波 argmin 结构偏置已量化（选谷/定位分层依据） | 非对称曲线下的无偏性（对称设计是前提）、2% 噪声下精度极限约 ±0.46 m/s（如实记录） |
 | `modules/wind_circle_search` | 2026-09-01 并入。速度优化任务3：恒定风×圆周盘旋，风的航向投影→功率曲线周期平移；EA分级监测(斜率探针+stencil重定位/升级)；19 单元测试、8 门槛 | EA 尾段跟踪误差 0.320 < tracker 0.809，搜索步数 213<261；jumpUp 恢复≥9/10 | 慢漂+风场叠加未单列门槛；个别种子错谷恢复慢（如实记录）；真实 X8 节能 |
@@ -53,6 +54,7 @@
 
 - `modules/speed_esc`：14 项单元测试、14 组原 Python 逐样本复现（最大误差 5.33e-15）、6 组 MATLAB/Simulink 一致性（最大差 1.25e-14）全部通过；正式种子 11--20 性能验收功率指标 74/74 达标、速度定位指标 63/74（11 个未达标场景多为二次曲线噪声场景，如实列出）。证据：[`evidence/speed_esc/report.md`](evidence/speed_esc/report.md)、[`evidence/speed_esc/scenarios.csv`](evidence/speed_esc/scenarios.csv)。
 - `modules/speed_rl_residual`：11 项单元测试与适配器契约通过；20 个未见不规则风种子零硬约束违规；可观测风解析脚本 19/20 种子优于固定基准（平均功率 480.255→474.229 W，约 -1.25%）；TD3 恒定风候选同类场景 477.825→463.379 W（-3.02%），但迁移到不规则风 0/20 胜出，随机恒定风候选 1/20——均为课程训练起点而非最终策略。证据：[`evidence/speed_rl_residual/report.md`](evidence/speed_rl_residual/report.md)、[`evidence/speed_rl_residual/policy_evaluation.csv`](evidence/speed_rl_residual/policy_evaluation.csv)、TD3 检查点 `td3_candidate_*.mat`。
+- `modules/speed_rl_pytorch`（2026-09-02）：环境与 MATLAB 对拍——无风/恒定/正弦确定性场景 12 位小数逐位一致，不规则风 20 种子统计一致且 MATLAB 侧复现证据值 480.255/474.229 W；课程 TD3 从零 1730 回合在不规则可观测风 +4.55%（诊断：退化为与风无关固定偏置）；BC 热启动 h8/h32 不规则可观测 -1.91%/-1.97%（20/20）、缺测 -1.45%/-1.35%（20/20，超过解析残差）；BC+TD3 微调劣化至 +4.16%；隐藏风 BC +0.78%/+0.39%（信息瓶颈，最优空速处功率对风一阶敏感度为零）；全部策略零硬约束违规。证据：[`evidence/speed_rl_pytorch/report_final.md`](evidence/speed_rl_pytorch/report_final.md)、[`evidence/speed_rl_pytorch/summary_final.csv`](evidence/speed_rl_pytorch/summary_final.csv)、[`evidence/speed_rl_pytorch/parity_matlab_vs_python.csv`](evidence/speed_rl_pytorch/parity_matlab_vs_python.csv)、候选检查点 `modules/speed_rl_pytorch/checkpoints/`。
 - `modules/wind_circle_search`（任务3）：19 项测试、8 项门槛；EA 尾段跟踪 0.320 vs tracker 0.809；证据：[`evidence/wind_circle_search/report.md`](evidence/wind_circle_search/report.md)。
 - `modules/sin_wind_search`（任务4）：19 项测试、8 项门槛；正弦风口径 1 小时窗 EA 0.978 / tracker 0.985 / esc 0.970；证据：[`evidence/sin_wind_search/report.md`](evidence/sin_wind_search/report.md)。
 - `modules/ortho_wind_search`（任务5）：19 项测试、8 项门槛；双正交风 1 小时窗 EA 0.975 / tracker 0.984 / esc 0.960；jumpUp 恢复 10/10；证据：[`evidence/ortho_wind_search/report.md`](evidence/ortho_wind_search/report.md)。
@@ -76,7 +78,7 @@
 - Simulink一致性目前覆盖健康测量信号；冻结和无效数据恢复在MATLAB控制器API中验证。
 - RL接口已经可运行，但没有训练策略，不能以此宣称强化学习优于ESC。
 - 未接PX4、QGC、SITL/HITL、真实电压电流、螺旋桨台架数据或实机。
-- `speed_esc` 的两条速度功率曲线与 `speed_rl_residual` 的风场/电池/轨迹代理均为虚拟对象，三者功率模型互不相同，跨模块不得直接横比节能率；`speed_esc` 速度定位指标 63/74（未全达标）；`speed_rl_residual` 的 TD3 候选在不规则风下尚未胜出基线。
+- `speed_esc` 的两条速度功率曲线与 `speed_rl_residual` 的风场/电池/轨迹代理均为虚拟对象，三者功率模型互不相同，跨模块不得直接横比节能率；`speed_esc` 速度定位指标 63/74（未全达标）；`speed_rl_residual` 的 TD3 候选在不规则风下尚未胜出基线。`speed_rl_pytorch` 为该环境的 Python 移植（对拍一致），其"BC 超过解析残差"结论仅限同一 Python 引擎、可观测/缺测风口径；隐藏风与从零 TD3 的负结果如实保留；跨 MATLAB/Python 引擎不得直接横比节能率。
 
 ## 下一步优先级
 
@@ -84,7 +86,7 @@
 2. 用台架、CFD/BEMT或文献校准数据替换代理功率对象，明确参数来源、适用区间和误差。
 3. 建立给定总推力与零偏航力矩条件下的上下桨分配器，输出可行性、饱和和约束违规标志。
 4. 将 `measuredPower` 对接真实或SITL的电压、电流与时间戳；加入日志回放测试。
-5. 在固定的训练/验证场景划分下训练TD3等策略，并与ESC、固定比值基线使用同一扰动和评价口径比较（`speed_rl_residual` 的课程训练与未见种子评估口径可直接沿用）。
+5. 在固定的训练/验证场景划分下训练TD3等策略，并与ESC、固定比值基线使用同一扰动和评价口径比较（`speed_rl_residual` 的课程训练与未见种子评估口径可直接沿用）。2026-09-02 实验证据（`speed_rl_pytorch`）建议把"BC 热启动"作为该步的标准训练范式，并把"隐藏风下主动激励（ESC dither 思想）并入残差策略"列为该步的新方向。
 6. 再考虑速度寻优与转速比寻优的交替或多频耦合，不能在单变量对象未标定前宣称二维优化成果。
 7. 评估是否用 `modules/speed_esc` 的回归估计器内核替换 `M0C v Ref ESC` 中的解调内核，并按 `M0C_SPEED_ESC.md` §7 重新验收。
 

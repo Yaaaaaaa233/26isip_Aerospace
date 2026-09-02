@@ -9,6 +9,7 @@
 - `modules/ratio_esc/` — 上下桨转速比在线极值寻优（ESC）可运行模块（MATLAB/Simulink + RL 环境接口），对象是恒推力假设下的归一化代理功率模型。
 - `modules/speed_esc/` — 平飞速度在线 ESC 模块（配比固定 η=1），窗口回归梯度估计为主、同频解调为对照；虚拟功率曲线代理对象上完成 74 场景性能验收，并与原 Python 方案逐样本对齐。
 - `modules/speed_rl_residual/` — 在速度基线（固定值/ESC/解析式）之上叠加 TD3 残差修正 `v_ref = guard(v_base + Δv)` 的算法线预研模块；对象为不规则风场下的虚拟代理，含电池与圆周/直线轨迹工况。
+- `modules/speed_rl_pytorch/` — 上者的 Python/PyTorch 训练线（算法线预研，不接平台）：环境逐行移植并经 MATLAB 对拍（确定性场景 12 位小数一致），含课程 TD3、BC 热启动、微调与多场景未见种子评估；运行输出不进库，精选证据在 `docs/evidence/speed_rl_pytorch/`。
 - `modules/speed_shift_search/` — 速度优化任务1研究模块：平移曲线上可瞬时跳变速度的黑箱直搜（黄金分割/Brent 主干 + 斜率迟滞监测重夹逼 tracker），含搜索能耗开关与六算法横评验收。
 - `modules/speed_rugged_search/` — 速度优化任务2研究模块：崎岖多峰曲线上的滤波全局寻优（扫描 → 中心对称 SG 滤波选谷 → pattern search → 对称 stencil 抛物线顶点无偏定位），"无偏移"以跨种子系统偏置门槛量化验收。
 - `harness/` — 统一指标层（已实现，替代原预留占位的指标部分）：三模块架构（environment 风 / aircraft 双表盘黑箱 / console 算法）+ 1 小时任务窗 MOP/MOE（MOE_energy=Emin/E_actual 及 7 项 MOP）；对象与搜索器复用 `modules/speed_rugged_search` 的 `+task2` 包。

@@ -1,0 +1,7 @@
+case,matlab,python,verdict
+none_straight_fixed_meanPowerW,456.500000000000,456.500000000000,exact_12dp
+constant_circle_fixed_meanPowerW,471.366726427871,471.366726427871,exact_12dp
+sine_circle_fixed_meanPowerW,465.839342337790,465.839342337790,exact_12dp
+irregular_20seed_fixed_meanW,480.2550,483.8364,statistical_rng_differs
+irregular_20seed_scripted_meanW,474.2286,475.5786,statistical_rng_differs
+constant_random_20seed_fixed_meanW,470.7163,469.1460,statistical_rng_differs
