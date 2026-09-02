@@ -6,7 +6,7 @@
 文件负责人：叶安
 本次修订：周航正（提出 Plane 物理建模分工与仓库治理需求）
 审核：待项目组审核
-AI协助：Codex（路线与状态整理；M2 第六轮与第九轮独立验收结果回填）
+AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮独立验收结果回填）
 
 ## 9月2日进度快照
 
@@ -34,7 +34,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮与第九轮独立验收�
 
 新增 [`architecture/01_problem_definition.md`](architecture/01_problem_definition.md) 至 [`architecture/05_verification_traceability.md`](architecture/05_verification_traceability.md)，形成 Wind-Plane-Control-Evaluation 的建议逻辑架构、运行场景、接口字典及需求-MoE/MoP-证据追溯。建议将“固定高度圆周盘旋等待下的在线平均功率最小化”作为待指导教师确认的最终主任务，直线无风速度ESC保留为开发基线；详见待确认的 [`decisions/ADR-001-objective-selection.md`](decisions/ADR-001-objective-selection.md)。
 
-[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 的平台决策仍有效：虽然 `speed_rl_pytorch` 已完成 TD3/BC 独立训练与评估，但正式 RL 平台接入仍暂缓；在统一 Plane 对象、Harness、强基线及未见场景门槛成立前，不作“RL优于基线”结论。M2 的 120 s / `[90,120] s` 核心数值协议保持放行并进入 M3；第九轮发现 R9-F1（manifest 协同篡改）与 R9-F2（日志编码）已修复，当前 `3d3fa51` 由入库驱动复跑 52/52 PASS（staged manifest 与源码固定合同等值断言，批次日志零 U+FFFD），R8-F1 随之完全关闭。同时按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 推进 P0--P4 Plane 物理建模并行工作线。
+[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 的平台决策仍有效：虽然 `speed_rl_pytorch` 已完成 TD3/BC 独立训练与评估，但正式 RL 平台接入仍暂缓；在统一 Plane 对象、Harness、强基线及未见场景门槛成立前，不作“RL优于基线”结论。M2 的 120 s / `[90,120] s` 核心数值协议保持放行并进入 M3；第十轮在 `71acd56` 按规则 v1.7 独立复跑 52/52 PASS，R9-F1/R9-F2 具备原始复现、针对性负向、既有回归三件套并关闭。功能实现与验收基础设施均 VALIDATED；R2022b 堆损坏单独登记为 OPEN LIMITATION。分层治理的跨项目采用见 Proposed [`ADR-003`](decisions/ADR-003-layered-acceptance-closure-governance.md)，尚待项目组确认。同时按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 推进 P0--P4 Plane 物理建模并行工作线。
 
 ## 总览：算法与场景模块已有多条证据线，Control 平台完成 M2，Plane 物理对象待建
 
@@ -53,10 +53,10 @@ AI协助：Codex（路线与状态整理；M2 第六轮与第九轮独立验收�
 | `modules/wind_field_sched` | 2026-09-02 并入。路线§3-5交付口径的环境风场调度模块：空速物理P=P0(\|v·t̂+w\|)+解析调度+DP验证+最优匀速对照+可行性+滑窗LM在线风估计+敏感性扫描+三档信息结构；15 单元测试、8 门槛 | DP与解析一致(3.9e-6)；1h窗MOE 已知风1.000>在线0.974>匀速0.964>恒飞0.949>不知风0.938(风速信息价值3.6%)；带宽准则：短窗病态/长窗稳健 | 中频风区估计器谐振区(相位查表为下一步)；代理功率对象不代表真实X8节能 |
 | `modules/unified_search` | 2026-09-01 并入。速度优化任务1+2整合：调试二次曲线+对称崎岖+平移调度统一对象，能耗感知算法 ea_multistart，统一 MOP/MOE 评价；13 单元测试、8 门槛 | 计入搜索能耗后全遍历非最优：崎岖静态 1 小时窗 ea 平均 MOE=0.9927 > multistart 0.9924，搜索步数 165 vs 400（20 种子）；jumpUp 恢复 67 步、jumpDown 29 步、dy 零误触发 | 慢漂（ramp）恢复慢于跳变（9/10 种子 ≤1.6，尾部种子如实记录）；演示面板仅 tracker/esc（定稿口径），ea 等其余算法在包内供验收横比；真实 X8 节能 |
 | `harness`（指标层） | 2026-09-01 实现。三模块架构（environment/aircraft 黑箱/console）+ 1 小时任务窗 MOP/MOE；4 单元测试 | 统一口径横比成立：MOE_energy=Emin/E_actual，fixed 上界 1.0000、multistart 0.9912、grid 0.9905、esc 0.9819、single_golden 0.9226 | 风场场景（任务3-5 待接入）、真实瓦级标定（Pmin_W 为代理换算） |
-| `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1、M2 核心已放行；第九轮发现已修复，当前提交 52/52 针对性矩阵（R9-F1/R9-F2），规则 v1.6 | 干净与脏入口下旁路与原基线零差异；M0-B 安全注入 4/4；M2 S1/S2/S3 = −0.2626%/−0.2938%/−0.2147%；staged manifest 与源码固定合同（`expectedManifestContract()`）等值断言，四类协同篡改负向进矩阵；批次日志零 U+FFFD；52 行矩阵绑定 runId `78281368` @ `3d3fa51`，c2clean 自然堆崩溃→重试→attempt=2 成功（R8 遗留项关闭），双链哈希一致 | R2022b 堆崩溃仍是环境缺陷（本批自然发生一次并被有界重试吸收）；report 段崩溃注入未执行；全量同会话双链未覆盖；MATLAB 输出编码属机器区域设置需跨机探针复核；不外推真实功率/风场 |
+| `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1、M2 核心已放行；第十轮当前提交 52/52 针对性矩阵，功能与验收基础设施 VALIDATED，规则 v1.7 | 干净与脏入口下旁路与原基线零差异；M0-B 安全注入 4/4；M2 S1/S2/S3 = −0.2626%/−0.2938%/−0.2147%；R9-F1 两个原始协同篡改由独立探针以 `ManifestContract` 拒绝，contract 四类负向与全部旧回归通过；8 份日志零 U+FFFD；52 行矩阵绑定 runId `88e0204a` @ `71acd56`，c3 盖章后崩溃无害、c5 盖章前崩溃后 attempt=2 完整重执行成功，双链哈希一致 | R2022b 堆崩溃为 OPEN LIMITATION（本批自然发生两次并被规则正确处理）；report 段崩溃注入未执行；全量同会话双链未覆盖；MATLAB 输出编码属机器区域设置需跨机探针复核；不外推真实功率/风场 |
 | Plane 物理建模（P0--P4） | 2026-09-02 纳入路线图，统一组件尚未实现；建议负责人霍奕茗（待组内确认） | `wind_field_sched` 的空速物理对象和 `px4_x8` 的 6DOF/执行器链可复用 | 尚无统一 `P(v_air,eta)`、圆周动力需求、电池/SOC 或与 PX4 的接入结果 |
 
-飞控平台的唯一执行基线是 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并通过独立再验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)、[`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)）。**M0-C、M1 已通过；M2 受约束分配器、ESC 接线和修订数值门槛保持放行。第九轮发现 R9-F1（manifest 可协同篡改，P1）与 R9-F2（批次日志中文编码损坏，P2）已修复：staged manifest 与验证器源码中的单一固定合同做等值硬断言（`air:M2Verify:ManifestContract`，四类协同篡改负向证明进矩阵），驱动按 MATLAB 实际 ANSI 输出页解码写 UTF-8 日志；当前 `3d3fa51` 由入库驱动复跑 52/52 PASS（runId `78281368`，c2clean 自然堆崩溃后第 2 次尝试成功、attempt=2 如实记账，批次 8 份日志零 U+FFFD），R8-F1 随之完全关闭，规则文档升 v1.6（[`evidence/M2_REACCEPT_ROUND9_FIX_20260903.md`](evidence/M2_REACCEPT_ROUND9_FIX_20260903.md)；第九轮验收原文见 [`evidence/M2_REACCEPT_ROUND9_CODEX_20260903.md`](evidence/M2_REACCEPT_ROUND9_CODEX_20260903.md)）。M3 可继续并行推进；环境级堆崩溃未消灭（本批自然发生一次并被有界重试吸收）、全量同会话双链仍未覆盖，不宣称"完全闭环"；不做平台侧 RL。**
+飞控平台的唯一执行基线是 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并通过独立再验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)、[`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)）。**M0-C、M1 已通过；M2 受约束分配器、ESC 接线和修订数值门槛保持放行。第十轮按 v1.7 四层判定在当前 `71acd56` 由入库驱动独立复跑 52/52 PASS（runId `88e0204a`，五段 attempt=1/1/1/2/1）：R9-F1 的“上限+stamps 协同篡改”和“删除 c5+声明行”两个原始复现均由独立探针以 `air:M2Verify:ManifestContract` 精确拒绝且零伪归档，R9-F2 的 8 份真实批次日志逐码点扫描零 U+FFFD；两项连同 R8-F1 满足关闭三件套。功能实现层与当前冻结验收基础设施层均 VALIDATED；环境层保持 OPEN LIMITATION——c3 盖章后、c5 盖章前各发生一次自然堆崩溃，驱动分别按 fresh done 放行和完整重执行正确处理；全量同会话双链仍未覆盖。证据见 [`evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md`](evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md)。M3 可继续并行推进；不做平台侧 RL。**
 
 **独立复验确认（2026-09-01，`00fd67e`）**：基线、四个速度场景、四类故障注入均实际复跑通过；另在保存快照上验证姿态保护和完整功率故障恢复（9.001 s 释放 fallback、11 s 回到 active/9 m/s）。详细证据与非阻塞建议见 [`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)。M0-B 阶段可放行；M0-C 开始实现成本窗口前须统一路线中状态 1/2 的歧义，排除 warmup、仅使用满足稳定条件的 active 样本。通过范围限于当前模型的速度通道及监视器/参考回退，不扩展为真实飞行安全或真实节能结论。
 
@@ -87,6 +87,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮与第九轮独立验收�
 - M2 第八轮发现修复（2026-09-02，[`evidence/M2_REACCEPT_ROUND8_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND8_FIX_20260902.md)）：R8-F1 attempt 证据升级为硬断言（存在/正整数/`manifest.maxAttempts` 上限/与持久标记一致，六类负向证明入矩阵，42→48 行）；R8-F2 有界重试驱动入库 `tools/run_m2_batch.ps1`（+8 场景驱动层测试）；R8-F3 计数器原子替换写入（pre/mid/post 三窗口钩子实证至多留下旧值或新值，损坏标记硬失败不自愈）。修复期间捕获 matlab 启动器对堆崩溃子进程报 rc=0 的真实活例（`results/batch_runs/20260902_225209` c2clean），驱动判据修正为"新鲜完成证据权威、退出码仅参考"并同步规则 v1.5(a)。正式批次由入库驱动整批重跑 48/48 PASS，runId `72300de6` @ `6f6672c`，c5 第 1 次尝试受控 taskkill 击杀→自动完整重执行→第 2 次成功（`done.attempts=2`），双链哈希与登记值一致（第 5 次跨批复现），门槛值不变。
 - M2 第九轮独立验收（2026-09-03，[`evidence/M2_REACCEPT_ROUND9_CODEX_20260903.md`](evidence/M2_REACCEPT_ROUND9_CODEX_20260903.md)）：当前 `2be9857` 由入库驱动复跑 48/48 PASS，runId `1edb644d`，五段 attempt=1，C5 双链哈希一致，S1/S2/S3 = −0.2626%/−0.2938%/−0.2147%；驱动测试 8/8 与原子 marker pre/mid/post/超预算探针通过，R8-F2/R8-F3 关闭。但协同篡改 manifest 上限 + done/marker 后仍 48 PASS，删除 c5 与声明行后仍 44 PASS，新增 R9-F1（P1）：manifest 尚未与源码固定批次合同做等值断言。R8-F1 仅部分关闭，验收自动化保持 PARTIAL；另记 WinPS 5.1 日志中文编码损坏为 P2。
 - M2 第九轮发现修复（2026-09-03，[`evidence/M2_REACCEPT_ROUND9_FIX_20260903.md`](evidence/M2_REACCEPT_ROUND9_FIX_20260903.md)）：R9-F1 以单一源码合同 `expectedManifestContract()` 收口——init 写入、段入口/`validateStaged`/聚合器三处等值硬断言（上限等值而非 ≥1、阶段名单/顺序/唯一全等、声明行数逐字段全等，`air:M2Verify:ManifestContract`），四类协同篡改负向（提上限含自洽 stamps/删阶段/增配齐阶段/改行数）进矩阵 48→52 行且错误必须落在合同检查本身；`cloneStaged` 改为合成完整五段 toy 防止既有负向证明被短路。R9-F2：驱动 `Invoke-LoggedNative` 按 ANSI 实际输出页解码写 UTF-8（探针实证 MATLAB -batch 管道原始字节为 GBK），驱动测试增至 9 场景（S8 编码往返零 U+FFFD）。正式批次 52/52 PASS，runId `78281368` @ `3d3fa51`；c2clean 第 1 次尝试**自然**堆崩溃（0xC0000374）→完整重执行→第 2 次成功（attempt=2 如实记账），R8 登记的"自然崩溃—重试—成功"遗留项关闭；批次 8 份日志零 U+FFFD；双链哈希第 7 次跨批复现；门槛值逐位一致。规则升 v1.6（规则 8/9）。
+- M2 第十轮独立验收（2026-09-03，[`evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md`](evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md)）：治理提交 `71acd56` 上按 v1.7 四层判定复跑 52/52 PASS，runId `88e0204a`；驱动测试 9/9，R9-F1 两个原始协同篡改独立探针精确拒绝，R9-F2 批次日志 8/8 零 U+FFFD，R9-F1/R9-F2/R8-F1 以关闭三件套 CLOSED。c3 盖章后与 c5 盖章前各自然堆崩溃一次，驱动分别无害放行和 attempt=2 完整重执行成功，归类为环境限制而非功能回归。功能层、当前冻结验收基础设施层 VALIDATED；环境层 OPEN LIMITATION；Proposed ADR-003 待项目组确认。
 - M2 第六轮发现修复（2026-09-02，[`evidence/M2_REACCEPT_ROUND6_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND6_FIX_20260902.md)）：R6-F1 源码指纹在 init/段开始/盖章/report 独立现场取证（`git -C` 解耦工作目录、拒 unknown、拒脏树）；R6-F2 聚合器逐行 verdict 硬断言 + FAIL 行负向；R6-F3 C5 收缩为最小双链（nominal S1–S3）。42/42 针对性矩阵 PASS，runId `ff8636ec` @ `2d36288`，双链哈希一致，门槛值在登记抖动内；全量同会话双链仍为环境限制未覆盖组合。规则同步升版 v1.3；治理脚本 BOM 兼容性收口（PS 5.1 可运行）。
 
 ### 算法线速度模块证据（2026-09-01 并入）
@@ -122,7 +123,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮与第九轮独立验收�
 ## 下一步优先级
 
 1. **并行 A，Plane P0--P4**：建议霍奕茗负责（待组内确认），完成风/空地速、速度与 eta 执行动态、圆周 `v^2/R` 需求、`P(v_air,eta)`、电池/SOC 和统一 `reset/step` 适配器；先独立验收，不直接改主 `.slx`。
-2. **并行 B，M3 方案与调度器**：叶安继续负责两个 ESC 的更新/保持/优先级仲裁、稳定窗口和约束总线；同步先关闭 R9-F1 的固定 manifest 合同断言，再在现有代理对象开发，Plane 通过后接入 `air_spare.slx` 并复跑 M0/M2 基线。
+2. **并行 B，M3 方案与调度器**：R9-F1/R9-F2 已经第十轮独立关闭；叶安继续负责两个 ESC 的更新/保持/优先级仲裁、稳定窗口和约束总线，在现有代理对象开发，Plane 通过后接入 `air_spare.slx` 并复跑 M0/M2 基线。R2022b 堆崩溃按环境限制管理，不再无证据退回 M2 核心。
 3. 将 Wind、Plane、Control 与现有 MOP/MOE 接入同一 Harness，在相同场景、随机种子和约束下比较固定值、ESC、解析调度及候选学习策略。
 4. 用 CFD/BEMT、文献或后续台架数据校准 Plane 参数，明确来源、适用区间与误差；当前实机数据缺失，不把校准列作近期完成项。
 5. 将 `measuredPower` 对接真实或 SITL 的电压、电流与时间戳并加入日志回放；真实数据到位前保留 `estimated/proxy` 来源标志。
