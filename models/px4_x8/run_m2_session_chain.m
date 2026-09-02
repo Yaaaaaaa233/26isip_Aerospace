@@ -36,7 +36,9 @@ global M2_ETA_PARAMS M2_ETA_APPLIED
 chainSavedParams = [];
 chainSavedApplied = [];
 if ~isempty(M2_ETA_PARAMS), chainSavedParams = M2_ETA_PARAMS; end
-if ~isempty(M2_ETA_APPLIED) && isfinite(M2_ETA_APPLIED)
+if ~isempty(M2_ETA_APPLIED)
+    % R5-F1: snapshot ANY non-empty value including NaN/Inf -- the
+    % restore contract is exactly-as-found (rules v1.2 section 3)
     chainSavedApplied = M2_ETA_APPLIED;
 end
 chainCleanup = onCleanup(@() m2chain_restore_globals( ...

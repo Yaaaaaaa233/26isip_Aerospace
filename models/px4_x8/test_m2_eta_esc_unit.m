@@ -46,7 +46,9 @@ global M2_ETA_PARAMS M2_ETA_APPLIED
 savedParams = [];
 savedApplied = [];
 if ~isempty(M2_ETA_PARAMS), savedParams = M2_ETA_PARAMS; end
-if ~isempty(M2_ETA_APPLIED) && isfinite(M2_ETA_APPLIED)
+if ~isempty(M2_ETA_APPLIED)
+    % R5-F1: snapshot ANY non-empty value including NaN/Inf -- the
+    % restore contract is exactly-as-found (rules v1.2 section 3)
     savedApplied = M2_ETA_APPLIED;
 end
 % R2-F3/R3-F2: ONE unified cleanup restores the globals AND clears the

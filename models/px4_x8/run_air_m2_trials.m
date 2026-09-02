@@ -34,7 +34,9 @@ global M2_ETA_PARAMS M2_ETA_APPLIED
 trialsSavedParams = [];
 trialsSavedApplied = [];
 if ~isempty(M2_ETA_PARAMS), trialsSavedParams = M2_ETA_PARAMS; end
-if ~isempty(M2_ETA_APPLIED) && isfinite(M2_ETA_APPLIED)
+if ~isempty(M2_ETA_APPLIED)
+    % R5-F1: snapshot ANY non-empty value including NaN/Inf -- the
+    % restore contract is exactly-as-found (rules v1.2 section 3)
     trialsSavedApplied = M2_ETA_APPLIED;
 end
 trialsCleanup = onCleanup(@() m2trials_restore_globals( ...

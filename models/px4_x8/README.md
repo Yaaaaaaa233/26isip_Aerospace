@@ -11,7 +11,7 @@
 
 ### M2 上下桨转速比 ESC（2026-09-01，快照 `air_m2.slx`）
 
-状态：M2 四轮复验全部关闭（2026-09-02）。三入口真实错误恢复、persistent fresh（前向时间直探）、脏入口背靠背双链和九场景硬断言均验证通过；总验证器自身合规（调用者状态恢复、针对性矩阵 15/15、分段执行）已修复并复验。见 [`M2_REACCEPT_ROUND4_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND4_FIX_20260902.md)。
+状态：M2 五轮复验全部关闭（2026-09-02）。第五轮独立分段复验 15/15 PASS；其发现的三项自动化缺陷（非有限快照、报告证据绑定、路径断言）已修复并经 39/39 针对性矩阵关闭验证。见 [`M2_REACCEPT_ROUND5_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND5_FIX_20260902.md)。
 
 - `m2_eta_allocator.m` + `m2_alloc_diag.m`：受约束 PWM 域 eta 分配器（同轴对 (1,5)(2,6)(3,7)(4,8)，每对 Σω² 严格保持 → 总推力/横滚/俯仰不变；η=1 位精确透传；sat/dmz 诊断单口输出）。
 - `m2_eta_esc.m` + `add_air_m2_allocator.m`：`ratioesc` 内核原生转速比接线（输入 35 维含 motor_pwm/rpm 与 alloc_sat；eta 经全局 `M2_ETA_APPLIED` 交接，慢层信号不进 pwm 主路径）与原子安装器。
@@ -62,4 +62,4 @@ m2Result = run_m2_session_chain()
 
 ## 边界与下一步
 
-当前模型已具备 RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至力/力矩、6DOF、姿态反馈、M0-B 速度外环/安全回退、M0-C 速度 ESC 接口，以及 M2 `eta_ref` 受约束分配器与转速比 ESC；M1 鲁棒性矩阵、M2 修订数值协议和三入口正常/异常恢复已通过。它仍没有电池、电流、真实 RPM、校准后的真实电功率或完整 Harness 接入，因此不能据此宣称真实节能率或算法已经部署飞控。M3 可继续；总验证器的调用者状态恢复与覆盖口径应在下一里程碑验收前修复。详细观测接口见 [`M0A_OBSERVABILITY.md`](../../docs/interfaces/M0A_OBSERVABILITY.md)，阶段门槛见 [`PROJECT_EXECUTION_ROADMAP.md`](../../docs/PROJECT_EXECUTION_ROADMAP.md)。
+当前模型已具备 RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至力/力矩、6DOF、姿态反馈、M0-B 速度外环/安全回退、M0-C 速度 ESC 接口，以及 M2 `eta_ref` 受约束分配器与转速比 ESC；M1 鲁棒性矩阵、M2 修订数值协议和已覆盖的正常/异常恢复均通过。它仍没有电池、电流、真实 RPM、校准后的真实电功率或完整 Harness 接入，因此不能据此宣称真实节能率或算法已经部署飞控。M3 可继续。详细观测接口见 [`M0A_OBSERVABILITY.md`](../../docs/interfaces/M0A_OBSERVABILITY.md)，阶段门槛见 [`PROJECT_EXECUTION_ROADMAP.md`](../../docs/PROJECT_EXECUTION_ROADMAP.md)。
