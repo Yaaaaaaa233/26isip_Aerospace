@@ -2,9 +2,11 @@
 
 共轴八旋翼在线能耗优化协作仓库。
 
-仓库包含**优化算法线**的十一个可运行模块、**统一指标层**与**验证平台线**：上下桨转速比在线极值寻优（`ratio_esc`）、平飞速度在线极值寻优（`speed_esc`）、速度基线之上的 TD3 残差修正（`speed_rl_residual`）、平移曲线黑箱直搜（`speed_shift_search`）、崎岖多峰滤波全局寻优（`speed_rugged_search`）、任务1+2整合的统一速度寻优程序（`unified_search`）、环境风场系列研究（恒定风×圆周盘旋 `wind_circle_search`、正弦风 `sin_wind_search`、双正交正弦风 `ortho_wind_search`，均含三模块面板：控制台/飞机模型/环境模型），统一 MOP/MOE 指标与场景入口（`harness`），以及用于把慢层算法安全接入飞控快层的 `models/px4_x8`。所有模块当前都使用明确标注的**虚拟/代理功率对象**：它们不是实机飞控、不是电子调速器（ESC），也不构成真实 X8 节能率或偏航稳定性结论。
+项目包含在线优化算法、搜索与风场研究、强化学习预研、统一指标层和 PX4 X8 验证平台。模块持续增加，因此完整模块清单、生命周期、运行入口和证据统一在 [`modules/README.md`](modules/README.md) 维护；文档权威关系见 [`docs/README.md`](docs/README.md)，当前进度见 [`docs/DEVELOPMENT_STATUS.md`](docs/DEVELOPMENT_STATUS.md)。
 
-## 技术路线：四个模块的关系
+所有模块当前都使用明确标注的**虚拟/代理功率对象**：它们不是实机飞控、不是电子调速器（ESC），也不构成真实 X8 节能率或偏航稳定性结论。
+
+## 技术路线与模块分类
 
 ```text
 第 1 层  转速比 ESC      ratio_esc            优化 η = Ωu/Ωl（恒推力代理）        已完成验收
@@ -114,6 +116,8 @@ run_harness                % 三模块接线测试 + 1小时窗五算法MOE横�
 ```
 
 ## 当前成果
+
+本节保留各工作线的阶段性摘要；可引用的当前结论以 [`docs/DEVELOPMENT_STATUS.md`](docs/DEVELOPMENT_STATUS.md) 和对应 `docs/evidence/` 为准，模块增减与入口以 [`modules/README.md`](modules/README.md) 为准。
 
 ### 转速比 ESC（modules/ratio_esc）
 

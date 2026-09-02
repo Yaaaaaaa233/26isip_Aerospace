@@ -4,23 +4,24 @@
 
 ## 项目概要
 
-共轴八旋翼（X8）在线能耗优化研究仓库，当前有四个并行模块/工作线：
+共轴八旋翼（X8）在线能耗优化研究仓库，由四类可独立推进的内容组成：
 
-- `modules/ratio_esc/` — 上下桨转速比在线极值寻优（ESC）可运行模块（MATLAB/Simulink + RL 环境接口），对象是恒推力假设下的归一化代理功率模型。
-- `modules/speed_esc/` — 平飞速度在线 ESC 模块（配比固定 η=1），窗口回归梯度估计为主、同频解调为对照；虚拟功率曲线代理对象上完成 74 场景性能验收，并与原 Python 方案逐样本对齐。
-- `modules/speed_rl_residual/` — 在速度基线（固定值/ESC/解析式）之上叠加 TD3 残差修正 `v_ref = guard(v_base + Δv)` 的算法线预研模块；对象为不规则风场下的虚拟代理，含电池与圆周/直线轨迹工况。
-- `modules/speed_rl_pytorch/` — 上者的 Python/PyTorch 训练线（算法线预研，不接平台）：环境逐行移植并经 MATLAB 对拍（确定性场景 12 位小数一致），含课程 TD3、BC 热启动、微调与多场景未见种子评估；运行输出不进库，精选证据在 `docs/evidence/speed_rl_pytorch/`。
-- `modules/speed_shift_search/` — 速度优化任务1研究模块：平移曲线上可瞬时跳变速度的黑箱直搜（黄金分割/Brent 主干 + 斜率迟滞监测重夹逼 tracker），含搜索能耗开关与六算法横评验收。
-- `modules/speed_rugged_search/` — 速度优化任务2研究模块：崎岖多峰曲线上的滤波全局寻优（扫描 → 中心对称 SG 滤波选谷 → pattern search → 对称 stencil 抛物线顶点无偏定位），"无偏移"以跨种子系统偏置门槛量化验收。
-- `harness/` — 统一指标层（已实现，替代原预留占位的指标部分）：三模块架构（environment 风 / aircraft 双表盘黑箱 / console 算法）+ 1 小时任务窗 MOP/MOE（MOE_energy=Emin/E_actual 及 7 项 MOP）；对象与搜索器复用 `modules/speed_rugged_search` 的 `+task2` 包。
-- `modules/unified_search/` — 统一速度寻优程序（任务1平移 × 任务2崎岖 × 能耗感知 ea_multistart），代理对象上的 MOP/MOE 横比；验收入口 `run_unified_acceptance`（单元/性能门槛未全过时硬失败）。
-- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C、M1、M2 核心成果已完成并放行；第五轮独立复验的标准分段矩阵 15/15 PASS，但发现非有限调用者状态恢复和 stage 证据来源绑定缺陷，验收自动化为 PARTIAL（`docs/evidence/M2_REACCEPT_ROUND5_CODEX_20260902.md`）。上述 R5 缺陷已于同日修复并通过 39/39 针对性矩阵关闭验证（`docs/evidence/M2_REACCEPT_ROUND5_FIX_20260902.md`）。当前下一项为 M3 速度与转速比交替协同优化。注意：本机 R2022b 单进程长序列仿真有堆损坏风险，批量验收用 `verify_m2_round4_closure` 的分段模式（stage 逐段执行）。
+- `modules/`：核心在线算法、搜索与风场研究、强化学习预研；
+- `models/`：PX4 X8 Control平台与后续Plane物理对象；
+- `harness/`：统一场景、MOP/MOE和公平评价；
+- `integration/`：算法、Plane与Control的适配接入。
+
+全部模块名称、生命周期、运行入口、证据和负责人登记只在 [`modules/README.md`](modules/README.md) 维护。当前进度只在 [`docs/DEVELOPMENT_STATUS.md`](docs/DEVELOPMENT_STATUS.md) 维护；不要在本文件复制模块计数或实验结果。
+
+平台注意事项：`models/px4_x8` 当前 M2 已放行，下一步为 M3；本机 R2022b 单进程长序列仿真有堆损坏风险，批量验收使用 `verify_m2_round4_closure` 的分段模式。
 
 ## 必读文档
 
 | 何时读 | 文档 |
 |---|---|
+| 不确定文档角色或权威关系 | `docs/README.md`（文档导航、唯一事实来源与更新触发条件） |
 | 每次开工前 | `docs/DEVELOPMENT_STATUS.md`（当前状态、已知局限、下一步优先级） |
+| 新增、合并或冻结模块 | `modules/README.md`（模块登记表） |
 | 改动 ESC / RL 接口 | `docs/COLLABORATION.md`（接口签名与因果约定） |
 | 涉及飞控平台线 | `docs/PROJECT_EXECUTION_ROADMAP.md`（唯一执行基线）与 `docs/interfaces/M0A_OBSERVABILITY.md` |
 | 改动速度 ESC / 残差 RL 模块 | `modules/speed_esc/docs/`（整合说明、数据与RL边界、验证记录）、`modules/speed_rl_residual/docs/`（接口契约、验证记录） |
