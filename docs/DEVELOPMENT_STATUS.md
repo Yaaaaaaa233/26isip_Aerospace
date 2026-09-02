@@ -4,7 +4,7 @@
 
 新增 [`architecture/01_problem_definition.md`](architecture/01_problem_definition.md) 至 [`architecture/05_verification_traceability.md`](architecture/05_verification_traceability.md)，形成 Wind-Plane-Control-Evaluation 的建议逻辑架构、运行场景、接口字典及需求-MoE/MoP-证据追溯。建议将“固定高度圆周盘旋等待下的在线平均功率最小化”作为待指导教师确认的最终主任务，直线无风速度ESC保留为开发基线；详见待确认的 [`decisions/ADR-001-objective-selection.md`](decisions/ADR-001-objective-selection.md)。
 
-[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 已记录当前决策：正式RL开发暂缓，现有 `speed_rl_residual` 仅保留为接口预研和候选插件；在任务口径、功率对象、统一接口、Harness、强基线及未见场景门槛成立前，不扩大训练或作“RL优于基线”结论。该架构文档不改变平台唯一执行路线的当前顺序。M2 的 120 s / `[90,120] s` 修订协议经多轮复验；三入口函数化后，真实错误恢复、persistent fresh 与数值链均在第四轮独立验收中通过。新增总验证器自身不恢复调用者 global，且 10 行矩阵未覆盖规则要求的完整组合，因此验收基础设施总体为部分通过（[`evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md)）。M2 核心成果保持放行，M3 可以继续，同时关闭验收器问题。
+[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 已记录当前决策：正式RL开发暂缓，现有 `speed_rl_residual` 仅保留为接口预研和候选插件；在任务口径、功率对象、统一接口、Harness、强基线及未见场景门槛成立前，不扩大训练或作“RL优于基线”结论。该架构文档不改变平台唯一执行路线的当前顺序。M2 的 120 s / `[90,120] s` 修订协议经多轮复验；三入口函数化后，真实错误恢复、persistent fresh 与数值链均在第四轮独立验收中通过。总验证器自身缺陷（R4-F1 调用者状态恢复、R4-F2 persistent 间接推断、R4-F3 矩阵措辞）已按第四轮关闭条件修复并复验（针对性矩阵 15/15、前向时间 persistent 直探、分段执行规避本机 R2022b 进程级堆损坏，[`evidence/M2_REACCEPT_ROUND4_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND4_FIX_20260902.md)）。M2 放行，进入 M3。
 
 ## 总览：算法线三模块并行，平台线已完成 M0-C 接口集成、M1 鲁棒性验收与 M2 eta 分配器
 
@@ -21,9 +21,9 @@
 | `modules/adaptive_search` | 2026-09-02 并入。任务6自适应算法库：spsa占空比随机扰动/bayes GP代理/qnewton割线牛顿(两相制, 新推荐)+双层MOP/MOE(性能量×任务效能分层)；28 单元测试、10 门槛 | qnewton 风场尾段 0.272<tracker 0.805、1h MOE 0.987>ea 0.975；spsa 跳变恢复 10–18 步(ea口径≤260)；bayes settle 8–18 步(定位专长) | bayes 时变尾段跟踪劣于占空比法(如实记录)；tracker 能耗优势来自平坦无噪设计点；真实 X8 节能 |
 | `modules/unified_search` | 2026-09-01 并入。速度优化任务1+2整合：调试二次曲线+对称崎岖+平移调度统一对象，能耗感知算法 ea_multistart，统一 MOP/MOE 评价；13 单元测试、8 门槛 | 计入搜索能耗后全遍历非最优：崎岖静态 1 小时窗 ea 平均 MOE=0.9927 > multistart 0.9924，搜索步数 165 vs 400（20 种子）；jumpUp 恢复 67 步、jumpDown 29 步、dy 零误触发 | 慢漂（ramp）恢复慢于跳变（9/10 种子 ≤1.6，尾部种子如实记录）；演示面板仅 tracker/esc（定稿口径），ea 等其余算法在包内供验收横比；真实 X8 节能 |
 | `harness`（指标层） | 2026-09-01 实现。三模块架构（environment/aircraft 黑箱/console）+ 1 小时任务窗 MOP/MOE；4 单元测试 | 统一口径横比成立：MOE_energy=Emin/E_actual，fixed 上界 1.0000、multistart 0.9912、grid 0.9905、esc 0.9819、single_golden 0.9226 | 风场场景（任务3-5 待接入）、真实瓦级标定（Pmin_W 为代理换算） |
-| `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1 与 M2 核心成果已放行；M2 验收基础设施部分通过 | 干净与脏入口下旁路与原基线零差异；M0-B 安全注入 4/4；M2 修订协议（120 s、[90,120] 收敛末窗、门槛不变）下 S1/S2/S3 = −0.26%/−0.29%/−0.23%；三入口函数化后各真实错误出口均恢复 global，persistent fresh 直接比较差 0；同会话背靠背双链 2/2 且 CSV 逐位一致 | 总验证器正常退出会清空调用者 global，10 行矩阵不是规则所称的完整入口状态 × 退出路径组合；不外推真实功率/风场；esc 中心收敛受 PWM 量化分辨率限制；遗留脚本入口错误恢复为登记限制 |
+| `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1、M2 已放行（M2 四轮复验 2026-09-02 关闭） | 干净与脏入口下旁路与原基线零差异；M0-B 安全注入 4/4；M2 修订协议（120 s、[90,120] 收敛末窗、门槛不变）下 S1/S2/S3 = −0.26%/−0.29%/−0.23%；三入口各真实错误出口恢复 global，persistent fresh 前向时间直探差 0；总验证器自身状态契约经非空调用者正常/错误路径复验，针对性矩阵 15/15 | 不外推真实功率/风场；esc 中心收敛受 PWM 量化分辨率限制；遗留脚本入口错误恢复为登记限制；长序列单进程仿真在本机 R2022b 有堆损坏风险（验证器已分段执行规避，环境限制在案） |
 
-飞控平台的唯一执行基线是 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并通过独立再验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)、[`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)）。**M0-C 已通过验收（[`evidence/M0C_TRIALS_20260901.md`](evidence/M0C_TRIALS_20260901.md)），M1 已通过验收（[`evidence/M1_ROBUSTNESS_20260901.md`](evidence/M1_ROBUSTNESS_20260901.md)）。M2 的受约束分配器、ESC 接线、修订数值门槛以及三入口错误恢复通过；第四轮独立验收将总验证器的状态契约与覆盖口径判为部分通过（[`evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md)）。M3 可以继续，下一里程碑验收前须关闭 R4-F1--F3**；不做 RL。
+飞控平台的唯一执行基线是 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并通过独立再验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)、[`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)）。**M0-C 已通过验收（[`evidence/M0C_TRIALS_20260901.md`](evidence/M0C_TRIALS_20260901.md)），M1 已通过验收（[`evidence/M1_ROBUSTNESS_20260901.md`](evidence/M1_ROBUSTNESS_20260901.md)）。M2 的受约束分配器、ESC 接线、修订数值门槛、三入口错误恢复与总验证器自身合规均已通过（第四轮发现见 [`evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md)，修复与 15/15 关闭验证见 [`evidence/M2_REACCEPT_ROUND4_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND4_FIX_20260902.md)）。进入 M3：速度与转速比交替协同优化**；不做 RL。
 
 **独立复验确认（2026-09-01，`00fd67e`）**：基线、四个速度场景、四类故障注入均实际复跑通过；另在保存快照上验证姿态保护和完整功率故障恢复（9.001 s 释放 fallback、11 s 回到 active/9 m/s）。详细证据与非阻塞建议见 [`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)。M0-B 阶段可放行；M0-C 开始实现成本窗口前须统一路线中状态 1/2 的歧义，排除 warmup、仅使用满足稳定条件的 active 样本。通过范围限于当前模型的速度通道及监视器/参考回退，不扩展为真实飞行安全或真实节能结论。
 
@@ -45,6 +45,7 @@
 - M2 第三轮独立复验（2026-09-02，[`evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md)）：原样脏入口背靠背双链 2/2 PASS，九场景 CSV 哈希一致，链尾 `air:M2Session:TrialsFailed` 负向证明通过；但真实 U1/compare 断言失败后，单元测试和完整链均未恢复入口 global，证明脚本工作区 `onCleanup` 的错误路径未闭环。修订上一条“全部关闭”：M2 数值与正常路径通过，工程自动化部分通过。
 - M2 第三轮修复与第四轮关闭验证（2026-09-02，[`evidence/M2_REACCEPT_ROUND3_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND3_FIX_20260902.md)）：三入口（单元测试/完整链/九场景试验）函数化并加受控错误注入钩子；真实错误注入矩阵 10/10 PASS（三类错误出口 + 试验独立成功/受控失败均精确恢复调用者状态、persistent fresh、背靠背双链 2/2 且 CSV 逐位一致、门槛值在 ±0.015pp 抖动容差内）；§9.5 的跨会话哈希一致按实测修订为同会话哈希互等 + 数值抖动容差（ulp 指纹机制在案）；同轮固化 `ACCEPTANCE_AUTOMATION_RULES.md` v1.0 并整改四处存量 `M0C_ESC_PARAMS` 渗漏。M2 放行。
 - M2 第四轮独立验收（2026-09-02，[`evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md)）：仓库验证器内部 10/10 PASS，两次九场景 `pairs.csv` 哈希一致；独立真实探针确认三入口 global 恢复与 persistent fresh（最大差 0），故第三轮核心缺陷关闭。但验证器自身正常返回时清空调用者 global，persistent 检查为间接推断，且 10 行矩阵不是规则 §4.3 的完整组合。修订“自动化完全闭环”为部分通过；M2 核心成果保持放行。
+- M2 第四轮修复与关闭验证（2026-09-02，[`evidence/M2_REACCEPT_ROUND4_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND4_FIX_20260902.md)）：验证器入口快照/onCleanup 恢复调用者 global（非空调用者正常与 `'fail'` 注入路径均复验）；persistent fresh 改为前向时间直探（发现并修复原“首次输出对比”式探针因 t=0 重初始化而永真的缺陷，加灵敏度自检）；矩阵补 clean 入口态并全面改称针对性矩阵（15 行，声明=实际），规则升 v1.1；验证器分段执行规避本机 R2022b 单进程长序列堆损坏（崩溃深度 4/8/45 次仿真不等，环境限制如实入档）。15/15 PASS，M2 放行。
 
 ### 算法线速度模块证据（2026-09-01 并入）
 
@@ -76,7 +77,7 @@
 
 ## 下一步优先级
 
-1. M3（速度与转速比交替协同优化）：两个 ESC 的更新/保持/优先级仲裁、同一条稳定窗口与约束总线、与 M0/M2 单变量基线同场景比较；方案与实现可以继续，`.slx` 结构集成照红线与 M2 实现教训执行。并行修复 `verify_m2_round4_closure` 的调用者状态恢复、persistent 直接检查和覆盖矩阵措辞/组合，在下一里程碑验收前关闭。
+1. M3（速度与转速比交替协同优化）：两个 ESC 的更新/保持/优先级仲裁、同一条稳定窗口与约束总线、与 M0/M2 单变量基线同场景比较；方案文档先行，`.slx` 结构集成照红线与 M2 实现教训执行（M2 四轮复验已全部关闭，2026-09-02）。
 2. 用台架、CFD/BEMT或文献校准数据替换代理功率对象，明确参数来源、适用区间和误差。
 3. 建立给定总推力与零偏航力矩条件下的上下桨分配器，输出可行性、饱和和约束违规标志。
 4. 将 `measuredPower` 对接真实或SITL的电压、电流与时间戳；加入日志回放测试。

@@ -13,7 +13,7 @@
 - `modules/speed_rugged_search/` — 速度优化任务2研究模块：崎岖多峰曲线上的滤波全局寻优（扫描 → 中心对称 SG 滤波选谷 → pattern search → 对称 stencil 抛物线顶点无偏定位），"无偏移"以跨种子系统偏置门槛量化验收。
 - `harness/` — 统一指标层（已实现，替代原预留占位的指标部分）：三模块架构（environment 风 / aircraft 双表盘黑箱 / console 算法）+ 1 小时任务窗 MOP/MOE（MOE_energy=Emin/E_actual 及 7 项 MOP）；对象与搜索器复用 `modules/speed_rugged_search` 的 `+task2` 包。
 - `modules/unified_search/` — 统一速度寻优程序（任务1平移 × 任务2崎岖 × 能耗感知 ea_multistart），代理对象上的 MOP/MOE 横比；验收入口 `run_unified_acceptance`（单元/性能门槛未全过时硬失败）。
-- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C、M1、M2 核心成果已完成；第四轮独立验收确认 M2 三入口错误恢复与数值链通过，但总验证器自身状态契约及“全矩阵”覆盖仍为部分通过（见 `docs/evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md`）。当前下一项为 M3 速度与转速比交替协同优化，同时关闭验收器问题。
+- `models/px4_x8/` — PX4 X8 Simulink 验证平台，阶段 0、M0-A、M0-B、M0-C、M1、M2 已完成（M2 四轮复验 2026-09-02 全部关闭，总验证器合规见 `docs/evidence/M2_REACCEPT_ROUND4_FIX_20260902.md`）。当前下一项为 M3 速度与转速比交替协同优化。注意：本机 R2022b 单进程长序列仿真有堆损坏风险，批量验收用 `verify_m2_round4_closure` 的分段模式（stage 逐段执行）。
 
 ## 必读文档
 
