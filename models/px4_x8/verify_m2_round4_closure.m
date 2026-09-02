@@ -42,7 +42,7 @@
 %   snapshots the caller's M2_ETA_PARAMS / M2_ETA_APPLIED and restores them
 %   on exit (success AND error, function-frame onCleanup).
 %
-%   Declared matrix: 42 rows (the archived matrix.csv must match; rules
+%   Declared matrix: 52 rows (the archived matrix.csv must match; rules
 %   section 4.3 -- the declared list IS the executed list):
 %     c1c2stale 6 = unit error exit x {clean, stale} (stale adds the
 %                    persistent-fresh direct-probe row)
@@ -54,13 +54,17 @@
 %                    in-session determinism, gate dE within the registered
 %                    +/-0.015 pp jitter. Full 9-scenario chains stay
 %                    covered once per process by c2clean/c3.
-%     contract 27 = 20 state-contract rows (4 entries x 4 caller states
+%     contract 37 = 20 state-contract rows (unit 4 states x 2 exits;
+%                    trials/chain/verifier 4 states x 1 exit each; states
 %                    {finite, empty, NaN, Inf}; R5-F1)
 %                  + R5-F3 archive-assert negative
-%                  + 3 manifest negatives {oldbatch, missing, mixed}
-%                    (R5-F2)
-%                  + R6-F2 FAIL-verdict negative, R6-F1 verifierSha
-%                    mismatch negative, R6-F1 dirty-tree negative
+%                  + 5 staged-evidence negatives {oldbatch, missing,
+%                    mixed, failrow, shamix} (R5-F2/R6-F1/F2)
+%                  + 6 attempt-stamp negatives {attmissing, attzero,
+%                    attnan, attfrac, attover, attmix} (R8-F1)
+%                  + 4 manifest-contract negatives {manbound,
+%                    manstagecut, manstageadd, manrows} (R9-F1)
+%                  + R6-F1 dirty-tree negative
 %   NOT covered (targeted-matrix boundary): success exits at clean entry,
 %   the third entry state (post-error residue) per exit, clean-entry
 %   double chains, full-9-scenario double chains (environment limit,
@@ -104,6 +108,18 @@
 %   BadAttempts error: atomic writes remove the accidental cause, so
 %   corruption after this round means tampering and must not self-heal
 %   (rules v1.5 section 2 rule 7).
+%
+%   MANIFEST CONTRACT EQUALITY (round-9 R9-F1): the staged manifest is
+%   EVIDENCE, never authority. init writes stages / declaredRows /
+%   maxAttempts from ONE source-level contract (expectedManifestContract
+%   below), and every stage entry, validateStaged and the aggregator
+%   hard-assert the staged manifest still EQUALS that contract. The
+%   round-9 probes passed round-8 validation by raising maxAttempts
+%   together with self-consistent stamps, and by deleting c5 from the
+%   manifest -- validation must never take the staged manifest as the
+%   definition of what to validate (rules v1.6 section 2 rule 8). Four
+%   negative-proof rows (manbound/manstagecut/manstageadd/manrows) must
+%   all be rejected with air:M2Verify:ManifestContract.
 
 function ok = verify_m2_round4_closure(stage)
 if nargin < 1
@@ -170,6 +186,11 @@ if ~isempty(stage)
         'first; report never aggregates files from an unknown batch']);
     L = load(f, 'manifest');
     manifest = L.manifest;
+    % R9-F1: the staged manifest must EQUAL the source-level contract
+    % (stage set / declaredRows / maxAttempts are versioned facts). Runs
+    % before any stage work, so a tampered manifest cannot even raise
+    % the retry bound for a later entry.
+    assertManifestContract(manifest);
     % R6-F1 (round-6 reacceptance): every non-init stage INDEPENDENTLY
     % re-establishes the source identity (HEAD, verifier SHA-256, dirty
     % state) and hard-fails on 'unknown', a dirty tree, or any mismatch
@@ -180,14 +201,11 @@ if ~isempty(stage)
     % (that is its whole purpose). Only sim/stamp stages carry a counter;
     % 'report' aggregates and stamps nothing.
     if any(strcmp(manifest.stages, stage))
-        % R8-F1: the retry bound is versioned IN the manifest (rules
-        % v1.5), so the verifier itself refuses an over-budget entry
+        % R8-F1: the retry bound is versioned in the manifest (rules
+        % v1.5) and equality-checked against the source contract above
+        % (R9-F1), so the verifier itself refuses an over-budget entry
         % even when the batch driver is bypassed and a stage is started
         % by hand.
-        assert(isfield(manifest, 'maxAttempts'), ...
-            'air:M2Verify:StaleEvidence', ...
-            ['manifest predates rules v1.5 (no maxAttempts bound) -- ' ...
-            'rerun init; report cannot validate this batch']);
         attempts = bumpAttempts(stagedDir, stage, manifest.maxAttempts);
     end
 end
@@ -534,7 +552,11 @@ function matrix2 = runContract(stagedDir, manifest)
 %   success and error exits, plus the manifest, archive-assert, FAIL-row,
 %   verifierSha and dirty-tree negative proofs, plus the round-8 R8-F1
 %   attempt-evidence negatives (missing/zero/NaN/fractional/over-bound/
-%   marker-mismatch stamps must all be rejected). 33 rows.
+%   marker-mismatch stamps must all be rejected), plus the round-9 R9-F1
+%   manifest-contract negatives (raised bound with self-consistent
+%   stamps / deleted stage and declared rows / equipped extra stage /
+%   edited declared rows must all be rejected with
+%   air:M2Verify:ManifestContract). 37 rows.
 matrix2 = {};
 % text-safe state names: readtable would otherwise infer the
 % entryState column as NUMERIC (NaN/Inf parse as doubles) and drop
@@ -627,10 +649,11 @@ assert(~isempty(manifest), 'contract stage needs the manifest');
 toyBase = fullfile(tempdir, 'm2_r5_toy');
 if exist(toyBase, 'dir'), rmdir(toyBase, 's'); end
 cases = {'oldbatch', 'missing', 'mixed', 'failrow', 'shamix', ...
-    'attmissing', 'attzero', 'attnan', 'attfrac', 'attover', 'attmix'};
+    'attmissing', 'attzero', 'attnan', 'attfrac', 'attover', 'attmix', ...
+    'manbound', 'manstagecut', 'manstageadd', 'manrows'};
 for c = 1:numel(cases)
     toy = fullfile(toyBase, cases{c});
-    cloneStaged(stagedDir, toy, true);   % exclude the contract stage
+    cloneStaged(stagedDir, toy);
     switch cases{c}
         case 'oldbatch'   % one CSV carries a foreign runId
             tamperCsvRunId(toy, 'c3.csv');
@@ -670,14 +693,63 @@ for c = 1:numel(cases)
             D = load(fullfile(toy, 'c3.done.mat'));
             D.done.attempts = 2;   % the cloned marker reads 1
             save(fullfile(toy, 'c3.done.mat'), '-struct', 'D');
+        case 'manbound'   % R9-F1: bound raised, stamps self-consistent
+            % (the exact round-9 probe: maxAttempts 3->4 with matching
+            % done stamp AND marker -- internally consistent, so only
+            % the source-contract equality check can reject it)
+            M = load(fullfile(toy, 'manifest.mat'), 'manifest');
+            M.manifest.maxAttempts = M.manifest.maxAttempts + 1;
+            save(fullfile(toy, 'manifest.mat'), '-struct', 'M');
+            D = load(fullfile(toy, 'c5.done.mat'));
+            D.done.attempts = M.manifest.maxAttempts;
+            save(fullfile(toy, 'c5.done.mat'), '-struct', 'D');
+            fidM = fopen(fullfile(toy, 'c5.attempts'), 'w');
+            fprintf(fidM, '%d\n', D.done.attempts);
+            fclose(fidM);
+        case 'manstagecut' % R9-F1: stage + declared rows removed
+            % (the exact round-9 probe: c5 deleted from stages AND
+            % declaredRows -- the c5 files stay on disk but unvisited)
+            M = load(fullfile(toy, 'manifest.mat'), 'manifest');
+            M.manifest.stages = M.manifest.stages( ...
+                ~strcmp(M.manifest.stages, 'c5'));
+            M.manifest.declaredRows = rmfield( ...
+                M.manifest.declaredRows, 'c5');
+            save(fullfile(toy, 'manifest.mat'), '-struct', 'M');
+        case 'manstageadd' % R9-F1: an EQUIPPED extra stage
+            % (cx carries csv + done + marker cloned from c3, so the
+            % rejection can only come from the contract equality check,
+            % never from a missing file)
+            copyfile(fullfile(toy, 'c3.csv'), fullfile(toy, 'cx.csv'));
+            copyfile(fullfile(toy, 'c3.done.mat'), ...
+                fullfile(toy, 'cx.done.mat'));
+            copyfile(fullfile(toy, 'c3.attempts'), ...
+                fullfile(toy, 'cx.attempts'));
+            M = load(fullfile(toy, 'manifest.mat'), 'manifest');
+            M.manifest.stages{end + 1} = 'cx';
+            M.manifest.declaredRows.cx = 2;
+            save(fullfile(toy, 'manifest.mat'), '-struct', 'M');
+        case 'manrows'    % R9-F1: declared row count edited
+            M = load(fullfile(toy, 'manifest.mat'), 'manifest');
+            M.manifest.declaredRows.c3 = ...
+                M.manifest.declaredRows.c3 + 3;
+            save(fullfile(toy, 'manifest.mat'), '-struct', 'M');
     end
     threw2 = false;
+    errId2 = '';
     try
         validateStaged(toy);
-    catch
+    catch e
         threw2 = true;
+        errId2 = e.identifier;
     end
     assert(threw2, 'negative %s: validation did not fail', cases{c});
+    if strncmp(cases{c}, 'man', 3)
+        % R9-F1 proofs must fire at the CONTRACT check itself, never be
+        % covered by a collateral failure (missing file, row count...)
+        assert(strcmp(errId2, 'air:M2Verify:ManifestContract'), ...
+            'negative %s: wrong error id %s (expected ManifestContract)', ...
+            cases{c}, errId2);
+    end
     matrix2 = [matrix2; {sprintf( ...
         'CT manifest/evidence negative proof (%s rejected)', cases{c}), ...
         'n/a', 'negative proof', 'PASS'}]; %#ok<AGROW>
@@ -744,14 +816,71 @@ assert(~fp.dirty, 'air:M2Verify:DirtyTree', ...
     ['a staged batch must start from a clean working tree; ' ...
     'uncommitted changes:\n%s'], strjoin(fp.dirtyLines, newline));
 manifest.created = datetime('now');
-manifest.stages = {'c1c2stale', 'c2clean', 'c3', 'c5', 'contract'};
-manifest.declaredRows = struct('c1c2stale', 6, 'c2clean', 3, 'c3', 2, ...
-    'c5', 4, 'contract', 33);
+% R9-F1: the batch contract (stage set, declared rows, retry bound) has
+% exactly ONE source -- expectedManifestContract() -- shared by init
+% (writes it into the manifest) and report (asserts the staged manifest
+% still EQUALS it). A value hardcoded here would be a second copy that
+% can drift from what the checks enforce.
+c = expectedManifestContract();
+manifest.stages = c.stages;
+manifest.declaredRows = c.declaredRows;
 % R8-F1: the retry bound is versioned evidence, not prose living in a
 % document or an out-of-repo script: the report stage hard-asserts every
 % done.attempts against this field (rules v1.5 section 2 rule 7). Keep
 % it in lockstep with tools/run_m2_batch.ps1 -MaxAttempts.
-manifest.maxAttempts = 3;
+manifest.maxAttempts = c.maxAttempts;
+end
+
+function c = expectedManifestContract()
+%EXPECTEDEMANIFESTCONTRACT R9-F1: the ONE fixed batch contract. init
+%   writes it into the manifest; every stage entry, validateStaged and
+%   the aggregator assert the staged manifest still EQUALS it. The
+%   round-9 probes passed round-8 validation by (a) raising maxAttempts
+%   together with self-consistent stamps and (b) deleting c5 from the
+%   manifest -- validation must never take the staged manifest as the
+%   definition of what to validate (rules v1.6 section 2 rule 8). Keep
+%   maxAttempts in lockstep with tools/run_m2_batch.ps1 -MaxAttempts.
+c = struct();
+c.stages = {'c1c2stale', 'c2clean', 'c3', 'c5', 'contract'};
+c.declaredRows = struct('c1c2stale', 6, 'c2clean', 3, 'c3', 2, ...
+    'c5', 4, 'contract', 37);
+c.maxAttempts = 3;
+c.totalRows = sum(cell2mat(struct2cell(c.declaredRows)));
+end
+
+function assertManifestContract(m)
+%ASSERTMANIFESTCONTRACT hard-assert staged-manifest EQUALITY with the
+%   source contract (R9-F1): the retry bound, the stage set (names,
+%   count, order, uniqueness) and the declared per-stage row counts are
+%   versioned facts. Any deviation is an air:M2Verify:ManifestContract
+%   rejection -- a tampered manifest must not redefine what gets
+%   validated.
+c = expectedManifestContract();
+assert(isfield(m, 'maxAttempts') && isnumeric(m.maxAttempts) && ...
+    isscalar(m.maxAttempts) && isfinite(m.maxAttempts) && ...
+    m.maxAttempts == round(m.maxAttempts) && m.maxAttempts >= 1, ...
+    'air:M2Verify:ManifestContract', ...
+    ['manifest.maxAttempts is not a finite positive integer -- rerun ' ...
+    'init (rules v1.5+)']);
+assert(m.maxAttempts == c.maxAttempts, ...
+    'air:M2Verify:ManifestContract', ...
+    ['manifest.maxAttempts=%d differs from the source contract %d -- ' ...
+    'the retry bound is a versioned fact, not staged state'], ...
+    m.maxAttempts, c.maxAttempts);
+assert(iscellstr(m.stages), 'air:M2Verify:ManifestContract', ...
+    'manifest.stages is not a cell array of stage names');
+assert(numel(unique(m.stages)) == numel(m.stages), ...
+    'air:M2Verify:ManifestContract', ...
+    'manifest.stages contains duplicate stage names');
+assert(isequal(m.stages, c.stages), 'air:M2Verify:ManifestContract', ...
+    ['manifest.stages (%s) differs from the source contract (%s) -- ' ...
+    'membership and order are versioned facts'], ...
+    strjoin(m.stages, ','), strjoin(c.stages, ','));
+assert(isfield(m, 'declaredRows') && isstruct(m.declaredRows) && ...
+    isequal(m.declaredRows, c.declaredRows), ...
+    'air:M2Verify:ManifestContract', ...
+    ['manifest.declaredRows differs from the source contract (field ' ...
+    'set or counts) -- coverage is a versioned fact, not staged state']);
 end
 
 function fp = srcFingerprint()
@@ -866,16 +995,16 @@ function validateStaged(dir)
 %   exactly equal to the persistent entry marker. The round-8 tamper
 %   probe (done.attempts=4, marker=1) passed because none of this was
 %   checked; unasserted bookkeeping is not evidence.
+%   R9-F1: the manifest itself must first EQUAL the source-level
+%   contract (stages / declaredRows / maxAttempts) BEFORE any per-stage
+%   evidence is checked -- the manifest is evidence, never the authority
+%   that defines what gets validated.
 f = fullfile(dir, 'manifest.mat');
 assert(exist(f, 'file'), 'air:M2Verify:StaleEvidence', ...
     'no manifest in %s', dir);
 S = load(f, 'manifest');
 m = S.manifest;
-assert(isfield(m, 'maxAttempts') && isnumeric(m.maxAttempts) && ...
-    isscalar(m.maxAttempts) && m.maxAttempts >= 1, ...
-    'air:M2Verify:StaleEvidence', ...
-    ['manifest lacks a usable maxAttempts bound -- pre-round-8 batch, ' ...
-    'rerun init (rules v1.5)']);
+assertManifestContract(m);
 for k = 1:numel(m.stages)
     st = m.stages{k};
     csv = fullfile(dir, [st '.csv']);
@@ -938,6 +1067,10 @@ function totalRows = writeAggregate(stagedDir)
 %   R6 round: the old fixed 39 went stale the moment the matrix grew).
 S = load(fullfile(stagedDir, 'manifest.mat'), 'manifest');
 m = S.manifest;
+% R9-F1: re-assert manifest/contract equality here too -- the
+% aggregator re-loads the file, so validateStaged's earlier pass never
+% carries over by assumption.
+assertManifestContract(m);
 rows = {};
 for k = 1:numel(m.stages)
     T = readtable(fullfile(stagedDir, [m.stages{k} '.csv']), ...
@@ -957,6 +1090,8 @@ assert(size(rows, 1) == totalDeclared, 'air:M2Verify:RowCountMismatch', ...
     'declared %d matrix rows, aggregated %d', totalDeclared, ...
     size(rows, 1));
 totalRows = size(rows, 1);
+fprintf(['manifest contract: EQUALS source contract (%d declared ' ...
+    'rows, bound %d)\n'], totalDeclared, m.maxAttempts);
 % R7-F1: surface the per-stage attempt counts (crash-retry accounting).
 % R8-F1: the stamp is now hard-asserted by validateStaged (existence,
 % integer range, manifest bound, marker agreement) before this loop;
@@ -999,21 +1134,18 @@ fprintf('Archive: %s\nrunId=%s\ncommit=%s\n', outDir, m.runId, ...
     m.gitCommit);
 end
 
-function cloneStaged(src, dst, excludeContract)
+function cloneStaged(src, dst)
 %CLONESTAGED copy the real staged evidence into a toy dir for negative
-%   proofs (the real dir is never modified). excludeContract skips the
-%   contract stage files (not yet written when the proof runs) and trims
-%   the toy manifest's stage list accordingly.
+%   proofs (the real dir is never modified). The contract stage's own
+%   csv/done are NOT on disk yet when its negative proofs run, so a
+%   SYNTHETIC contract stage is fabricated instead. The toy manifest is
+%   left EQUAL to the full source contract on purpose (R9-F1):
+%   validateStaged checks manifest/contract equality FIRST, so a
+%   manifest trimmed to four stages would make every tamper-specific
+%   proof throw at the contract check and prove nothing.
 mkdir(dst);
 copyfile(fullfile(src, 'manifest.mat'), dst);
 sts = {'c1c2stale', 'c2clean', 'c3', 'c5'};
-if nargin < 3 || ~excludeContract
-    sts{end + 1} = 'contract';
-else
-    M = load(fullfile(dst, 'manifest.mat'), 'manifest');
-    M.manifest.stages = sts;
-    save(fullfile(dst, 'manifest.mat'), '-struct', 'M');
-end
 for k = 1:numel(sts)
     copyfile(fullfile(src, [sts{k} '.csv']), dst);
     copyfile(fullfile(src, [sts{k} '.done.mat']), dst);
@@ -1024,6 +1156,29 @@ for k = 1:numel(sts)
     if exist(mk, 'file'), copyfile(mk, dst); end
 end
 copyfile(fullfile(src, 'c5.mat'), dst);
+fabricateContractStage(dst);
+end
+
+function fabricateContractStage(dst)
+%FABRICATECONTRACTSTAGE synthetic contract-stage evidence for toy dirs
+%   built while the contract stage itself is still running. Rows carry
+%   the toy manifest's own runId at the contract-declared count, so an
+%   UNTAMPERED toy passes every contract check and only the
+%   tamper-specific assert can reject it.
+M = load(fullfile(dst, 'manifest.mat'), 'manifest');
+n = M.manifest.declaredRows.contract;
+T = table(repmat("toy contract row", n, 1), repmat("n/a", n, 1), ...
+    repmat("n/a", n, 1), repmat("PASS", n, 1), ...
+    repmat(string(M.manifest.runId), n, 1), ...
+    'VariableNames', {'test', 'entryState', 'exitPath', 'verdict', ...
+    'runId'});
+writetable(T, fullfile(dst, 'contract.csv'));
+D = load(fullfile(dst, 'c3.done.mat'), 'done');
+save(fullfile(dst, 'contract.done.mat'), '-struct', 'D');
+fid = fopen(fullfile(dst, 'contract.attempts'), 'w');
+assert(fid > 0, 'cannot fabricate the toy contract marker');
+fprintf(fid, '1\n');
+fclose(fid);
 end
 
 function tamperCsvRunId(dir, name)
