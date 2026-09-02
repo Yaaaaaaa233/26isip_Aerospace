@@ -87,6 +87,23 @@
 %   (timestamped trial archives make partial-state reuse impossible);
 %   the batch driver may retry a stage whose process died before its
 %   done marker, bounded at 3 attempts (rules v1.4 section 2 rule 7).
+%
+%   ATTEMPT EVIDENCE AS ASSERTIONS (round-8 R8-F1/R8-F3): the round-8
+%   tamper probe (done.attempts=4, persistent marker=1) still aggregated
+%   42/42 PASS because the stamp was printed but never CHECKED. The
+%   report stage now hard-rejects staged evidence whose done.attempts is
+%   missing, not a finite positive integer, above manifest.maxAttempts,
+%   or inconsistent with the persistent <stage>.attempts marker (six
+%   negative-proof rows in the contract stage). The bound itself is
+%   versioned in the manifest (init writes maxAttempts, kept in lockstep
+%   with tools/run_m2_batch.ps1), and a stage entry beyond the bound is
+%   refused before any work. The marker write is an ATOMIC REPLACE
+%   (temp file + rename), so a native crash in the write window leaves
+%   the old or the new value -- never a truncated marker that would
+%   dead-end the retry chain. A genuinely corrupt marker remains a hard
+%   BadAttempts error: atomic writes remove the accidental cause, so
+%   corruption after this round means tampering and must not self-heal
+%   (rules v1.5 section 2 rule 7).
 
 function ok = verify_m2_round4_closure(stage)
 if nargin < 1
@@ -163,7 +180,15 @@ if ~isempty(stage)
     % (that is its whole purpose). Only sim/stamp stages carry a counter;
     % 'report' aggregates and stamps nothing.
     if any(strcmp(manifest.stages, stage))
-        attempts = bumpAttempts(stagedDir, stage);
+        % R8-F1: the retry bound is versioned IN the manifest (rules
+        % v1.5), so the verifier itself refuses an over-budget entry
+        % even when the batch driver is bypassed and a stage is started
+        % by hand.
+        assert(isfield(manifest, 'maxAttempts'), ...
+            'air:M2Verify:StaleEvidence', ...
+            ['manifest predates rules v1.5 (no maxAttempts bound) -- ' ...
+            'rerun init; report cannot validate this batch']);
+        attempts = bumpAttempts(stagedDir, stage, manifest.maxAttempts);
     end
 end
 
@@ -507,7 +532,9 @@ function matrix2 = runContract(stagedDir, manifest)
 %RUNCONTRACT round-5 closure conditions 1-3 + round-6 R6 additions:
 %   exact-restore contract for finite/empty/NaN/Inf caller states on
 %   success and error exits, plus the manifest, archive-assert, FAIL-row,
-%   verifierSha and dirty-tree negative proofs. 27 rows.
+%   verifierSha and dirty-tree negative proofs, plus the round-8 R8-F1
+%   attempt-evidence negatives (missing/zero/NaN/fractional/over-bound/
+%   marker-mismatch stamps must all be rejected). 33 rows.
 matrix2 = {};
 % text-safe state names: readtable would otherwise infer the
 % entryState column as NUMERIC (NaN/Inf parse as doubles) and drop
@@ -599,7 +626,8 @@ matrix2 = [matrix2; {'CT archive-assert negative proof (no-path fails)', ...
 assert(~isempty(manifest), 'contract stage needs the manifest');
 toyBase = fullfile(tempdir, 'm2_r5_toy');
 if exist(toyBase, 'dir'), rmdir(toyBase, 's'); end
-cases = {'oldbatch', 'missing', 'mixed', 'failrow', 'shamix'};
+cases = {'oldbatch', 'missing', 'mixed', 'failrow', 'shamix', ...
+    'attmissing', 'attzero', 'attnan', 'attfrac', 'attover', 'attmix'};
 for c = 1:numel(cases)
     toy = fullfile(toyBase, cases{c});
     cloneStaged(stagedDir, toy, true);   % exclude the contract stage
@@ -618,6 +646,30 @@ for c = 1:numel(cases)
             D = load(fullfile(toy, 'c5.done.mat'));
             D.done.verifierSha = 'deadbeefdeadbeef';
             save(fullfile(toy, 'c5.done.mat'), '-struct', 'D');
+        case 'attmissing' % R8-F1: the attempt stamp is absent
+            D = load(fullfile(toy, 'c3.done.mat'));
+            D.done = rmfield(D.done, 'attempts');
+            save(fullfile(toy, 'c3.done.mat'), '-struct', 'D');
+        case 'attzero'    % R8-F1: non-positive stamp
+            D = load(fullfile(toy, 'c3.done.mat'));
+            D.done.attempts = 0;
+            save(fullfile(toy, 'c3.done.mat'), '-struct', 'D');
+        case 'attnan'     % R8-F1: non-finite stamp
+            D = load(fullfile(toy, 'c3.done.mat'));
+            D.done.attempts = NaN;
+            save(fullfile(toy, 'c3.done.mat'), '-struct', 'D');
+        case 'attfrac'    % R8-F1: non-integer stamp
+            D = load(fullfile(toy, 'c3.done.mat'));
+            D.done.attempts = 1.5;
+            save(fullfile(toy, 'c3.done.mat'), '-struct', 'D');
+        case 'attover'    % R8-F1: stamp above the manifest bound
+            D = load(fullfile(toy, 'c3.done.mat'));
+            D.done.attempts = manifest.maxAttempts + 1;
+            save(fullfile(toy, 'c3.done.mat'), '-struct', 'D');
+        case 'attmix'     % R8-F1: stamp vs persistent marker disagree
+            D = load(fullfile(toy, 'c3.done.mat'));
+            D.done.attempts = 2;   % the cloned marker reads 1
+            save(fullfile(toy, 'c3.done.mat'), '-struct', 'D');
     end
     threw2 = false;
     try
@@ -694,7 +746,12 @@ assert(~fp.dirty, 'air:M2Verify:DirtyTree', ...
 manifest.created = datetime('now');
 manifest.stages = {'c1c2stale', 'c2clean', 'c3', 'c5', 'contract'};
 manifest.declaredRows = struct('c1c2stale', 6, 'c2clean', 3, 'c3', 2, ...
-    'c5', 4, 'contract', 27);
+    'c5', 4, 'contract', 33);
+% R8-F1: the retry bound is versioned evidence, not prose living in a
+% document or an out-of-repo script: the report stage hard-asserts every
+% done.attempts against this field (rules v1.5 section 2 rule 7). Keep
+% it in lockstep with tools/run_m2_batch.ps1 -MaxAttempts.
+manifest.maxAttempts = 3;
 end
 
 function fp = srcFingerprint()
@@ -739,7 +796,7 @@ assert(strcmp(fp.verifierSha, manifest.verifierSha), ...
     'since init; rerun the FULL batch']);
 end
 
-function attempts = bumpAttempts(stagedDir, stage)
+function attempts = bumpAttempts(stagedDir, stage, maxAttempts)
 %BUMPATTEMPTS R7-F1: honest crash-retry accounting. Every ENTRY into a
 %   staged stage bumps a persistent counter in the staged dir: a process
 %   that dies before its done stamp (the round-7 R2022b crash window:
@@ -750,6 +807,15 @@ function attempts = bumpAttempts(stagedDir, stage)
 %   (timestamped trial archives make partial-state reuse impossible).
 %   The file lives under results/ (gitignored), so it never dirties the
 %   tree the source-binding gate protects.
+%
+%   R8-F3: the write is an ATOMIC REPLACE (temp file + rename), so a
+%   native crash anywhere in the write window leaves the OLD value or
+%   the NEW value -- never a truncated/empty marker that would dead-end
+%   the retry chain with BadAttempts. A genuinely corrupt marker is
+%   still a hard error: atomic writes make the accidental cause
+%   impossible, so corruption after this round means tampering, which
+%   must NOT self-heal. M2_ATTEMPT_WRITE_HOOK = pre|mid|post simulates a
+%   process death in each write window (test-only; inert when unset).
 f = fullfile(stagedDir, [stage '.attempts']);
 attempts = 1;
 if exist(f, 'file')
@@ -761,10 +827,32 @@ if exist(f, 'file')
         f, txt);
     attempts = n + 1;
 end
-fid = fopen(f, 'w');
-assert(fid > 0, 'cannot write attempt marker %s', f);
+% Refuse the over-budget entry BEFORE writing anything: the bound must
+% hold even when the driver is bypassed and the stage is started by hand.
+assert(attempts <= maxAttempts, 'air:M2Verify:AttemptBudget', ...
+    ['stage %s attempt %d exceeds manifest.maxAttempts=%d -- stop ' ...
+    'the batch; a deterministic failure must not be retried past the ' ...
+    'bound (rules v1.5)'], stage, attempts, maxAttempts);
+hook = getenv('M2_ATTEMPT_WRITE_HOOK');
+tmp = [f '.tmp'];
+if strcmp(hook, 'pre')
+    error('air:M2Verify:WriteHook', ...
+        'simulated crash BEFORE the attempt-marker write (%s)', stage);
+end
+fid = fopen(tmp, 'w');
+assert(fid > 0, 'cannot write attempt marker temp %s', tmp);
 fprintf(fid, '%d\n', attempts);
 fclose(fid);
+if strcmp(hook, 'mid')
+    error('air:M2Verify:WriteHook', ...
+        'simulated crash BETWEEN temp write and atomic replace (%s)', stage);
+end
+ok = movefile(tmp, f);
+assert(ok == 1, 'cannot atomically replace attempt marker %s', f);
+if strcmp(hook, 'post')
+    error('air:M2Verify:WriteHook', ...
+        'simulated crash AFTER the atomic replace (%s)', stage);
+end
 end
 
 function validateStaged(dir)
@@ -773,11 +861,21 @@ function validateStaged(dir)
 %   the manifest's runId in every row, have every verdict row PASS, and
 %   its done.mat must match runId, git commit AND verifier SHA. Throws on
 %   any stale / missing / mixed / FAIL evidence.
+%   R8-F1: the attempt stamp is hard-asserted evidence too -- present, a
+%   finite positive integer, within the manifest-declared bound, and
+%   exactly equal to the persistent entry marker. The round-8 tamper
+%   probe (done.attempts=4, marker=1) passed because none of this was
+%   checked; unasserted bookkeeping is not evidence.
 f = fullfile(dir, 'manifest.mat');
 assert(exist(f, 'file'), 'air:M2Verify:StaleEvidence', ...
     'no manifest in %s', dir);
 S = load(f, 'manifest');
 m = S.manifest;
+assert(isfield(m, 'maxAttempts') && isnumeric(m.maxAttempts) && ...
+    isscalar(m.maxAttempts) && m.maxAttempts >= 1, ...
+    'air:M2Verify:StaleEvidence', ...
+    ['manifest lacks a usable maxAttempts bound -- pre-round-8 batch, ' ...
+    'rerun init (rules v1.5)']);
 for k = 1:numel(m.stages)
     st = m.stages{k};
     csv = fullfile(dir, [st '.csv']);
@@ -809,6 +907,27 @@ for k = 1:numel(m.stages)
         'air:M2Verify:StaleEvidence', ...
         ['stage %s done.mat verifier SHA missing or differs from ' ...
         'manifest (R6-F1: pre-round-6 or tampered evidence)'], st);
+    % R8-F1: the attempt stamp must survive validation as evidence.
+    assert(isfield(D.done, 'attempts'), 'air:M2Verify:StaleEvidence', ...
+        ['stage %s done.mat lacks done.attempts (pre-round-8 or ' ...
+        'tampered evidence)'], st);
+    a = D.done.attempts;
+    assert(isnumeric(a) && isscalar(a) && isfinite(a) && a == round(a) ...
+        && a >= 1, 'air:M2Verify:StaleEvidence', ...
+        'stage %s done.attempts is not a finite positive integer (%s)', ...
+        st, num2str(a));
+    assert(a <= m.maxAttempts, 'air:M2Verify:StaleEvidence', ...
+        'stage %s done.attempts=%s exceeds manifest.maxAttempts=%d', ...
+        st, num2str(a), m.maxAttempts);
+    mf = fullfile(dir, [st '.attempts']);
+    assert(exist(mf, 'file'), 'air:M2Verify:StaleEvidence', ...
+        'stage %s persistent attempts marker missing: %s', st, mf);
+    mtxt = strtrim(fileread(mf));
+    mn = str2double(mtxt);
+    assert(isfinite(mn) && mn == round(mn) && mn == a, ...
+        'air:M2Verify:StaleEvidence', ...
+        'stage %s marker "%s" disagrees with done.attempts=%s', st, ...
+        mtxt, num2str(a));
 end
 end
 
@@ -839,17 +958,21 @@ assert(size(rows, 1) == totalDeclared, 'air:M2Verify:RowCountMismatch', ...
     size(rows, 1));
 totalRows = size(rows, 1);
 % R7-F1: surface the per-stage attempt counts (crash-retry accounting).
-% Pre-R7 done stamps lack the field; they predate the retry contract and
-% read as 1 (no retries were possible before the counter existed).
+% R8-F1: the stamp is now hard-asserted by validateStaged (existence,
+% integer range, manifest bound, marker agreement) before this loop;
+% assert existence again here so the aggregate can never quietly
+% default a missing stamp to 1 -- unasserted bookkeeping is not
+% evidence (the round-8 tamper probe).
 stageAttempts = struct();
 for k = 1:numel(m.stages)
     D = load(fullfile(stagedDir, [m.stages{k} '.done.mat']), 'done');
-    if isfield(D.done, 'attempts')
-        stageAttempts.(m.stages{k}) = D.done.attempts;
-    else
-        stageAttempts.(m.stages{k}) = 1;
-    end
+    assert(isfield(D.done, 'attempts'), 'air:M2Verify:StaleEvidence', ...
+        'stage %s done.mat lacks done.attempts at aggregation', ...
+        m.stages{k});
+    stageAttempts.(m.stages{k}) = D.done.attempts;
 end
+maxAttempts = m.maxAttempts;
+fprintf('attempt bound: manifest.maxAttempts=%d\n', maxAttempts);
 parts = cell(1, numel(m.stages));
 for k = 1:numel(m.stages)
     parts{k} = sprintf('%s=%d', m.stages{k}, ...
@@ -869,7 +992,7 @@ C = load(fullfile(stagedDir, 'c5.mat'), 'arch', 'h1', 'h2', 'todayGate', ...
 arch = C.arch; h1 = C.h1; h2 = C.h2;
 todayGate = C.todayGate; round3Gate = C.round3Gate;
 save(fullfile(outDir, 'result.mat'), 'arch', 'h1', 'h2', 'todayGate', ...
-    'round3Gate', 'stageAttempts');
+    'round3Gate', 'stageAttempts', 'maxAttempts');
 save(fullfile(outDir, 'manifest.mat'), '-struct', 'S');
 disp(T);
 fprintf('Archive: %s\nrunId=%s\ncommit=%s\n', outDir, m.runId, ...
@@ -894,6 +1017,11 @@ end
 for k = 1:numel(sts)
     copyfile(fullfile(src, [sts{k} '.csv']), dst);
     copyfile(fullfile(src, [sts{k} '.done.mat']), dst);
+    % R8-F1: the persistent attempts markers are part of the staged
+    % evidence the negative proofs must reproduce (attmix mismatches
+    % against the cloned marker).
+    mk = fullfile(src, [sts{k} '.attempts']);
+    if exist(mk, 'file'), copyfile(mk, dst); end
 end
 copyfile(fullfile(src, 'c5.mat'), dst);
 end
