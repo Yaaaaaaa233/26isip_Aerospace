@@ -11,7 +11,7 @@
 
 ### M2 上下桨转速比 ESC（2026-09-01，快照 `air_m2.slx`）
 
-状态：M2 核心实现与修订数值协议保持放行；第八轮在当前 `798f60e` 上独立复跑 42/42 PASS（runId `6ade3744`，五段 attempt=1，C5 最小双链哈希一致）。但 attempt 篡改负向探针证明 `done.attempts=4`、marker=1 仍可被 report 聚合为 42/42 PASS，并且实际有界重试驱动未入库，所以验收自动化保持 PARTIAL。全量同会话双链仍为环境限制未覆盖组合。当前判定见 [`M2_REACCEPT_ROUND8_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND8_CODEX_20260902.md)；第七轮历史见 [`M2_REACCEPT_ROUND7_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND7_CODEX_20260902.md) 与 [`M2_REACCEPT_ROUND7_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND7_FIX_20260902.md)。
+状态：M2 核心实现与修订数值协议保持放行；第八轮发现（R8-F1 attempt 证据未硬断言 / R8-F2 重试驱动未入库 / R8-F3 计数器非原子写入）已修复并经 48/48 针对性矩阵关闭验证（2026-09-02，runId `72300de6` @ `6f6672c`，c5 attempt=2 为正式批次内受控击杀后的自动重试）。report 硬拒绝六类非法/不一致 attempt 证据；有界重试驱动入库 `tools/run_m2_batch.ps1`（新鲜完成证据权威、退出码仅参考）；计数器原子替换写入。全量同会话双链仍为环境限制未覆盖组合，不宣称"验收自动化完全闭环/永不崩溃"。当前判定见 [`M2_REACCEPT_ROUND8_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND8_FIX_20260902.md)；第八轮验收见 [`M2_REACCEPT_ROUND8_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND8_CODEX_20260902.md)；第七轮历史见 [`M2_REACCEPT_ROUND7_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND7_CODEX_20260902.md) 与 [`M2_REACCEPT_ROUND7_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND7_FIX_20260902.md)。
 
 - `m2_eta_allocator.m` + `m2_alloc_diag.m`：受约束 PWM 域 eta 分配器（同轴对 (1,5)(2,6)(3,7)(4,8)，每对 Σω² 严格保持 → 总推力/横滚/俯仰不变；η=1 位精确透传；sat/dmz 诊断单口输出）。
 - `m2_eta_esc.m` + `add_air_m2_allocator.m`：`ratioesc` 内核原生转速比接线（输入 35 维含 motor_pwm/rpm 与 alloc_sat；eta 经全局 `M2_ETA_APPLIED` 交接，慢层信号不进 pwm 主路径）与原子安装器。

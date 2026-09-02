@@ -35,7 +35,7 @@ AI协助：Codex（证据分类与引用边界整理，2026-09-02）
 - 基线与M0-A：`air_baseline_*`、`air_interface_*`、`air_m0a_*`。
 - M0-B与M0-C：[`M0B_RERUN_20260901.md`](M0B_RERUN_20260901.md)、[`M0B_REACCEPT_CODEX_20260901.md`](M0B_REACCEPT_CODEX_20260901.md)、[`M0C_TRIALS_20260901.md`](M0C_TRIALS_20260901.md)。
 - M1：[`M1_ROBUSTNESS_20260901.md`](M1_ROBUSTNESS_20260901.md) 与 [`M1_REACCEPT_CODEX_20260901.md`](M1_REACCEPT_CODEX_20260901.md)。
-- M2：从 [`M2_ETA_20260901.md`](M2_ETA_20260901.md) 到各轮 `M2_REACCEPT_*`；当前判定以 [`M2_REACCEPT_ROUND8_CODEX_20260902.md`](M2_REACCEPT_ROUND8_CODEX_20260902.md) 为准：当前 `798f60e` 已独立复跑 42/42 PASS（runId `6ade3744`，各段第 1 次尝试），M2 核心与数值继续放行；但 attempt 超上限/与 marker 不一致的负向篡改仍被 report 接受，且有界重试驱动未入库，验收自动化为 PARTIAL。第七轮发现及修复历史分别见 [`M2_REACCEPT_ROUND7_CODEX_20260902.md`](M2_REACCEPT_ROUND7_CODEX_20260902.md) 和 [`M2_REACCEPT_ROUND7_FIX_20260902.md`](M2_REACCEPT_ROUND7_FIX_20260902.md)；不得把当前结果表述为消灭了环境崩溃或验收自动化已完全闭环。
+- M2：从 [`M2_ETA_20260901.md`](M2_ETA_20260901.md) 到各轮 `M2_REACCEPT_*`；当前判定以 [`M2_REACCEPT_ROUND8_FIX_20260902.md`](M2_REACCEPT_ROUND8_FIX_20260902.md) 为准：第八轮发现（R8-F1/F2/F3）已修复并关闭，48/48 针对性矩阵 @ `6f6672c`（runId `72300de6`，c5 attempt=2 为正式批次内受控击杀后的自动重试），M2 核心与数值继续放行；验收自动化在针对性矩阵 + 入库驱动口径下成立。第八轮验收原文见 [`M2_REACCEPT_ROUND8_CODEX_20260902.md`](M2_REACCEPT_ROUND8_CODEX_20260902.md)，第七轮历史见 [`M2_REACCEPT_ROUND7_CODEX_20260902.md`](M2_REACCEPT_ROUND7_CODEX_20260902.md) 与 [`M2_REACCEPT_ROUND7_FIX_20260902.md`](M2_REACCEPT_ROUND7_FIX_20260902.md)；不得把当前结果表述为消灭了环境崩溃、驱动层重试未经验证或验收自动化已完全闭环。
 
 ## 新证据最少包含
 
