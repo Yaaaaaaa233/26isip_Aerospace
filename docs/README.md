@@ -18,7 +18,7 @@ AI协助：Codex（仓库审查、结构设计和成文）
 | 准备领取任务 | [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) → [`../modules/README.md`](../modules/README.md) | 确认阶段依赖、模块入口和负责人 |
 | 修改公共接口 | [`architecture/04_interface_dictionary.md`](architecture/04_interface_dictionary.md) → 对应 `interfaces/M*.md` | 先遵守跨组件字段，再看阶段接线 |
 | 修改算法或对象 | [`COLLABORATION.md`](COLLABORATION.md) → 模块 README | 确认因果边界、API和验收入口 |
-| 准备引用结果 | [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md) → `evidence/` | 状态页给结论边界，证据目录给事实依据 |
+| 准备引用结果 | [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md) → [`evidence/README.md`](evidence/README.md) | 状态页给结论边界，证据索引给事实依据 |
 
 ## 权威来源
 
@@ -32,7 +32,7 @@ AI协助：Codex（仓库审查、结构设计和成文）
 | 某阶段的模型接线与验收协议 | [`interfaces/`](interfaces/) 中对应的 `M*.md` | 不能覆盖公共接口语义或路线图阶段目标 |
 | 算法适配方式与因果边界 | [`COLLABORATION.md`](COLLABORATION.md) | 不承担当前进度和跨组件字段的权威定义 |
 | 模块清单、分类、入口和生命周期 | [`../modules/README.md`](../modules/README.md) | 根 README 和 AGENTS 不维护模块计数 |
-| 已核验数值和结论证据 | [`evidence/`](evidence/) | worklog 不作为最终结论依据 |
+| 已核验数值和结论证据 | [`evidence/README.md`](evidence/README.md) | worklog 不作为最终结论依据 |
 | 会话交接和历史过程 | [`worklog/`](worklog/) | 只追加，不替代当前状态 |
 
 ## 目录说明
@@ -43,8 +43,10 @@ decisions/     架构决策记录；保留当时背景和理由
 interfaces/    平台阶段的冻结接口、接线和验收协议
 evidence/      精选且可追溯的验收报告、CSV和图表
 worklog/       按日期追加的协作交接记录
-archive/       未来用于存放不再代表当前状态的历史盘点
+archive/       不再代表当前状态、但仍需追溯的历史盘点
 ```
+
+历史材料入口见 [`archive/README.md`](archive/README.md)。仓库治理检查入口为 `tools/check_repo_governance.ps1`。
 
 根目录下的治理文件暂不搬动，避免打断已有链接。通过本索引完成逻辑分层即可。
 

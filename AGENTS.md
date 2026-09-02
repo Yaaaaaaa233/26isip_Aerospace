@@ -95,6 +95,7 @@ run_air_m0b_safety_injection
 ## 提交约定
 
 - 提交前运行 `run_acceptance`；涉及面板或导出的修改，再运行 `qa_ui`。
+- 修改仓库结构、文档入口、模块登记或主要状态后，运行 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/check_repo_governance.ps1`。
 - `.slx` 为二进制文件、不可合并：同一模型文件同一时间只在一条分支上修改；两条工作线避免并行改动同一个模型。
 - 文档用中文；提交信息简明说明改动属于哪条工作线（沿用现有英文提交风格亦可）。
 - 新增或大改文件须按 [`docs/AUTHORSHIP.md`](docs/AUTHORSHIP.md) 记录真实负责人、贡献者、审核状态和AI协助；不得用Git提交账号代替实际署名，也不得给未参与者虚构贡献。
