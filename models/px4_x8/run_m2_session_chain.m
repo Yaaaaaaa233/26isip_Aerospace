@@ -9,7 +9,7 @@
 %   docs/evidence/M2_REACCEPT_ROUND3_FIX_20260902.md and
 %   docs/ACCEPTANCE_AUTOMATION_RULES.md).
 %
-%   result = run_m2_session_chain(injectError)
+%   result = run_m2_session_chain(injectError, trialsMode)
 %   injectError (default '') selects a controlled, non-destructive failure
 %   injection for the round-4 closure verification:
 %     'unit'      -> test_m2_eta_esc_unit fails after touching globals
@@ -17,10 +17,17 @@
 %     'injection' -> the safety-injection result is forced to pass = false
 %     'trials'    -> run_air_m2_trials short-circuits with pass = false
 %   Each injection drives the chain through its real assert exit.
+%   trialsMode (default 'full') passes through to run_air_m2_trials:
+%   'nominal' is the round-6 R6-F3 minimal set used by the C5 same-session
+%   double chain (heap-depth limited environment; see
+%   docs/evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md).
 
-function result = run_m2_session_chain(injectError)
+function result = run_m2_session_chain(injectError, trialsMode)
 if nargin < 1
     injectError = '';
+end
+if nargin < 2
+    trialsMode = 'full';
 end
 validInj = {'', 'unit', 'compare', 'injection', 'trials'};
 assert(any(strcmp(injectError, validInj)), 'air:M2Session:BadInject', ...
@@ -42,7 +49,7 @@ if ~isempty(M2_ETA_APPLIED)
     chainSavedApplied = M2_ETA_APPLIED;
 end
 chainCleanup = onCleanup(@() m2chain_restore_globals( ...
-    chainSavedParams, chainSavedApplied)); %#ok<NASGU>
+    chainSavedParams, chainSavedApplied));
 M2_ETA_PARAMS = struct('mode', 'fixed', 'center0', 1.0);
 M2_ETA_APPLIED = 1.0;
 clear('m2_eta_esc');   % wipe adapter persistent state from earlier runs
@@ -69,7 +76,7 @@ assert(r2.pass, 'air:M2Session:InjectionFailed', ...
     'M0-B safety injection failed');
 fprintf('CHAIN: safety injection PASS\n');
 
-result = run_air_m2_trials(injectError);
+result = run_air_m2_trials(injectError, trialsMode);
 % R2-F2: run_air_m2_trials reports failures only through result.pass --
 % without this assert the chain could print END and exit successfully on a
 % failed trials run (automation false-green).

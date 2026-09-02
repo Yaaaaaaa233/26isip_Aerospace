@@ -16,11 +16,23 @@
 %   injectError = 'trials' short-circuits with result.pass = false after
 %   the entry/exit state contract is set up (controlled-failure hook for
 %   the round-4 closure verification; default '' = normal behaviour).
+%   scenarioSet = 'full' (default, the pre-registered 10-run protocol)
+%   or 'nominal' (round-6 R6-F3 minimal set: E2_fixed + S1/S2/S3_esc only,
+%   4 sims -- used by the C5 same-session double chain to stay below the
+%   R2022b heap-corruption depth; the E1/E3 surface rows, the disturbed
+%   pair and the R_esc within-run reproducibility remain FULL-protocol
+%   evidence and are not claimed by the minimal set).
 
-function result = run_air_m2_trials(injectError)
+function result = run_air_m2_trials(injectError, scenarioSet)
 if nargin < 1
     injectError = '';
 end
+if nargin < 2
+    scenarioSet = 'full';
+end
+validSets = {'full', 'nominal'};
+assert(any(strcmp(scenarioSet, validSets)), 'air:M2Trials:BadScenarioSet', ...
+    'scenarioSet must be one of %s', strjoin(validSets, '|'));
 
 model = 'air_spare';
 modelDir = fileparts(mfilename('fullpath'));
@@ -40,7 +52,7 @@ if ~isempty(M2_ETA_APPLIED)
     trialsSavedApplied = M2_ETA_APPLIED;
 end
 trialsCleanup = onCleanup(@() m2trials_restore_globals( ...
-    trialsSavedParams, trialsSavedApplied)); %#ok<NASGU>
+    trialsSavedParams, trialsSavedApplied));
 M2_ETA_PARAMS = struct('mode', 'fixed', 'center0', 1.0);
 M2_ETA_APPLIED = 1.0;
 
@@ -49,7 +61,7 @@ M2_ETA_APPLIED = 1.0;
 % running any simulation
 if strcmp(injectError, 'trials')
     result = struct('pass', false, 'reproducible', false, ...
-        'archiveDir', "injected");
+        'scenarioSet', scenarioSet, 'archiveDir', "injected");
     fprintf('run_air_m2_trials: injected controlled failure (pass=false)\n');
     return;
 end
@@ -77,6 +89,12 @@ plan = { ...
     'DE2_fixed', 0, 'fixed', 1.0,  30.0; ...
     'DS2_esc',   0, 'esc',   1.0,  30.0; ...
     'R_esc',     1, 'esc',   1.0, 120.0};
+if strcmp(scenarioSet, 'nominal')
+    % R6-F3: the minimal set keeps exactly the nominal pairs and their
+    % fixed baseline. Every gate that applies to these runs is unchanged.
+    keep = {'E2_fixed', 'S1_esc', 'S2_esc', 'S3_esc'};
+    plan = plan(ismember(plan(:, 1), keep), :);
+end
 BAND = [0.75, 1.25];
 BAND_TOL = 0.02;
 PERIOD = 4.0;               % dither period, s (0.25 Hz)
@@ -214,7 +232,8 @@ end
 % ---- fixed-vs-fixed power surface evidence (E1/E3 vs E2) -------------------
 frows = {};
 for pfx = {'E1', 'E3'}
-    if R.([pfx{1} '_fixed']).ok && R.E2_fixed.ok
+    if isfield(R, [pfx{1} '_fixed']) && R.([pfx{1} '_fixed']).ok && ...
+            R.E2_fixed.ok
         Sf = load(fullfile(outDir, [pfx{1} '_fixed.mat']), 'ta', 'Pe');
         Sb = load(fullfile(outDir, 'E2_fixed.mat'), 'ta', 'Pe');
         [dE, Pf, Pb] = pairDeltaE(Sb, Sf, GATE_WIN);
@@ -243,24 +262,34 @@ if isfield(R, 'DE2_fixed') && isfield(R, 'DS2_esc') && ...
 end
 
 % ---- reproducibility --------------------------------------------------------
-reproOK = false;
-try
-    S1 = load(fullfile(outDir, 'S2_esc.mat'));
-    S2 = load(fullfile(outDir, 'R_esc.mat'));
-    n = min(numel(S1.te2), numel(S2.te2));
-    dv = max(abs(S1.el(1:n, 1) - S2.el(1:n, 1)));
-    fprintf('reproducibility S2_esc vs R_esc: max|d eta_ref| = %.3g\n', dv);
-    reproOK = dv < 1e-9;
-catch err
-    fprintf('reproducibility check could not run: %s\n', err.message);
-end
-if ~reproOK
-    ok = false;
+if strcmp(scenarioSet, 'nominal')
+    % R6-F3 minimal-set scope boundary: the within-run S2-vs-R
+    % reproducibility row belongs to the FULL protocol (covered by the
+    % c2clean/c3 full runs once per process); cross-run determinism for
+    % the minimal set is proven by C5's same-session h1==h2 instead.
+    reproOK = true;
+    fprintf(['reproducibility: out of nominal-set scope (the full ' ...
+        'protocol carries the S2-vs-R row)\n']);
+else
+    reproOK = false;
+    try
+        S1 = load(fullfile(outDir, 'S2_esc.mat'));
+        S2 = load(fullfile(outDir, 'R_esc.mat'));
+        n = min(numel(S1.te2), numel(S2.te2));
+        dv = max(abs(S1.el(1:n, 1) - S2.el(1:n, 1)));
+        fprintf('reproducibility S2_esc vs R_esc: max|d eta_ref| = %.3g\n', dv);
+        reproOK = dv < 1e-9;
+    catch err
+        fprintf('reproducibility check could not run: %s\n', err.message);
+    end
+    if ~reproOK
+        ok = false;
+    end
 end
 fprintf('reproducibility: %d\n', reproOK);
 
 result = struct('pass', ok, 'reproducible', reproOK, ...
-    'archiveDir', string(outDir));
+    'scenarioSet', scenarioSet, 'archiveDir', string(outDir));
 save(fullfile(outDir, 'result.mat'), 'result');
 if ok
     fprintf('M2 TRIALS PASS\n');
