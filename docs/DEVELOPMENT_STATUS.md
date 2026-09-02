@@ -18,6 +18,7 @@
 | `modules/wind_circle_search` | 2026-09-01 并入。速度优化任务3：恒定风×圆周盘旋，风的航向投影→功率曲线周期平移；EA分级监测(斜率探针+stencil重定位/升级)；19 单元测试、8 门槛 | EA 尾段跟踪误差 0.320 < tracker 0.809，搜索步数 213<261；jumpUp 恢复≥9/10 | 慢漂+风场叠加未单列门槛；个别种子错谷恢复慢（如实记录）；真实 X8 节能 |
 | `modules/sin_wind_search` | 2026-09-01 并入。任务4：正弦风 W(t)=A·sin(ωt)+B（A/ω/B 可调），三模块面板(控制台/飞机模型/环境模型)首版；19 单元测试、8 门槛 | 双重时变下 EA 跟踪与步数主张成立；1小时窗 MOE EA 0.978≥0.97 | tracker 能耗占优（0.985，不做全局扫描，如实记录）；真实 X8 节能 |
 | `modules/ortho_wind_search` | 2026-09-01 并入。任务5：双正交正弦风 x:A·sin(ω1t)+B / y:C·sin(ω2t)+D，异频拍频式时变；新增升级扫描去趋势与宽幅重定位；19 单元测试、8 门槛 | jumpUp 恢复 10/10 ≤260步（半数≤67）；EA 尾段均值 0.361、19/20 ≤0.85（v*摆幅±0.8口径） | 个别种子 0.6–0.84 滞后带（如实记录）；tracker 能耗占优；真实 X8 节能 |
+| `modules/adaptive_search` | 2026-09-02 并入。任务6自适应算法库：spsa占空比随机扰动/bayes GP代理/qnewton割线牛顿(两相制, 新推荐)+双层MOP/MOE(性能量×任务效能分层)；28 单元测试、10 门槛 | qnewton 风场尾段 0.272<tracker 0.805、1h MOE 0.987>ea 0.975；spsa 跳变恢复 10–18 步(ea口径≤260)；bayes settle 8–18 步(定位专长) | bayes 时变尾段跟踪劣于占空比法(如实记录)；tracker 能耗优势来自平坦无噪设计点；真实 X8 节能 |
 | `modules/unified_search` | 2026-09-01 并入。速度优化任务1+2整合：调试二次曲线+对称崎岖+平移调度统一对象，能耗感知算法 ea_multistart，统一 MOP/MOE 评价；13 单元测试、8 门槛 | 计入搜索能耗后全遍历非最优：崎岖静态 1 小时窗 ea 平均 MOE=0.9927 > multistart 0.9924，搜索步数 165 vs 400（20 种子）；jumpUp 恢复 67 步、jumpDown 29 步、dy 零误触发 | 慢漂（ramp）恢复慢于跳变（9/10 种子 ≤1.6，尾部种子如实记录）；演示面板仅 tracker/esc（定稿口径），ea 等其余算法在包内供验收横比；真实 X8 节能 |
 | `harness`（指标层） | 2026-09-01 实现。三模块架构（environment/aircraft 黑箱/console）+ 1 小时任务窗 MOP/MOE；4 单元测试 | 统一口径横比成立：MOE_energy=Emin/E_actual，fixed 上界 1.0000、multistart 0.9912、grid 0.9905、esc 0.9819、single_golden 0.9226 | 风场场景（任务3-5 待接入）、真实瓦级标定（Pmin_W 为代理换算） |
 | `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1、M2 已放行（M2 三轮复验问题 2026-09-02 全部关闭） | 干净与脏入口下旁路与原基线零差异；M0-B 安全注入 4/4；M2 修订协议（120 s、[90,120] 收敛末窗、门槛不变）下 S1/S2/S3 = −0.26%/−0.29%/−0.23%；三入口函数化后真实错误注入矩阵 10/10 PASS（含单元/比较/注入/试验错误出口的全局与 persistent 恢复），同会话背靠背双链 2/2 且 CSV 逐位一致 | 不外推真实功率/风场；esc 中心收敛受 PWM 量化分辨率限制（如实记录）；遗留脚本入口的错误路径恢复为登记在案的已知限制 |
@@ -51,6 +52,7 @@
 - `modules/wind_circle_search`（任务3）：19 项测试、8 项门槛；EA 尾段跟踪 0.320 vs tracker 0.809；证据：[`evidence/wind_circle_search/report.md`](evidence/wind_circle_search/report.md)。
 - `modules/sin_wind_search`（任务4）：19 项测试、8 项门槛；正弦风口径 1 小时窗 EA 0.978 / tracker 0.985 / esc 0.970；证据：[`evidence/sin_wind_search/report.md`](evidence/sin_wind_search/report.md)。
 - `modules/ortho_wind_search`（任务5）：19 项测试、8 项门槛；双正交风 1 小时窗 EA 0.975 / tracker 0.984 / esc 0.960；jumpUp 恢复 10/10；证据：[`evidence/ortho_wind_search/report.md`](evidence/ortho_wind_search/report.md)。
+- `modules/adaptive_search`（任务6）：28 项测试、10 项门槛；qnewton 尾段 0.272 / 1h MOE 0.987 / spsa 恢复 10–18 步；证据：[`evidence/adaptive_search/report.md`](evidence/adaptive_search/report.md)。
 - `modules/unified_search`：13 项单元测试、8 项验收门槛通过（含"ea 搜索步数 < multistart 全遍历步数（全部种子）""1 小时窗 ea 平均 MOE > multistart 平均 MOE"两条能耗感知主张门槛；tracker 平坦无噪 jumpDown 恢复 ≤30 步 ≥9/10 种子；能耗开关=关时 MOE 与能耗列全部 NaN）。1 小时窗横比：ea_multistart 平均 MOE 0.9927（0.9905–0.9938）、multistart 0.9924、fixed 1.0000（不可达上界）。证据：[`evidence/unified_search/report.md`](evidence/unified_search/report.md)、[`evidence/unified_search/scenarios.csv`](evidence/unified_search/scenarios.csv)、[`evidence/unified_search/moe_1h.csv`](evidence/unified_search/moe_1h.csv)。
 
 ## 已完成
