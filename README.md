@@ -2,7 +2,7 @@
 
 共轴八旋翼在线能耗优化协作仓库。
 
-仓库包含**优化算法线**的十个可运行模块、**统一指标层**与**验证平台线**：上下桨转速比在线极值寻优（`ratio_esc`）、平飞速度在线极值寻优（`speed_esc`）、速度基线之上的 TD3 残差修正（`speed_rl_residual`）、平移曲线黑箱直搜（`speed_shift_search`）、崎岖多峰滤波全局寻优（`speed_rugged_search`）、任务1+2整合的统一速度寻优程序（`unified_search`）、环境风场系列研究（恒定风×圆周盘旋 `wind_circle_search`、正弦风 `sin_wind_search`、双正交正弦风 `ortho_wind_search`，均含三模块面板：控制台/飞机模型/环境模型），统一 MOP/MOE 指标与场景入口（`harness`），以及用于把慢层算法安全接入飞控快层的 `models/px4_x8`。所有模块当前都使用明确标注的**虚拟/代理功率对象**：它们不是实机飞控、不是电子调速器（ESC），也不构成真实 X8 节能率或偏航稳定性结论。
+仓库包含**优化算法线**的十一个可运行模块、**统一指标层**与**验证平台线**：上下桨转速比在线极值寻优（`ratio_esc`）、平飞速度在线极值寻优（`speed_esc`）、速度基线之上的 TD3 残差修正（`speed_rl_residual`）、平移曲线黑箱直搜（`speed_shift_search`）、崎岖多峰滤波全局寻优（`speed_rugged_search`）、任务1+2整合的统一速度寻优程序（`unified_search`）、环境风场系列研究（恒定风×圆周盘旋 `wind_circle_search`、正弦风 `sin_wind_search`、双正交正弦风 `ortho_wind_search`，均含三模块面板：控制台/飞机模型/环境模型），统一 MOP/MOE 指标与场景入口（`harness`），以及用于把慢层算法安全接入飞控快层的 `models/px4_x8`。所有模块当前都使用明确标注的**虚拟/代理功率对象**：它们不是实机飞控、不是电子调速器（ESC），也不构成真实 X8 节能率或偏航稳定性结论。
 
 ## 技术路线：四个模块的关系
 
@@ -16,6 +16,7 @@
 第 2+ 层 环境风场研究    sin_wind_search      正弦风W(t)=A·sin(ωt)+B(任务4)         已完成验收（研究线）
 第 2+ 层 环境风场研究    ortho_wind_search    双正交正弦风(任务5)                   已完成验收（研究线）
 第 2+ 层 自适应算法库    adaptive_search      spsa/bayes/qnewton+双层MOP/MOE(任务6) 已完成验收（研究线）
+第 2+ 层 环境风场调度    wind_field_sched     空速物理+解析调度+DP+信息结构(路线交付) 已完成验收（研究线）
 第 3 层  残差速度 RL     speed_rl_residual    v_ref = guard(v_base + Δv)，TD3      代理对象预研
 第 4 层  平台接入        models/px4_x8        慢层算法安全接入飞控快层             M2数值通过，自动化闭环待修后进入M3
 指标层  MOP/MOE        harness              统一场景、评价窗与能耗效能指标        已实现（代理口径）
@@ -95,6 +96,12 @@ START_HERE                 % 三模块面板(默认qnewton)+左下MOP/MOE结果�
 run_task6_acceptance       % 10项门槛验收 + 1小时窗六算法MOE横比
 tests_task6                % 28项单元测试
 
+% 环境风场调度模块（路线§3-5交付口径：空速物理+解析调度+DP+信息结构）
+cd ../wind_field_sched
+START_HERE                 % 三模块面板(解析调度/在线风估计/风矢量环境模型)
+run_wind_acceptance        % 8项门槛验收(DP/可行性/信息结构/带宽准则)
+tests_wind                 % 15项单元测试
+
 % 统一速度寻优程序（任务1+2整合 + MOP/MOE）
 cd ../unified_search
 START_HERE                 % 动画面板(tracker/esc 2选1)+日志栏+验收报告载入
@@ -149,9 +156,9 @@ run_harness                % 三模块接线测试 + 1小时窗五算法MOE横�
 - 验收 8 项门槛 + 13 项单元测试全过（含"ea 搜索步数 < 全遍历步数""1 小时窗 ea 平均MOE > multistart"两条能耗感知主张门槛）。
 - 演示面板当前仅提供 **tracker平移跟踪 / esc连续ESC** 两个算法（定稿口径），ea_multistart 等其余算法保留于 `+usearch` 包供验收与横比；面板含日志栏（MOP/MOE 汇总进日志）与验收报告一键载入。证据见 [docs/evidence/unified_search/](docs/evidence/unified_search/)。
 
-### 环境风场系列（任务3/4/5，modules/wind_circle_search、sin_wind_search、ortho_wind_search，2026-09-01 并入）
+### 环境风场系列（任务3/4/5，modules/wind_circle_search、sin_wind_search、ortho_wind_search，2026-09-01 并入；对象侧为风致曲线平移代理）
 
-在统一程序经验之上逐级复杂化**环境模型**，黑箱红线与 MOP/MOE 口径不变（A=0/B=0/C=0/D=0 时严格退化为任务1+2口径）：
+在统一程序经验之上逐级复杂化**环境模型**（注：对象侧为**风致功率曲线平移代理**，算法线研究定位；路线§3-5要求的空速物理调度交付物见 `wind_field_sched`），黑箱红线与 MOP/MOE 口径不变（A=0/B=0/C=0/D=0 时严格退化为任务1+2口径）：
 
 - **任务3 恒定风×圆周盘旋**（`wind_circle_search`）：飞机匀速盘旋（周期可调），恒定风矢量沿固定方向；风的航向投影使功率曲线周期性平移（v*摆幅±0.36、功率±0.09，默认风速3 m/s）。EA 监测分级（大间距斜率探针Δ=3使崎岖波长整周期抵消 + p+/p−交替采样抗漂移；斜率不足→对称stencil重定位，斜率达标→升级）：EA 尾段跟踪误差 0.320 vs tracker 0.809，搜索步数 213<261；19/19 测试、8/8 门槛。
 - **任务4 正弦风**（`sin_wind_search`）：风速改为 W(t)=A·sin(ωt)+B（A/ω/B 面板可调，可为负=反向），v*(t) 双重时变；验收 8/8 门槛（正弦风 A=2, ω=0.08, B=3）。1小时窗 MOE：EA 0.978 / tracker 0.985 / esc 0.970——tracker 因不做全局扫描在快时变下能耗占优，如实记录。
@@ -168,6 +175,16 @@ run_harness                % 三模块接线测试 + 1小时窗五算法MOE横�
 - **bayes GP代理寻优**：GP-UCB采集+滑窗+核长在线选择——全局定位最快（settle 8–18 步）；时变尾段跟踪非其专长（如实横评）。
 - 双层MOP/MOE：MOP性能度量（末误差/入带/稳态波动/搜索步数/入带率/恢复步数）×MOE任务效能（续航能效/瞬时能效/可用率/综合overall=0.5能+0.3瞬+0.2可用）；旧字段全保留向后兼容。
 - 验收 10/10 门槛、28/28 单元测试；面板结果卡片移至日志栏上方。证据见 [docs/evidence/adaptive_search/](docs/evidence/adaptive_search/)。
+
+### 环境风场调度模块（modules/wind_field_sched，2026-09-02 并入，路线§3-5交付口径）
+
+按 `docs/TASKS_1_5_ROUTE.md` §3-5 要求的**空速物理对象**实现（区别于 wind_circle/sin_wind/ortho_wind 三模块的风致曲线平移代理，那里是算法线研究；本模块交付路线要求的全部调度项）：
+- 对象：圆周盘旋，空速 `u=v·t̂+w`，功率 `P=P0(|u|)`（仓库三次代理 V*=6.3、P*=0.913）；解析最优 `v*(t)=−q+sqrt(q²+V*²−|w|²)`，可行段 `P(t)≡P*`（10⁻⁹精度）。
+- **DP数值验证**解析解全局最优性（三风模式 relDiff<4×10⁻⁶；限速DP=未来加速度接口，限速0.3 m/s多耗0.27%）；**最优匀速对照**（默认双正交风下多耗4.6%）；**可行性检查**（逐时刻|w⊥|≤V*，全周期max|w|<V*；恒风7>V*部分航向不可行且如实给出Pmin）。
+- **在线版**：滑窗LM风估计 ŵ=(ŵx,ŵy)+解析公式调度+观测性激励（近最优处功率对空速不敏感的补偿）；恒风估计误差0.22 m/s、MOE 0.997。
+- **任务4敏感性扫描+带宽准则**：7风频×6窗长——短窗(<半圈)病态(>5%超额10/14档)；长窗(W≥90)中位超额2.2% vs 短窗6.0%；中频区(ω≈0.2–0.35)为估计器谐振区（局限如实记录，相位查表为下一步）。
+- **任务5三档信息结构后悔值对比**（1小时窗MOE）：已知风1.000 / 在线估计0.974 / 匀速0.964 / 恒飞V* 0.949 / 不知风0.938——**风速信息价值=在线估计比不知风省3.6%能量**。
+- 验收8/8门槛、15/15单元测试；三模块面板（调度/风估计曲线+飞机模型双表盘+环境模型航迹风矢量）。证据见 [docs/evidence/wind_field_sched/](docs/evidence/wind_field_sched/)。
 
 ### 统一指标层 MOP/MOE（harness，2026-09-01 实现）
 
@@ -204,6 +221,7 @@ modules/wind_circle_search/  环境风场（任务3）：恒定风×圆周盘旋
 modules/sin_wind_search/     环境风场（任务4）：正弦风W(t)=A·sin(ωt)+B + 三模块面板
 modules/ortho_wind_search/   环境风场（任务5）：双正交正弦风 x/y分量+合成矢量
 modules/adaptive_search/     自适应算法库（任务6）：spsa/bayes/qnewton+双层MOP/MOE
+modules/wind_field_sched/    环境风场调度（路线§3-5交付）：空速物理+解析调度+DP+三档信息结构
 models/px4_x8/               PX4 X8验证平台：基线、M0-A/M0-B/M0-C/M1快照与M2入口
 integration/air_esc/         慢层算法接入与安全层（预留）
 harness/                     统一指标层：三模块架构 + MOP/MOE + 1小时任务窗横比
