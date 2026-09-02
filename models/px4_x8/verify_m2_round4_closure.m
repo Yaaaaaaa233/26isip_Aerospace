@@ -74,6 +74,19 @@
 %   (never a copy of the manifest value). 'report' re-captures live again,
 %   so an aggregate only ever certifies a single-commit clean batch whose
 %   verifier file never changed mid-batch.
+%
+%   STAGE CRASH RESILIENCE (round-7 R7-F1): the R2022b native crash is
+%   not confined to sim mid-chains -- the round-7 acceptance lost a c5
+%   process BETWEEN chain-2 completion and the stage stamp (chains and
+%   trial archives fully on disk, c5.csv/c5.done.mat never written; dump
+%   ff34-25df-6880-531c.dmr, 2026-09-02 18:26). Every stage entry now
+%   bumps a persistent <stage>.attempts counter BEFORE any work; the
+%   counter survives the crash and the completing attempt stamps it into
+%   done.attempts, so the batch evidence reports how many attempts each
+%   stage actually took. A retry is a FULL re-execution from stage entry
+%   (timestamped trial archives make partial-state reuse impossible);
+%   the batch driver may retry a stage whose process died before its
+%   done marker, bounded at 3 attempts (rules v1.4 section 2 rule 7).
 
 function ok = verify_m2_round4_closure(stage)
 if nargin < 1
@@ -132,6 +145,7 @@ if strcmp(stage, 'init')
     return;
 end
 manifest = [];
+attempts = 1;   % R7-F1: stays 1 unless a crash-retry bumped the counter
 if ~isempty(stage)
     f = fullfile(stagedDir, 'manifest.mat');
     assert(exist(f, 'file'), 'air:M2Verify:NoManifest', ...
@@ -144,6 +158,13 @@ if ~isempty(stage)
     % state) and hard-fails on 'unknown', a dirty tree, or any mismatch
     % with the manifest. Stage stamps never copy manifest values.
     assertSourceBound(manifest);
+    % R7-F1: bump the persistent attempt counter at ENTRY, before any
+    % work -- it must survive a process death anywhere inside the stage
+    % (that is its whole purpose). Only sim/stamp stages carry a counter;
+    % 'report' aggregates and stamps nothing.
+    if any(strcmp(manifest.stages, stage))
+        attempts = bumpAttempts(stagedDir, stage);
+    end
 end
 
 sentinelParams = struct('mode', 'esc', 'center0', 0.9134);
@@ -285,6 +306,13 @@ if runStage('c5')
         assert(resC.pass, 'C5: chain %d failed', c);
         arch{c} = char(resC.archiveDir);
     end
+    % R7-F1: release the Simulink heap before the evidence-write window.
+    % Round-7 forensics put the native crash exactly between chain-2
+    % completion and the stage stamp; everything this stage still needs
+    % (the trial archives) is already on disk, and the dirty-session
+    % claims were established by the completed chains -- a model close
+    % cannot affect them or the globals/persistent state.
+    bdclose('all');
     h1 = sha256file(fullfile(arch{1}, 'summary.csv'));
     h2 = sha256file(fullfile(arch{2}, 'summary.csv'));
     assert(strcmp(h1, h2), ...
@@ -331,10 +359,11 @@ if ~isempty(stage) && ~strcmp(stage, 'report')
     fpStamp = assertSourceBound(manifest);
     done = struct('runId', manifest.runId, 'gitCommit', ...
         fpStamp.gitCommit, 'verifierSha', fpStamp.verifierSha, ...
-        'finished', datetime('now'));
+        'attempts', attempts, 'finished', datetime('now'));
     save(fullfile(stagedDir, [stage '.done.mat']), 'done');
     disp(T);
-    fprintf('STAGE %s PASS (%d checks)\n', stage, size(T, 1));
+    fprintf('STAGE %s PASS (%d checks, attempt %d)\n', stage, ...
+        size(T, 1), attempts);
     ok = true;
     return;
 end
@@ -710,6 +739,34 @@ assert(strcmp(fp.verifierSha, manifest.verifierSha), ...
     'since init; rerun the FULL batch']);
 end
 
+function attempts = bumpAttempts(stagedDir, stage)
+%BUMPATTEMPTS R7-F1: honest crash-retry accounting. Every ENTRY into a
+%   staged stage bumps a persistent counter in the staged dir: a process
+%   that dies before its done stamp (the round-7 R2022b crash window:
+%   chains complete, stage files never written) leaves the counter
+%   behind, so the retry that eventually completes records how many
+%   attempts the stage actually took. The counter is bookkeeping, never
+%   evidence state: a retry re-executes the WHOLE stage from entry
+%   (timestamped trial archives make partial-state reuse impossible).
+%   The file lives under results/ (gitignored), so it never dirties the
+%   tree the source-binding gate protects.
+f = fullfile(stagedDir, [stage '.attempts']);
+attempts = 1;
+if exist(f, 'file')
+    txt = strtrim(fileread(f));
+    n = str2double(txt);
+    assert(isfinite(n) && n == round(n) && n >= 1, ...
+        'air:M2Verify:BadAttempts', ...
+        'attempt marker %s is corrupt (%s) -- inspect and rerun init', ...
+        f, txt);
+    attempts = n + 1;
+end
+fid = fopen(f, 'w');
+assert(fid > 0, 'cannot write attempt marker %s', f);
+fprintf(fid, '%d\n', attempts);
+fclose(fid);
+end
+
 function validateStaged(dir)
 %VALIDATESTAGED R5-F2/R6-F1/R6-F2: the aggregate is only valid for ONE
 %   clean single-commit batch: every expected stage file must exist, carry
@@ -781,6 +838,24 @@ assert(size(rows, 1) == totalDeclared, 'air:M2Verify:RowCountMismatch', ...
     'declared %d matrix rows, aggregated %d', totalDeclared, ...
     size(rows, 1));
 totalRows = size(rows, 1);
+% R7-F1: surface the per-stage attempt counts (crash-retry accounting).
+% Pre-R7 done stamps lack the field; they predate the retry contract and
+% read as 1 (no retries were possible before the counter existed).
+stageAttempts = struct();
+for k = 1:numel(m.stages)
+    D = load(fullfile(stagedDir, [m.stages{k} '.done.mat']), 'done');
+    if isfield(D.done, 'attempts')
+        stageAttempts.(m.stages{k}) = D.done.attempts;
+    else
+        stageAttempts.(m.stages{k}) = 1;
+    end
+end
+parts = cell(1, numel(m.stages));
+for k = 1:numel(m.stages)
+    parts{k} = sprintf('%s=%d', m.stages{k}, ...
+        stageAttempts.(m.stages{k}));
+end
+fprintf('stage attempts: %s\n', strjoin(parts, ', '));
 T = cell2table(rows, 'VariableNames', {'test', 'entryState', ...
     'exitPath', 'verdict', 'runId'});
 adapterDir = fileparts(mfilename('fullpath'));
@@ -794,7 +869,7 @@ C = load(fullfile(stagedDir, 'c5.mat'), 'arch', 'h1', 'h2', 'todayGate', ...
 arch = C.arch; h1 = C.h1; h2 = C.h2;
 todayGate = C.todayGate; round3Gate = C.round3Gate;
 save(fullfile(outDir, 'result.mat'), 'arch', 'h1', 'h2', 'todayGate', ...
-    'round3Gate');
+    'round3Gate', 'stageAttempts');
 save(fullfile(outDir, 'manifest.mat'), '-struct', 'S');
 disp(T);
 fprintf('Archive: %s\nrunId=%s\ncommit=%s\n', outDir, m.runId, ...
