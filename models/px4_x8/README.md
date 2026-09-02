@@ -11,7 +11,7 @@
 
 ### M2 上下桨转速比 ESC（2026-09-01，快照 `air_m2.slx`）
 
-状态：M2 核心实现与修订数值协议保持放行；第九轮当前 `2be9857` 由入库驱动独立复跑 48/48 PASS（runId `1edb644d`，五段 attempt=1），R8-F2 入库重试驱动和 R8-F3 原子 marker 关闭。六类直接 attempt 篡改已拒绝，但协同修改 manifest 上限 + done/marker 后仍 48 PASS、从 manifest 删除 c5 与声明行后仍 44 PASS（R9-F1，P1），R8-F1 仅部分关闭，验收自动化为 PARTIAL。全量同会话双链仍为环境限制未覆盖组合，不宣称 manifest 防篡改、验收自动化完全闭环或永不崩溃。当前判定见 [`M2_REACCEPT_ROUND9_CODEX_20260903.md`](../../docs/evidence/M2_REACCEPT_ROUND9_CODEX_20260903.md)；第八轮修复见 [`M2_REACCEPT_ROUND8_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND8_FIX_20260902.md)。
+状态：M2 核心实现与修订数值协议保持放行；第九轮发现 R9-F1/R9-F2 已修复，当前 `3d3fa51` 由入库驱动复跑 52/52 针对性矩阵 PASS（runId `78281368`；矩阵 48→52 行，新增 4 行 manifest 合同负向证明），staged manifest 与验证器源码固定合同 `expectedManifestContract()` 等值硬断言，协同篡改上限/删阶段/增阶段/改行数均被 `air:M2Verify:ManifestContract` 拒绝；批次日志零 U+FFFD；R8-F1 随之完全关闭。c2clean 本批自然堆崩溃→重试→attempt=2 成功（R8 遗留项关闭）。全量同会话双链仍为环境限制未覆盖组合，环境堆崩溃未消灭（本批自然发生一次被有界重试吸收），不宣称验收自动化完全闭环或永不崩溃。当前判定见 [`M2_REACCEPT_ROUND9_FIX_20260903.md`](../../docs/evidence/M2_REACCEPT_ROUND9_FIX_20260903.md)；第九轮验收原文见 [`M2_REACCEPT_ROUND9_CODEX_20260903.md`](../../docs/evidence/M2_REACCEPT_ROUND9_CODEX_20260903.md)；第八轮修复见 [`M2_REACCEPT_ROUND8_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND8_FIX_20260902.md)。
 
 - `m2_eta_allocator.m` + `m2_alloc_diag.m`：受约束 PWM 域 eta 分配器（同轴对 (1,5)(2,6)(3,7)(4,8)，每对 Σω² 严格保持 → 总推力/横滚/俯仰不变；η=1 位精确透传；sat/dmz 诊断单口输出）。
 - `m2_eta_esc.m` + `add_air_m2_allocator.m`：`ratioesc` 内核原生转速比接线（输入 35 维含 motor_pwm/rpm 与 alloc_sat；eta 经全局 `M2_ETA_APPLIED` 交接，慢层信号不进 pwm 主路径）与原子安装器。

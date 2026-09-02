@@ -35,7 +35,7 @@ AI协助：Codex（证据分类与引用边界整理，2026-09-02）
 - 基线与M0-A：`air_baseline_*`、`air_interface_*`、`air_m0a_*`。
 - M0-B与M0-C：[`M0B_RERUN_20260901.md`](M0B_RERUN_20260901.md)、[`M0B_REACCEPT_CODEX_20260901.md`](M0B_REACCEPT_CODEX_20260901.md)、[`M0C_TRIALS_20260901.md`](M0C_TRIALS_20260901.md)。
 - M1：[`M1_ROBUSTNESS_20260901.md`](M1_ROBUSTNESS_20260901.md) 与 [`M1_REACCEPT_CODEX_20260901.md`](M1_REACCEPT_CODEX_20260901.md)。
-- M2：从 [`M2_ETA_20260901.md`](M2_ETA_20260901.md) 到各轮 `M2_REACCEPT_*`；当前判定以 [`M2_REACCEPT_ROUND9_CODEX_20260903.md`](M2_REACCEPT_ROUND9_CODEX_20260903.md) 为准：当前 `2be9857` 由入库驱动复跑 48/48 PASS，M2 核心与数值继续放行，R8-F2/R8-F3 关闭；但 manifest 可协同提高 attempt 上限或删除阶段/声明行仍获 report PASS（R9-F1，P1），R8-F1 仅部分关闭、验收自动化为 PARTIAL。第八轮修复证据见 [`M2_REACCEPT_ROUND8_FIX_20260902.md`](M2_REACCEPT_ROUND8_FIX_20260902.md)，第八轮验收原文见 [`M2_REACCEPT_ROUND8_CODEX_20260902.md`](M2_REACCEPT_ROUND8_CODEX_20260902.md)；不得把当前结果表述为消灭了环境崩溃、manifest 防篡改已闭环或验收自动化已完全闭环。
+- M2：从 [`M2_ETA_20260901.md`](M2_ETA_20260901.md) 到各轮 `M2_REACCEPT_*`；当前判定以 [`M2_REACCEPT_ROUND9_FIX_20260903.md`](M2_REACCEPT_ROUND9_FIX_20260903.md) 为准：第九轮发现 R9-F1/R9-F2 已修复，当前 `3d3fa51` 由入库驱动复跑 52/52 针对性矩阵 PASS（runId `78281368`），staged manifest 与源码固定合同等值硬断言、批次日志零 U+FFFD，R8-F1 随之完全关闭，规则升 v1.6；c2clean 本批自然堆崩溃→重试→attempt=2 成功（R8 遗留项关闭）。第九轮验收原文见 [`M2_REACCEPT_ROUND9_CODEX_20260903.md`](M2_REACCEPT_ROUND9_CODEX_20260903.md)，第八轮修复证据见 [`M2_REACCEPT_ROUND8_FIX_20260902.md`](M2_REACCEPT_ROUND8_FIX_20260902.md)；不得把当前结果表述为消灭了环境崩溃（本批自然发生一次并被有界重试吸收）或验收自动化已完全闭环。
 
 ## 新证据最少包含
 

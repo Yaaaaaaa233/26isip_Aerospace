@@ -1,6 +1,6 @@
 # M2 上下桨转速比 ESC（eta 分配器）接口与工作步骤
 
-状态：**核心实现与修订数值协议已放行；第九轮当前 HEAD 由入库驱动复跑 48/48 PASS（2026-09-03，runId `1edb644d` @ `2be9857`），但验收自动化为 PARTIAL**。R8-F2 入库有界重试驱动与 R8-F3 原子 marker 已独立动态关闭；六类直接 attempt 篡改会被拒绝，但 manifest 可被协同提高 `maxAttempts` 或删除整个阶段与声明行，report 仍会输出 PASS（R9-F1，P1），故 R8-F1 仅部分关闭。C5 为最小双链口径（nominal S1–S3），全量同会话双链仍为环境限制未覆盖组合，不宣称 manifest 防篡改、验收自动化完全闭环或永不崩溃。当前判定见 [`../evidence/M2_REACCEPT_ROUND9_CODEX_20260903.md`](../evidence/M2_REACCEPT_ROUND9_CODEX_20260903.md)；第八轮修复见 [`../evidence/M2_REACCEPT_ROUND8_FIX_20260902.md`](../evidence/M2_REACCEPT_ROUND8_FIX_20260902.md)。本文档先于实施落地，交付清单来源为 `docs/PROJECT_EXECUTION_ROADMAP.md` §5 M2。
+状态：**核心实现与修订数值协议已放行；第九轮发现 R9-F1/R9-F2 已修复，当前 `3d3fa51` 由入库驱动复跑 52/52 针对性矩阵 PASS（2026-09-03，runId `78281368`）**。staged manifest 与验证器源码单一固定合同 `expectedManifestContract()` 在段入口/report/聚合器三处等值硬断言（`air:M2Verify:ManifestContract`），四类协同篡改负向证明入矩阵（48→52 行）；批次驱动按 MATLAB 实际 ANSI 输出页解码写 UTF-8，8 份批次日志零 U+FFFD；R8-F1 随之完全关闭。c2clean 本批自然堆崩溃→有界重试→attempt=2 成功（R8 遗留项关闭）。C5 为最小双链口径（nominal S1–S3），全量同会话双链仍为环境限制未覆盖组合；环境堆崩溃未消灭、report 段崩溃注入未执行，不宣称验收自动化完全闭环或永不崩溃。当前判定见 [`../evidence/M2_REACCEPT_ROUND9_FIX_20260903.md`](../evidence/M2_REACCEPT_ROUND9_FIX_20260903.md)；第九轮验收原文见 [`../evidence/M2_REACCEPT_ROUND9_CODEX_20260903.md`](../evidence/M2_REACCEPT_ROUND9_CODEX_20260903.md)；第八轮修复见 [`../evidence/M2_REACCEPT_ROUND8_FIX_20260902.md`](../evidence/M2_REACCEPT_ROUND8_FIX_20260902.md)。本文档先于实施落地，交付清单来源为 `docs/PROJECT_EXECUTION_ROADMAP.md` §5 M2。
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
