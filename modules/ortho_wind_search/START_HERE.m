@@ -1,0 +1,19 @@
+%START_HERE 任务5入口：双正交正弦风 × 圆周盘旋 × MOP/MOE 三模块程序。
+root=fileparts(mfilename('fullpath')); addpath(root);
+fprintf(['
+== 任务5：双正交风程序 ==
+' ...
+    '环境模型: x向风 A·sin(ω1·t)+B, y向风 C·sin(ω2·t)+D (A/B/C/D/ω 均可调)
+' ...
+    '          环境模型窗口: 航迹+x/y/合成三支风矢量小箭头 + 双风速变化曲线
+' ...
+    '  1) launch_task5_demo   三模块面板
+' ...
+    '  2) run_task5_modules_acceptance  验收
+' ...
+    '  3) tests_task5_modules / qa_task5_modules_demo
+' ...
+    '四个风参数全0 即任务1+2口径(向后兼容)
+
+']);
+launch_task5_demo;

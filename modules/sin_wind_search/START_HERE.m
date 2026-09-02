@@ -1,0 +1,19 @@
+%START_HERE 任务4入口：正弦风 W(t)=A·sin(ωt)+B × 圆周盘旋 × MOP/MOE 三模块程序。
+root=fileparts(mfilename('fullpath')); addpath(root);
+fprintf(['
+== 任务4：正弦风程序 ==
+' ...
+    '环境模型: 单方向风速 W(t)=A·sin(ωt)+B (A/ω/B 左侧参数栏可调)
+' ...
+    '          飞机匀速盘旋, 风投影随航向周期变化 → 时变最优/功率
+' ...
+    '  1) launch_task4_demo   三模块面板(环境模型含风速变化曲线+方向小箭头)
+' ...
+    '  2) run_task4_modules_acceptance  验收
+' ...
+    '  3) tests_task4_modules / qa_task4_modules_demo
+' ...
+    'A=0且B=0 即任务1+2口径(向后兼容)
+
+']);
+launch_task4_demo;
