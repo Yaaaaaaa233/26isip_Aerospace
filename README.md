@@ -184,8 +184,8 @@ run_harness                % 三模块接线测试 + 1小时窗五算法MOE横�
 - M0-B 已完成（2026-09-01 复核修复后再验收通过）：受保护速度闭环与安全回退，逐位故障注入全链保护通过。
 - M0-C 已完成并通过验收：四组 fixed/ESC 配对及一组确定性复现全绿，稳定快照为 `air_m0c.slx`；见 [接口与验收基线](docs/interfaces/M0C_SPEED_ESC.md) 和 [证据报告](docs/evidence/M0C_TRIALS_20260901.md)。
 - M1 已完成并通过验收（2026-09-01）：噪声/时延/组合扰动 27 场景零安全误触发，11 组配对 regret 最大 |0.000133%|；见 [接口与验收基线](docs/interfaces/M1_ROBUSTNESS.md) 和 [证据报告](docs/evidence/M1_ROBUSTNESS_20260901.md)。
-- M2 已完成并通过验收（2026-09-02 三轮复验闭环）：受约束 eta 分配器 + `ratioesc` 原生转速比接线；修订协议下配对门槛最差 −0.226%（[90,120] s 收敛末窗，门槛 ±0.5% 未变），快照 `air_m2.slx`；第三轮发现的脚本异常退出恢复缺陷已函数化修复并通过第四轮错误注入矩阵验证（10/10 PASS）；见 [第三轮复验报告](docs/evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md) 与 [修复报告](docs/evidence/M2_REACCEPT_ROUND3_FIX_20260902.md)。
-- 当前先关闭 M2 异常清理；M3 可做接口/仲裁/场景方案，暂不做 `.slx` 结构集成。
+- M2 核心成果已通过（2026-09-02 第四轮独立验收）：受约束 eta 分配器 + `ratioesc` 原生转速比接线；修订协议下配对门槛最差 −0.226%（[90,120] s 收敛末窗，门槛 ±0.5% 未变），快照 `air_m2.slx`；三入口函数化后真实错误恢复与 persistent fresh 通过。新增总验证器自身的调用者状态恢复和完整覆盖口径仍为部分通过；见 [第三轮报告](docs/evidence/M2_REACCEPT_ROUND3_CODEX_20260902.md)、[修复报告](docs/evidence/M2_REACCEPT_ROUND3_FIX_20260902.md) 与 [第四轮独立验收](docs/evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md)。
+- M3 方案与实现可以继续；在把总验证器用作下一里程碑放行门前，先关闭第四轮报告 R4-F1--F3。
 
 完整路线、阶段门槛和当前文件清单见 [开发状态](docs/DEVELOPMENT_STATUS.md)、[执行路线](docs/PROJECT_EXECUTION_ROADMAP.md) 与 [模型说明](models/px4_x8/README.md)。
 

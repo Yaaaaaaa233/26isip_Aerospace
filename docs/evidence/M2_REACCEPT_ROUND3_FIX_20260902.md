@@ -2,6 +2,8 @@
 
 结论：**第三轮复验问题 R3-F1 / R3-F2 / R3-F3 全部修复，第四轮关闭条件（第三轮报告 §9 六条）全部验证通过；随修复同轮落地的《验收自动化基础设施规则》（`docs/ACCEPTANCE_AUTOMATION_RULES.md` v1.0）覆盖矩阵全部 PASS。M2 恢复放行。**执行对象：[`M2_REACCEPT_ROUND3_CODEX_20260902.md`](M2_REACCEPT_ROUND3_CODEX_20260902.md)。
 
+> **后续独立验收勘误（2026-09-02）**：第四轮独立实跑确认三入口函数化、真实错误恢复、persistent fresh 与 M2 数值链均通过；但新增的 `verify_m2_round4_closure` 自身会在正常返回时清空调用者原有 global，且 10 行矩阵未覆盖规则 §4.3 的完整入口状态 × 退出路径组合。因此本文“验收基础设施规则全部满足/全矩阵”仅保留为当时结论；当前边界以 [`M2_REACCEPT_ROUND4_CODEX_20260902.md`](M2_REACCEPT_ROUND4_CODEX_20260902.md) 与 `docs/DEVELOPMENT_STATUS.md` 为准。
+
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
 主要撰写：叶安（修复方案与关闭判定）、ZCode（函数化改造、验证矩阵实现与本文档代拟）

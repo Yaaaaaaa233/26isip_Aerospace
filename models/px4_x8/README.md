@@ -11,7 +11,7 @@
 
 ### M2 上下桨转速比 ESC（2026-09-01，快照 `air_m2.slx`）
 
-状态：三轮复验问题全部关闭（2026-09-02）。120 s 数值协议、脏入口背靠背完整链、九场景硬断言与脚本异常退出恢复均验证通过（三入口函数化 + 错误注入矩阵 10/10 PASS）。当前证据见 [`M2_REACCEPT_ROUND3_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND3_FIX_20260902.md)。
+状态：M2 核心三入口与 120 s 数值协议通过（2026-09-02）。三入口函数化后的真实错误恢复、persistent fresh、脏入口背靠背双链和九场景硬断言均验证通过；第四轮独立验收同时发现总验证器自身不恢复调用者 global，10 行矩阵也不等于规则所称的完整组合，因此验收基础设施总体为部分通过。见 [`M2_REACCEPT_ROUND4_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md)。
 
 - `m2_eta_allocator.m` + `m2_alloc_diag.m`：受约束 PWM 域 eta 分配器（同轴对 (1,5)(2,6)(3,7)(4,8)，每对 Σω² 严格保持 → 总推力/横滚/俯仰不变；η=1 位精确透传；sat/dmz 诊断单口输出）。
 - `m2_eta_esc.m` + `add_air_m2_allocator.m`：`ratioesc` 内核原生转速比接线（输入 35 维含 motor_pwm/rpm 与 alloc_sat；eta 经全局 `M2_ETA_APPLIED` 交接，慢层信号不进 pwm 主路径）与原子安装器。
@@ -54,12 +54,12 @@ safetyResult = run_air_m0b_safety_injection
 run_air_m1_robustness
 m1Result = result
 
-% M2 完整链（正常路径可复现；异常清理仍待第四轮关闭）
-run_m2_session_chain
+% M2 完整链（三入口正常/异常恢复已通过）
+m2Result = run_m2_session_chain()
 ```
 
 模型依赖 MATLAB/Simulink R2022b、Stateflow，以及模型引用的 `px4lib`、`px4Sensorslib`、`shared6dof` 和 `sharedtransform` 库。若缺少这些库，先恢复本机原有的 PX4/Simulink 支持包路径。
 
 ## 边界与下一步
 
-当前模型已具备 RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至力/力矩、6DOF、姿态反馈、M0-B 速度外环/安全回退、M0-C 速度 ESC 接口，以及 M2 `eta_ref` 受约束分配器与转速比 ESC；M1 鲁棒性矩阵、M2 修订数值协议和正常完整链已通过。它仍没有电池、电流、真实 RPM、校准后的真实电功率或完整 Harness 接入，因此不能据此宣称真实节能率或算法已经部署飞控。当前先函数化 M2 验收入口并关闭异常恢复，再进入 M3 `.slx` 结构集成；M3 方案文档可并行。详细观测接口见 [`M0A_OBSERVABILITY.md`](../../docs/interfaces/M0A_OBSERVABILITY.md)，阶段门槛见 [`PROJECT_EXECUTION_ROADMAP.md`](../../docs/PROJECT_EXECUTION_ROADMAP.md)。
+当前模型已具备 RC/解锁、姿态控制、固定 X8 混控、8 路 PWM、PWM 至力/力矩、6DOF、姿态反馈、M0-B 速度外环/安全回退、M0-C 速度 ESC 接口，以及 M2 `eta_ref` 受约束分配器与转速比 ESC；M1 鲁棒性矩阵、M2 修订数值协议和三入口正常/异常恢复已通过。它仍没有电池、电流、真实 RPM、校准后的真实电功率或完整 Harness 接入，因此不能据此宣称真实节能率或算法已经部署飞控。M3 可继续；总验证器的调用者状态恢复与覆盖口径应在下一里程碑验收前修复。详细观测接口见 [`M0A_OBSERVABILITY.md`](../../docs/interfaces/M0A_OBSERVABILITY.md)，阶段门槛见 [`PROJECT_EXECUTION_ROADMAP.md`](../../docs/PROJECT_EXECUTION_ROADMAP.md)。
