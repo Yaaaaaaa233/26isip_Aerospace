@@ -35,7 +35,7 @@ AI协助：Codex（证据分类与引用边界整理，2026-09-02）
 - 基线与M0-A：`air_baseline_*`、`air_interface_*`、`air_m0a_*`。
 - M0-B与M0-C：[`M0B_RERUN_20260901.md`](M0B_RERUN_20260901.md)、[`M0B_REACCEPT_CODEX_20260901.md`](M0B_REACCEPT_CODEX_20260901.md)、[`M0C_TRIALS_20260901.md`](M0C_TRIALS_20260901.md)。
 - M1：[`M1_ROBUSTNESS_20260901.md`](M1_ROBUSTNESS_20260901.md) 与 [`M1_REACCEPT_CODEX_20260901.md`](M1_REACCEPT_CODEX_20260901.md)。
-- M2：从 [`M2_ETA_20260901.md`](M2_ETA_20260901.md) 到各轮 `M2_REACCEPT_*`；当前采用 [`M2_REACCEPT_ROUND6_CODEX_20260902.md`](M2_REACCEPT_ROUND6_CODEX_20260902.md) 的“核心 M2 PASS / 验收自动化 PARTIAL”判定，不能只引用早期修复报告中的强关闭表述。
+- M2：从 [`M2_ETA_20260901.md`](M2_ETA_20260901.md) 到各轮 `M2_REACCEPT_*`；当前采用 [`M2_REACCEPT_ROUND6_FIX_20260902.md`](M2_REACCEPT_ROUND6_FIX_20260902.md) 的“第六轮发现 R6-F1/F2/F3 已关闭、42/42 针对性矩阵（C5 最小双链口径）、全量同会话双链仍为环境限制未覆盖组合”判定，不能只引用早期轮次或修复报告中的更强表述。
 
 ## 新证据最少包含
 

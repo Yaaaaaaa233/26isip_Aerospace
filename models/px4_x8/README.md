@@ -11,7 +11,7 @@
 
 ### M2 上下桨转速比 ESC（2026-09-01，快照 `air_m2.slx`）
 
-状态：M2 核心实现与修订数值协议保持放行；验收自动化 PARTIAL（2026-09-02）。第六轮独立复验确认四态状态恢复 20/20 PASS、九场景数值无回归；标准矩阵因 C5 第二条长链重复退出只完成 11/39，且 stage 源码指纹绑定与聚合 verdict 硬断言仍需修复。见 [`M2_REACCEPT_ROUND6_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md)。
+状态：M2 核心实现与修订数值协议保持放行；第六轮发现（R6-F1/F2/F3）已修复并经 42/42 针对性矩阵关闭验证（2026-09-02）。stage 源码指纹在 init/段开始/盖章/report 独立现场取证（拒 unknown/脏树/不一致），聚合器逐行 verdict 硬断言；C5 为最小双链口径（nominal S1–S3），全量同会话双链为环境限制未覆盖组合。见 [`M2_REACCEPT_ROUND6_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md) 与 [`M2_REACCEPT_ROUND6_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND6_FIX_20260902.md)。
 
 - `m2_eta_allocator.m` + `m2_alloc_diag.m`：受约束 PWM 域 eta 分配器（同轴对 (1,5)(2,6)(3,7)(4,8)，每对 Σω² 严格保持 → 总推力/横滚/俯仰不变；η=1 位精确透传；sat/dmz 诊断单口输出）。
 - `m2_eta_esc.m` + `add_air_m2_allocator.m`：`ratioesc` 内核原生转速比接线（输入 35 维含 motor_pwm/rpm 与 alloc_sat；eta 经全局 `M2_ETA_APPLIED` 交接，慢层信号不进 pwm 主路径）与原子安装器。
