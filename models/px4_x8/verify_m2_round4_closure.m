@@ -773,7 +773,10 @@ for k = 1:numel(m.stages)
             char(T.runId{j})}]; %#ok<AGROW>
     end
 end
-totalDeclared = sum(structfun(@nnz, m.declaredRows));
+% declaredRows is a struct of scalars -- sum its VALUES (structfun(@nnz)
+% would count non-zero FIELDS, i.e. the stage count, not the row count;
+% first formal batch caught this: "declared 5, aggregated 42")
+totalDeclared = sum(cell2mat(struct2cell(m.declaredRows)));
 assert(size(rows, 1) == totalDeclared, 'air:M2Verify:RowCountMismatch', ...
     'declared %d matrix rows, aggregated %d', totalDeclared, ...
     size(rows, 1));
