@@ -9,31 +9,23 @@
 ## 技术路线与模块分类
 
 ```text
-第 1 层  转速比 ESC      ratio_esc            优化 η = Ωu/Ωl（恒推力代理）        已完成验收
-第 2 层  平飞速度 ESC    speed_esc            优化 v_ref（η=1，虚拟功率曲线）      已完成验收（算法线）
-第 2+ 层 速度直搜研究    speed_shift_search   平移曲线瞬时跳变黑箱直搜（任务1）     已完成验收（研究线）
-第 2+ 层 速度直搜研究    speed_rugged_search  崎岖多峰滤波全局寻优（任务2）         已完成验收（研究线）
-第 2+ 层 整合研究程序    unified_search       任务1+2整合+能耗感知+MOP/MOE评价      已完成验收（研究线）
-第 2+ 层 环境风场研究    wind_circle_search   恒定风×圆周盘旋(任务3)                已完成验收（研究线）
-第 2+ 层 环境风场研究    sin_wind_search      正弦风W(t)=A·sin(ωt)+B(任务4)         已完成验收（研究线）
-第 2+ 层 环境风场研究    ortho_wind_search    双正交正弦风(任务5)                   已完成验收（研究线）
-第 2+ 层 自适应算法库    adaptive_search      spsa/bayes/qnewton+双层MOP/MOE(任务6) 已完成验收（研究线）
-第 2+ 层 环境风场调度    wind_field_sched     空速物理+解析调度+DP+信息结构(路线交付) 已完成验收（研究线）
-第 3 层  残差速度 RL     speed_rl_residual    v_ref = guard(v_base + Δv)，TD3      代理对象预研
-第 4 层  平台接入        models/px4_x8        慢层算法安全接入飞控快层             M2数值通过，自动化闭环待修后进入M3
-指标层  MOP/MOE        harness              统一场景、评价窗与能耗效能指标        已实现（代理口径）
+Wind        风场生成、观测与场景变化
+Plane       空地速、执行动态、6DOF、功率与电池对象
+Control     在线优化、安全层、快层控制与X8分配
+Evaluation  统一场景、MOP/MOE、证据和可视化
 ```
 
-- 第 1、2 层是两个单变量 ESC：优化变量不同（η 与 v），代理对象与验收口径相互独立，结论不可互相搬用。
-- 第 3 层在第 2 层基线之上叠加学习残差，应对不规则风场工况；属于算法线预研，不接入平台。
-- 第 4 层是验证平台线：M0-C 已按 `docs/interfaces/M0C_SPEED_ESC.md` 将 `ratio_esc` 内核作速度语义映射后接入；`speed_esc` 的回归估计器是后续内核替换候选。`speed_esc` 与 `speed_rl_residual` 尚未接入平台。
+- 速度、转速比、搜索和 RL 模块负责慢层参考值生成。
+- Plane 与 PX4 X8 模型负责把参考值变成实际运动、执行器状态和功率反馈。
+- Harness 负责在相同场景、种子、约束和评价窗口下比较算法。
+- 各模块完成情况不在这里重复，统一查看模块登记表和开发状态。
 
 ```mermaid
 flowchart LR
   A[慢层算法\nv_ref / eta_ref] --> B[接口与安全层\n限幅、冻结、回退]
-  B --> C[速度/姿态快层\nX8 控制分配]
-  C --> D[8 路 PWM\nX8 6DOF 对象]
-  D --> E[v、姿态、PWM、RPM\n功率、约束标志]
+  B --> C[Control\n速度/姿态快层与X8分配]
+  C --> D[Plane\n执行动态、风、6DOF与功率]
+  D --> E[状态、功率、能耗\n约束和有效性]
   E --> A
   F[台架/飞行数据] --> G[清洗与参数辨识]
   G --> D

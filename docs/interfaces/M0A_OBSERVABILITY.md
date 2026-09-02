@@ -21,7 +21,7 @@ AI协助：ZCode（观测层脚本与本文档代拟）
 | `m0a_log_bus` | 35 元向量 @1 ms | 根层 Mux | `[v, P_est, E_est, power_source, att(6)=φθψ pqr, pwm(8), rpm_est(8), flags(8), optimizer_enable]`；4 ms 的 pwm/P_est 经 ZOH 对齐 |
 | `m0a_constraint_flags` | 8 位 0/1 | `M0A Constraint Flags` 子系统输出，经 `M0B Flags Override` 覆盖位 3/5 后对外 | 可用；M0-B 起位 3/5 由运行时常量重算（`M0B Att Tol` 0.523 rad、`M0B Speed Tol` 1.0 m/s，位 5 语义 `|v−v_ref(延迟一拍)|>tol`）；其余位沿用原阈值：偏航率 1.5 rad/s、功率上限 1500 W、PWM 边界 5 us |
 | `m0a_optimizer_enable` | 0/1 | 常量 0 | 固定基线模式；M0-B 起接入参考选择器 |
-| `eta_ref`、实际 `eta` | -- | 待建 X8 受约束分配器/RPM 接口 | 缺失（M2） |
+| `eta_ref`、实际 `eta` | -- | M2 X8受约束分配器/RPM接口 | 已接入并通过M2验收；详见 `M2_ETA_ALLOCATOR.md` |
 
 姿态与角速度来源：`Attitude Control/quat2eul` 三输出（φ、θ、ψ）与 `AttitudeControl` 内 `control_and_mix` 第 5 输入口 `pqr`（按已核验函数签名 `(phi, theta, roll_pitch, yaw, pqr, Thrust, dt, arm)` 顺序）。
 
@@ -34,4 +34,4 @@ AI协助：ZCode（观测层脚本与本文档代拟）
 3. 每次优化试验必须与 `optimizer_enable=0` 的同条件固定参考基线配对。
 4. 数据源必须显式标注为 `estimated` 或 `measured`。未校准的 `P_est` 只用于模型内部对照，不得报告真实节能率。
 
-M0-B（速度闭环与安全回退）与 M0-C（速度在线 ESC 接入）均已完成；接口分别见 [`M0B_SPEED_LOOP.md`](M0B_SPEED_LOOP.md) 和 [`M0C_SPEED_ESC.md`](M0C_SPEED_ESC.md)。注意 M0-B 起 `Attitude Control` 新增输入 13/14（`m0b_pitch_cmd`、`m0b_speed_loop_enable`），`Subsystem` 新增出口 9（`Ve_x`）。M1 鲁棒性验收已完成（[`M1_ROBUSTNESS.md`](M1_ROBUSTNESS.md)）；当前下一步按 [`PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) 进入 M2 上下桨转速比 ESC。
+M0-B（速度闭环与安全回退）、M0-C（速度在线 ESC）、M1（鲁棒性）和M2（受约束eta分配）均已完成；接口分别见 [`M0B_SPEED_LOOP.md`](M0B_SPEED_LOOP.md)、[`M0C_SPEED_ESC.md`](M0C_SPEED_ESC.md)、[`M1_ROBUSTNESS.md`](M1_ROBUSTNESS.md) 和 [`M2_ETA_ALLOCATOR.md`](M2_ETA_ALLOCATOR.md)。当前按 [`PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) 并行推进M3方案与Plane P0--P4。

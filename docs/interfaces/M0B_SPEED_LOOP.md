@@ -71,4 +71,4 @@ AI协助：ZCode（速度环/安全链脚本与本文档代拟）
 3. 每次优化试验与 `optimizer_enable=0`、`speed_loop_enable∈{0,1}` 的同条件基线配对归档。
 4. `P_est` 未校准；一切对比结论仅限"模型估算"口径。
 
-M0-C 已在本接口边界内完成，见 [`M0C_SPEED_ESC.md`](M0C_SPEED_ESC.md)；M1 鲁棒性验收亦已完成（[`M1_ROBUSTNESS.md`](M1_ROBUSTNESS.md)）。当前下一步按 [`PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) 进入 M2 上下桨转速比 ESC。
+M0-C、M1和M2已在本接口边界上继续完成，分别见 [`M0C_SPEED_ESC.md`](M0C_SPEED_ESC.md)、[`M1_ROBUSTNESS.md`](M1_ROBUSTNESS.md) 和 [`M2_ETA_ALLOCATOR.md`](M2_ETA_ALLOCATOR.md)。当前按 [`PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) 并行推进M3方案与Plane P0--P4。

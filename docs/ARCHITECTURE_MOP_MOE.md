@@ -1,18 +1,22 @@
-# 三模块架构与 MOP/MOE 评价体系（2026-09-01 定稿）
+# 三模块架构与 MOP/MOE 评价体系（2026-09-02 状态收敛）
 
-本文件是 `speed_esc_matlab/harness/` 的顶层设计说明，同时把本工程
-（速度优化五任务）与 GitHub 仓库 `26isip_Aerospace` 的顶层设计对齐。
+项目组：周航正、霍奕茗、于跃、叶安、王健祺
+文件负责人：王健祺
+主要撰写：王健祺（三模块架构与MOP/MOE口径）
+审核：待项目组审核
+AI协助：ZCode（实现与报告整理）；Codex（2026-09-02路径和状态收敛）
+
+本文件是仓库 [`harness/`](../harness/) 的顶层设计说明，同时把速度优化研究与 Wind-Plane-Control 顶层架构对齐。
 
 ## 1. 仓库同步结果与本工程定位
 
-`26isip_Aerospace` 已同步（本地分叉历史已 rebase 保双史并推送）。远端
-顶层设计为**四层算法线 + 一条平台线**：
+当前仓库按算法、Wind/Plane、Control平台和Evaluation四类职责协作：
 
 ```text
-第 1 层  转速比 ESC      modules/ratio_esc          已完成验收
-第 2 层  平飞速度 ESC    modules/speed_esc          已完成验收(算法线)
-第 3 层  残差速度 RL     modules/speed_rl_residual  代理对象预研
-第 4 层  平台接入        models/px4_x8              M0-A/B/C、M1 完成，下一步 M2(eta分配器)
+算法研究    modules/                 速度、转速比、搜索、风场与RL候选
+物理对象    modules/wind_field_sched 当前空速物理代理；统一Plane对象待建
+Control     models/px4_x8            M2已放行，下一步M3
+Evaluation  harness/                 代理MOP/MOE已实现，统一WPC接入待完成
 ```
 
 硬性红线（AGENTS.md，本工程同样遵守）：① 控制器/RL 观测只能接收测量
@@ -20,11 +24,7 @@
 `power_map`/`plant_advance`/`measure` 侧，不动控制器因果接口；③ 结论
 边界不越代理模型口径；④ 不提交 slprj/缓存。
 
-**本工程（speed_esc_matlab）的定位**：五任务速度优化研究工作区——
-在受控代理对象上快速迭代"任务定义→算法→评价"的完整闭环（任务1平移
-搜索、任务2崎岖滤波寻优已完成；任务3-5风场圆周待做），成熟的方法与
-验收结论按仓库红线回灌 `modules/` 各模块。它与仓库平台线互补：平台线
-回答"算法能否安全接入飞控"，本工程回答"算法在系统级指标上是否够好"。
+五任务速度优化研究已分别落入 `modules/speed_shift_search`、`speed_rugged_search`、`wind_circle_search`、`sin_wind_search` 和 `ortho_wind_search`；`adaptive_search` 提供任务6算法横评，`wind_field_sched` 提供任务3--5的空速物理代理。它们回答“算法在代理系统指标上表现如何”，`models/px4_x8` 回答“算法能否按约束接入Control平台”。二者仍需通过统一Plane对象和Harness汇合。
 
 ## 2. 三模块架构
 
@@ -33,8 +33,8 @@
 │  environment       │   │  aircraft 飞机模型  │   │  console 控制台     │
 │  (风的模型)         │   │  速度表+功率表黑箱   │   │  (我们做的算法)     │
 │  wind(t)->[wx,wy]  │──▶│  query(v,t)->P_meas │◀──│  只见双表盘读数     │
-│  当前恒零风,        │   │  gauges()->两表盘   │   │  multistart/grid/  │
-│  任务3-5接入风场    │   │  (瞬时执行+带噪)    │   │  esc/single/fixed  │
+│  支持场景适配        │   │  gauges()->两表盘   │   │  multistart/grid/  │
+│  统一WPC仍待接入     │   │  (代理执行+带噪)    │   │  esc/single/fixed  │
 └────────────────────┘   └────────────────────┘   └────────────────────┘
          │                        │ 真值曲线/Pmin/v*            │
          └────────────▶ harness 评价器(对象侧) ◀──────────────┘
@@ -43,11 +43,9 @@
 
 - **接口与红线对应**：`query` 只返回标量测量（红线1）；风场接入时只在
   aircraft 内换算空速（对象升级位置，红线2），三模块接口签名不变；
-- **占位与真实**：environment 当前恒零风是任务2口径的真实占位——函数
-  签名 `wind(t)` 已按任务3（恒风）/任务4（正弦风）/任务5（二维矢量风）
-  的需求预留；
+- **当前边界**：基础harness仍使用任务2代理对象；任务3--5已各自实现风场验收，尚未统一接入同一个WPC Harness；
 - **实现**：`+harness/make_environment.m`、`make_aircraft.m`、
-  `make_console.m`；对象与搜索器复用 `task2_rugged/+task2`。
+  `make_console.m`；对象与搜索器复用 `modules/speed_rugged_search/+task2`。
 
 ## 3. MOP / MOE 评价体系
 
@@ -91,6 +89,8 @@ MOP，tSearchEvals/finalErr 通过搜索代价与末段精度间接作用于 MOE
 
 ### 3.4 首次横比结果（1小时窗，Pmin=0.9660 norm / 97 W）
 
+本节是2026-09-01基础harness的历史横比快照，证据见 [`evidence/mop_moe/`](evidence/mop_moe/)；当前项目状态不得仅凭本表判断。
+
 | 控制台 | MOE_energy | 能耗超额% | 末误差 m/s | 稳态超额% | 锁定占空 |
 |---|---:|---:|---:|---:|---:|
 | fixed(上界参照) | 1.0000 | 0.00 | 0.000 | 0.000 | 1.00 |
@@ -124,8 +124,7 @@ multistart 优于单起点陷阱）；task2 13/13、task1 16/16、speedesc 14/14
 
 ## 5. 后续衔接
 
-- 任务3-5：environment 接入恒风/正弦风/二维风（`wind(t)` 已预留），
-  aircraft 内做空速换算，`run_mop_moe_demo` 不改结构即可横比风场算法；
-- 与仓库对齐：harness 的 MOP/MOE 可作为 `26isip_Aerospace/harness/`
-  （预留占位）的指标层草案；回灌时按红线2只替换对象侧；
+- 任务3--5已有独立模块；下一步将这些场景适配到统一WindSample，而不是继续复制harness；
+- Plane P0--P4通过后，以统一PlaneState替换基础harness中的任务2代理aircraft，并保持评价公式不变；
+- M3接入后，在相同场景、种子和窗口下横比固定、ESC、解析调度及候选学习策略；
 - fixed 上界参照与"搜索能耗口径"继续沿用用户设定的续航纪录叙事。
