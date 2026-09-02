@@ -35,7 +35,7 @@ AI协助：Codex（证据分类与引用边界整理，2026-09-02）
 - 基线与M0-A：`air_baseline_*`、`air_interface_*`、`air_m0a_*`。
 - M0-B与M0-C：[`M0B_RERUN_20260901.md`](M0B_RERUN_20260901.md)、[`M0B_REACCEPT_CODEX_20260901.md`](M0B_REACCEPT_CODEX_20260901.md)、[`M0C_TRIALS_20260901.md`](M0C_TRIALS_20260901.md)。
 - M1：[`M1_ROBUSTNESS_20260901.md`](M1_ROBUSTNESS_20260901.md) 与 [`M1_REACCEPT_CODEX_20260901.md`](M1_REACCEPT_CODEX_20260901.md)。
-- M2：从 [`M2_ETA_20260901.md`](M2_ETA_20260901.md) 到各轮 `M2_REACCEPT_*`；历史第六轮修复批次在 `2d36288` 留有 42/42 证据，但第七轮当前提交独立复跑记为 11/42：c5 两条最小链输出一致，却未生成阶段 CSV/done 标记，验收自动化仍为 PARTIAL。当前应优先引用 [`M2_REACCEPT_ROUND7_CODEX_20260902.md`](M2_REACCEPT_ROUND7_CODEX_20260902.md)，不能把历史批次直接当作当前提交的完整复验。
+- M2：从 [`M2_ETA_20260901.md`](M2_ETA_20260901.md) 到各轮 `M2_REACCEPT_*`；当前判定以 [`M2_REACCEPT_ROUND7_FIX_20260902.md`](M2_REACCEPT_ROUND7_FIX_20260902.md) 为准：第七轮 11/42 的根因（c5 链后落盘前 R2022b 原生崩溃）已按规则 v1.4"受控韧性 + 诚实记账"修复，当前提交 `fd4ce7c` 重新取得 42/42 针对性矩阵（runId `e8011d58`，各段第 1 次尝试）。第七轮验收本身见 [`M2_REACCEPT_ROUND7_CODEX_20260902.md`](M2_REACCEPT_ROUND7_CODEX_20260902.md)；引用时不得沿用其"11/42 / PARTIAL"的中间口径，也不得把修复表述为消灭了环境崩溃。
 
 ## 新证据最少包含
 

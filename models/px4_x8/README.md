@@ -11,7 +11,7 @@
 
 ### M2 上下桨转速比 ESC（2026-09-01，快照 `air_m2.slx`）
 
-状态：M2 核心实现与修订数值协议保持放行；第六轮发现（R6-F1/F2/F3）已修复并经 42/42 针对性矩阵关闭验证（2026-09-02）。stage 源码指纹在 init/段开始/盖章/report 独立现场取证（拒 unknown/脏树/不一致），聚合器逐行 verdict 硬断言；C5 为最小双链口径（nominal S1–S3），全量同会话双链为环境限制未覆盖组合。见 [`M2_REACCEPT_ROUND6_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md) 与 [`M2_REACCEPT_ROUND6_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND6_FIX_20260902.md)。
+状态：M2 核心实现与修订数值协议保持放行；第七轮发现（R7-F1 c5 两条最小链完成后、阶段落盘前的 R2022b 原生崩溃）已按"受控韧性 + 诚实记账"修复并经 42/42 针对性矩阵关闭验证（2026-09-02，runId `e8011d58` @ `fd4ce7c`，各段第 1 次尝试完成）。stage 源码指纹独立现场取证、聚合器逐行 verdict 硬断言；段崩溃重试语义入规则 v1.4（`<stage>.attempts` 计数器 + `done.attempts` 盖章 + report 逐段打印，c3 在本批次内活证"盖章后堆崩溃无害"）；C5 为最小双链口径（nominal S1–S3），全量同会话双链仍为环境限制未覆盖组合。见 [`M2_REACCEPT_ROUND7_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND7_CODEX_20260902.md) 与 [`M2_REACCEPT_ROUND7_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND7_FIX_20260902.md)；第六轮见 [`M2_REACCEPT_ROUND6_CODEX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md) 与 [`M2_REACCEPT_ROUND6_FIX_20260902.md`](../../docs/evidence/M2_REACCEPT_ROUND6_FIX_20260902.md)。
 
 - `m2_eta_allocator.m` + `m2_alloc_diag.m`：受约束 PWM 域 eta 分配器（同轴对 (1,5)(2,6)(3,7)(4,8)，每对 Σω² 严格保持 → 总推力/横滚/俯仰不变；η=1 位精确透传；sat/dmz 诊断单口输出）。
 - `m2_eta_esc.m` + `add_air_m2_allocator.m`：`ratioesc` 内核原生转速比接线（输入 35 维含 motor_pwm/rpm 与 alloc_sat；eta 经全局 `M2_ETA_APPLIED` 交接，慢层信号不进 pwm 主路径）与原子安装器。
