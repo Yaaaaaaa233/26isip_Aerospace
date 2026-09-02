@@ -11,6 +11,8 @@
 审核：待项目组审核、待指导教师确认
 AI协助：ZCode（本基线的持续维护代理）、Codex（本次路线与状态整理）；重大条目均待负责人确认后生效
 
+文档关系：任务目标与范围由 [`architecture/01_problem_definition.md`](architecture/01_problem_definition.md) 定义，公共字段语义由 [`architecture/04_interface_dictionary.md`](architecture/04_interface_dictionary.md) 定义，本文件只管理执行阶段、汇合点和验收放行；具体阶段接线在 `interfaces/M*.md` 中展开。发生冲突时先修正对应的上游权威文档，再同步下游实现说明。
+
 ## 1. 项目分工与总体闭环
 
 本项目分为三条可并行推进、通过固定接口汇合的工作线：

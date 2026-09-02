@@ -1,7 +1,7 @@
 # Wind-Plane-Control逻辑架构
 
-版本：0.1
-日期：2026-09-01
+版本：0.2
+日期：2026-09-02
 状态：建议基线
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
@@ -9,7 +9,7 @@
 主要撰写：周航正（架构要求）、Codex（整理成文）
 技术依据：霍奕茗（Plane/六自由度基础）、于跃（数据/PX4方向）、叶安（Control/Simulink平台）、王健祺（场景/评价方向）及仓库现有成果
 审核：待项目组审核、待指导教师确认
-AI协助：Codex（架构整理、接口一致性检查）
+AI协助：Codex（架构整理、接口一致性检查、现状对齐）
 
 ## 先看结论
 
@@ -142,13 +142,13 @@ disabled -> warmup -> active -> frozen -> fallback
 
 | 架构组件 | 当前仓库资产 | 主要缺口 |
 |---|---|---|
-| Wind | `modules/speed_rl_residual`中的虚拟风场 | 与平台统一的NE风、采样和有效性接口 |
-| Plane | `models/px4_x8`、速度/转速比代理对象 | 校准功率面、空气动力/电池来源、圆周路径 |
-| Control | `modules/speed_esc`、`modules/ratio_esc`、平台M0-C | M2 `eta`分配器、真实速度ESC内核候选集成 |
-| Evaluation | `docs/evidence`、各模块验收脚本 | 顶层Harness仍未实现、MoE/MoP未统一 |
-| Future RL | `modules/speed_rl_residual` | 不规则风TD3尚未优于基线，正式训练暂缓 |
+| Wind | `modules/wind_field_sched`及直线、圆周、正弦和正交风场模块 | 多套场景尚未统一映射到同一 `WindSample` |
+| Plane | `models/px4_x8`、速度/转速比代理对象 | P0--P4统一对象、联合功率面、电池/SOC和校准来源 |
+| Control | `modules/speed_esc`、`modules/ratio_esc`、平台M0-C/M1/M2 | M3交替协同优化及统一Plane复验 |
+| Evaluation | `harness`、`docs/evidence`、各模块验收脚本 | 指标层已可用，尚未接入同一WPC闭环 |
+| Future RL | `modules/speed_rl_residual`、`modules/speed_rl_pytorch` | 已有代理环境训练预研；平台接入仍受ADR-002约束 |
 
-平台唯一执行路线仍为 [`../PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md)。本架构提供跨模块上层约束，不改变M2/M3/M4的阶段门槛。
+平台唯一执行路线仍为 [`../PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md)。本架构提供跨模块职责边界，公共字段语义以 [`04_interface_dictionary.md`](04_interface_dictionary.md) 为准；阶段接线和验收仍由路线图及 `docs/interfaces/M*.md` 管理。
 
 ## 7. 并行协作边界
 

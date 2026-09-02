@@ -1,8 +1,23 @@
 # ESC与RL模块协作说明
 
+项目组：周航正、霍奕茗、于跃、叶安、王健祺
+文件负责人：周航正
+主要撰写：周航正（协作与接口需求）
+审核：待项目组审核
+AI协助：Codex（权威边界与现状对齐，2026-09-02）
+
+## 文档边界
+
+本文只说明算法模块怎样调用、怎样接适配器以及怎样协作，不重复定义 Wind-Plane-Control 的公共字段。
+
+- 公共字段的名称、单位、坐标系、时间戳和有效性以 [`architecture/04_interface_dictionary.md`](architecture/04_interface_dictionary.md) 为准。
+- `interfaces/M*.md` 只负责某个阶段怎样把公共字段接到 PX4/Simulink，不得改变公共字段语义。
+- 当前完成度、可引用结论和下一步只看 [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md)；模块入口和负责人只看 [`../modules/README.md`](../modules/README.md)。
+- 本文中的 MATLAB 函数签名是现有模块局部接口。接入统一 Plane 时由适配器转换，不把局部命名反向写入公共字典。
+
 ## 模块目标
 
-本文档约定三个算法模块的共同接口与因果边界。
+本文档约定核心 ESC 与残差 RL 模块的局部接口和共同因果边界。
 
 模块 `modules/ratio_esc` 优化的是上下桨转速比：
 
@@ -38,7 +53,7 @@ s = ratioesc.freeze(s, enabled);
 输出：true_power, measured_power
 ```
 
-`power_map`、`plant_advance`、`measure` 是物理对象升级的主要位置。若未来加入总推力、偏航、电机饱和或电池电压，应在对象侧输出明确的 `constraint_flags`；不要把这些隐藏量直接给ESC或RL策略。
+`power_map`、`plant_advance`、`measure` 是各算法工程中替换代理对象的入口。它们不是统一 Plane 公共 API；接入时必须通过适配器映射为 `PlaneState`。若未来加入总推力、偏航、电机饱和或电池电压，应在对象侧输出明确的 `constraint_flags`；不要把这些隐藏量直接给ESC或RL策略。
 
 ### 强化学习环境
 
@@ -51,7 +66,7 @@ validateEnvironment(env);
 - 动作：连续参考转速比，范围 `[0.75, 1.25]`。
 - 观测：归一化实际转速比、归一化已执行参考、窗口平均测量功率、功率均值变化量。
 - 奖励：窗口平均测量功率的负值。
-- 本模块只提供环境和固定/随机策略验证，不包含训练完成的TD3、PPO或Agent-PID。
+- 上述说明只针对 `modules/ratio_esc` 内的 RL 接口样例：该模块不包含训练完成的TD3、PPO或Agent-PID。其他 RL 预研的实际状态以模块目录和开发状态文档为准。
 
 ### 平飞速度 ESC（modules/speed_esc）
 
@@ -93,6 +108,8 @@ s = speedesc.esc_reset(10,p);
 | 展示与证据 | `launch_ratio_esc.m`、`docs/evidence/` | 过程图、验收报告、汇报素材和可复现实验记录 |
 | 速度ESC线 | `modules/speed_esc/+speedesc/`（`esc_step.m`、`estimate_step.m`） | 速度变量梯度估计器改进、窗口/增益整定、M0-C 内核替换候选 |
 | 残差RL线 | `modules/speed_rl_residual/`（`train_td3.m`、`evaluate_policies.m`） | 适配器替换（真实轨迹/风数据）、课程训练、与固定/ESC/解析基线公平对照 |
+| Plane物理对象 | 规划中的 `models/plane/` 与公共 `PlaneState` 适配器 | 空地速、执行动态、联合功率、电池和约束状态；不直接改算法内核 |
+| WPC集成线 | `docs/architecture/04_interface_dictionary.md`、`integration/` | 把模块局部接口映射到公共字段，并提供契约测试 |
 
 ## 提交约定
 

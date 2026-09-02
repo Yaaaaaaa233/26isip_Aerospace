@@ -1,7 +1,7 @@
 # Wind-Plane-Control接口字典
 
-版本：0.1
-日期：2026-09-01
+版本：0.2
+日期：2026-09-02
 状态：建议基线；实现前需冻结为1.0
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
@@ -9,7 +9,16 @@
 主要撰写：周航正（接口需求）、Codex（字段整理）
 技术依据：项目组现有ESC、RL、PX4-X8及未来数据接入需求
 审核：待各模块负责人审核
-AI协助：Codex（接口归并、命名与一致性检查）
+AI协助：Codex（接口归并、命名、一致性检查与权威边界整理）
+
+## 本文管什么
+
+本文是 Wind-Plane-Control 公共字段语义的唯一基线，负责字段名、单位、坐标系、时间戳、有效性和来源。它不记录当前完成度，也不规定某个 `.slx` 内部怎样接线。
+
+- 当前完成度以 [`../DEVELOPMENT_STATUS.md`](../DEVELOPMENT_STATUS.md) 为准。
+- 阶段接线与验收以 [`../PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) 和 `docs/interfaces/M*.md` 为准。
+- 算法局部函数、适配器用法和协作流程以 [`../COLLABORATION.md`](../COLLABORATION.md) 为准。
+- 局部模块字段与本文冲突时，由该模块的适配器转换；不能在下游另起一套公共语义。
 
 ## 先看结论
 
@@ -27,6 +36,7 @@ AI协助：Codex（接口归并、命名与一致性检查）
 - 变量名使用英文和下划线，文档说明使用中文。
 - 时间单位为秒，距离为米，速度为米每秒，角度为弧度，功率为瓦，能量为焦耳。
 - 二维世界坐标统一为NE，数组顺序为 `[north, east]`。
+- 风矢量定义为“空气相对地面的速度”，因此 `air_velocity_ne_mps = ground_velocity_ne_mps - wind_ne_mps`。若局部模块把逆风向量写成加法项（例如 `v_air = v_ground + w_headwind`），适配器必须使用 `wind_ne = -w_headwind`，不得改变公共符号约定。
 - 时间戳表示样本实际产生时刻，不使用接收时刻冒充采样时刻。
 - 关键测量同时携带 `valid`；使用保持值时还应携带 `age_s`。
 - 缺失数值使用 `NaN`，不得用0同时表示“真实为0”和“数据无效”。
@@ -38,7 +48,7 @@ Harness创建的只读场景配置。
 
 | 字段 | 类型/维度 | 单位 | 说明 |
 |---|---|---:|---|
-| `schema_version` | string | - | 接口版本，当前建议 `0.1` |
+| `schema_version` | string | - | 接口版本，当前建议 `0.2` |
 | `scenario_id` | string | - | 唯一场景标识 |
 | `trajectory_type` | enum | - | `straight`或`circle` |
 | `duration_s` | scalar | s | 总运行时间 |
@@ -167,11 +177,11 @@ evaluationRecord = evaluator.finalize( ...
 
 现有 `t/v/P_e/E_e/attitude/yaw_rate/motor_pwm/motor_rpm/constraint_flags` 保持兼容，并映射到 `PlaneState`。当前平台未提供的NE位置、显式风矢量、空速、SOC和径向误差允许先填 `NaN + valid=false`，不得自行猜测。
 
-M2之前 `eta_ref_applied=1`。功率来源在当前PX4-X8平台应标为 `estimated`；代理算法对象标为 `proxy`。
+M0--M1历史阶段 `eta_ref_applied=1`；M2起平台已提供受约束的 `eta` 分配。功率来源在当前PX4-X8平台应标为 `estimated`；代理算法对象标为 `proxy`。
 
 ## 10. 接口变更规则
 
-1. `0.x`阶段允许增补字段，但删除或改变语义必须更新本文和适配器测试。
+1. `0.x`阶段允许增补字段，但删除或改变语义必须更新本文、版本号和受影响的适配器契约测试。
 2. 冻结为`1.0`后，兼容增补只提升次版本，破坏性变更提升主版本。
 3. 每个模块至少提供一次确定性reset、边界值和无效数据测试。
 4. 不允许用共享全局变量绕过接口传递最优点、未来风或评价结果。

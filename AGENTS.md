@@ -101,9 +101,9 @@ run_air_m0b_safety_injection
 
 ## 会话记录与交接（跨 agent 连续性）
 
-每次工作会话结束前完成两件事：
+每次有实际改动的工作会话结束前完成交接：
 
-1. **回写 `docs/DEVELOPMENT_STATUS.md`**：更新对应工作线的状态、已完成项、已知局限与下一步优先级，使其始终反映仓库真实现状。
-2. **在 `docs/worklog/` 新增一篇交接简报**：文件名 `YYYY-MM-DD-主题.md`，内容为提炼后的要点（模板见 `docs/worklog/README.md`）。
+1. **始终新增 `docs/worklog/` 交接简报**：文件名 `YYYY-MM-DD-主题.md`，内容为提炼后的要点（模板见 `docs/worklog/README.md`）。
+2. **仅在状态发生变化时回写 `docs/DEVELOPMENT_STATUS.md`**：模块生命周期、阶段放行、可引用结果、主要局限或下一步优先级发生变化才更新。普通说明、重排或拼写修正不机械改状态文档，减少多人并行冲突。
 
 只提交提炼后的简报，不要把 agent 对话原文、原始终端日志或超长运行输出提交进仓库；原始会话记录保存在本地即可。新会话的推荐启动顺序：读本文件 → 读 `DEVELOPMENT_STATUS.md` → 需要背景时回溯 `docs/worklog/`。
