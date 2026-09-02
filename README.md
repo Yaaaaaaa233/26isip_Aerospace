@@ -197,7 +197,7 @@ run_harness                % 三模块接线测试 + 1小时窗五算法MOE横�
 - M0-B 已完成（2026-09-01 复核修复后再验收通过）：受保护速度闭环与安全回退，逐位故障注入全链保护通过。
 - M0-C 已完成并通过验收：四组 fixed/ESC 配对及一组确定性复现全绿，稳定快照为 `air_m0c.slx`；见 [接口与验收基线](docs/interfaces/M0C_SPEED_ESC.md) 和 [证据报告](docs/evidence/M0C_TRIALS_20260901.md)。
 - M1 已完成并通过验收（2026-09-01）：噪声/时延/组合扰动 27 场景零安全误触发，11 组配对 regret 最大 |0.000133%|；见 [接口与验收基线](docs/interfaces/M1_ROBUSTNESS.md) 和 [证据报告](docs/evidence/M1_ROBUSTNESS_20260901.md)。
-- M2 核心成果已放行（2026-09-02）：受约束 eta 分配器 + `ratioesc` 原生转速比接线；修订协议下 `[90,120] s` 配对门槛通过（±0.5% 门槛未变），快照 `air_m2.slx`。第五轮独立复验按分段模式重跑标准矩阵 15/15 PASS、同会话双链哈希一致；其发现的三项自动化缺陷（非有限快照、报告证据绑定、路径断言）已修复并经 39/39 针对性矩阵关闭验证。见 [第五轮独立验收](docs/evidence/M2_REACCEPT_ROUND5_CODEX_20260902.md) 与 [第五轮修复报告](docs/evidence/M2_REACCEPT_ROUND5_FIX_20260902.md)。
+- M2 核心成果保持放行（2026-09-02）：受约束 eta 分配器 + `ratioesc` 原生转速比接线；修订协议下 `[90,120] s` 配对门槛通过（±0.5% 门槛未变），快照 `air_m2.slx`。第六轮独立复验确认非有限四态状态恢复 20/20 PASS、九场景数值无回归，但标准分段矩阵因 R2022b 的 C5 第二链重复退出只完成 11/39；同时发现 stage 源码指纹未独立取证、聚合器未硬断言 verdict 全 PASS，故验收自动化为 PARTIAL。见 [第六轮独立验收](docs/evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md)。
 - M3 方案与实现照常进行。
 
 完整路线、阶段门槛和当前文件清单见 [开发状态](docs/DEVELOPMENT_STATUS.md)、[执行路线](docs/PROJECT_EXECUTION_ROADMAP.md) 与 [模型说明](models/px4_x8/README.md)。

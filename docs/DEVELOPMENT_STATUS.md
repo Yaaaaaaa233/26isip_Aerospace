@@ -6,7 +6,7 @@
 文件负责人：叶安
 本次修订：周航正（提出 Plane 物理建模分工与仓库治理需求）
 审核：待项目组审核
-AI协助：Codex（路线与状态整理）
+AI协助：Codex（路线与状态整理；M2 第六轮独立验收结果回填）
 
 ## 9月2日进度快照
 
@@ -34,7 +34,7 @@ AI协助：Codex（路线与状态整理）
 
 新增 [`architecture/01_problem_definition.md`](architecture/01_problem_definition.md) 至 [`architecture/05_verification_traceability.md`](architecture/05_verification_traceability.md)，形成 Wind-Plane-Control-Evaluation 的建议逻辑架构、运行场景、接口字典及需求-MoE/MoP-证据追溯。建议将“固定高度圆周盘旋等待下的在线平均功率最小化”作为待指导教师确认的最终主任务，直线无风速度ESC保留为开发基线；详见待确认的 [`decisions/ADR-001-objective-selection.md`](decisions/ADR-001-objective-selection.md)。
 
-[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 的平台决策仍有效：虽然 `speed_rl_pytorch` 已完成 TD3/BC 独立训练与评估，但正式 RL 平台接入仍暂缓；在统一 Plane 对象、Harness、强基线及未见场景门槛成立前，不作“RL优于基线”结论。M2 的 120 s / `[90,120] s` 修订协议及五轮复验已闭环，进入 M3；同时按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 新增 P0--P4 Plane 物理建模并行工作线。
+[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 的平台决策仍有效：虽然 `speed_rl_pytorch` 已完成 TD3/BC 独立训练与评估，但正式 RL 平台接入仍暂缓；在统一 Plane 对象、Harness、强基线及未见场景门槛成立前，不作“RL优于基线”结论。M2 的 120 s / `[90,120] s` 核心数值协议保持放行并进入 M3；第六轮独立验收确认非有限四态恢复已关闭，但总验证器来源绑定与聚合硬断言仍有缺口，验收自动化为 PARTIAL。同时按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 推进 P0--P4 Plane 物理建模并行工作线。
 
 ## 总览：算法与场景模块已有多条证据线，Control 平台完成 M2，Plane 物理对象待建
 
@@ -53,10 +53,10 @@ AI协助：Codex（路线与状态整理）
 | `modules/wind_field_sched` | 2026-09-02 并入。路线§3-5交付口径的环境风场调度模块：空速物理P=P0(\|v·t̂+w\|)+解析调度+DP验证+最优匀速对照+可行性+滑窗LM在线风估计+敏感性扫描+三档信息结构；15 单元测试、8 门槛 | DP与解析一致(3.9e-6)；1h窗MOE 已知风1.000>在线0.974>匀速0.964>恒飞0.949>不知风0.938(风速信息价值3.6%)；带宽准则：短窗病态/长窗稳健 | 中频风区估计器谐振区(相位查表为下一步)；代理功率对象不代表真实X8节能 |
 | `modules/unified_search` | 2026-09-01 并入。速度优化任务1+2整合：调试二次曲线+对称崎岖+平移调度统一对象，能耗感知算法 ea_multistart，统一 MOP/MOE 评价；13 单元测试、8 门槛 | 计入搜索能耗后全遍历非最优：崎岖静态 1 小时窗 ea 平均 MOE=0.9927 > multistart 0.9924，搜索步数 165 vs 400（20 种子）；jumpUp 恢复 67 步、jumpDown 29 步、dy 零误触发 | 慢漂（ramp）恢复慢于跳变（9/10 种子 ≤1.6，尾部种子如实记录）；演示面板仅 tracker/esc（定稿口径），ea 等其余算法在包内供验收横比；真实 X8 节能 |
 | `harness`（指标层） | 2026-09-01 实现。三模块架构（environment/aircraft 黑箱/console）+ 1 小时任务窗 MOP/MOE；4 单元测试 | 统一口径横比成立：MOE_energy=Emin/E_actual，fixed 上界 1.0000、multistart 0.9912、grid 0.9905、esc 0.9819、single_golden 0.9226 | 风场场景（任务3-5 待接入）、真实瓦级标定（Pmin_W 为代理换算） |
-| `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1、M2 已放行（M2 五轮复验 2026-09-02 全部关闭） | 干净与脏入口下旁路与原基线零差异；M0-B 安全注入 4/4；M2 S1/S2/S3 = −0.2626%/−0.2938%/−0.2147%，同会话双链哈希一致；调用者状态恢复契约覆盖有限/空/NaN/Inf 四态（成功与错误出口）；分段验收绑定同批次 manifest，旧/缺/混证据硬失败；39/39 针对性矩阵 | 不外推真实功率/风场；esc 中心受 PWM 量化限制；长序列单进程仿真有堆损坏风险（分段执行规避，环境限制在案） |
+| `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1、M2 核心已放行；验收自动化 PARTIAL | 干净与脏入口下旁路与原基线零差异；M0-B 安全注入 4/4；M2 S1/S2/S3 = −0.2626%/−0.2938%/−0.2147%；第六轮有限/空/NaN/Inf 四态状态恢复独立探针 20/20 PASS；标准分段矩阵实际完成 11/39 | 不外推真实功率/风场；esc 中心受 PWM 量化限制；C5 在第二条长链中两次退出；stage 未独立绑定真实 HEAD/验证器哈希/dirty 状态，聚合器未硬断言 verdict 全 PASS |
 | Plane 物理建模（P0--P4） | 2026-09-02 纳入路线图，统一组件尚未实现；建议负责人霍奕茗（待组内确认） | `wind_field_sched` 的空速物理对象和 `px4_x8` 的 6DOF/执行器链可复用 | 尚无统一 `P(v_air,eta)`、圆周动力需求、电池/SOC 或与 PX4 的接入结果 |
 
-飞控平台的唯一执行基线是 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并通过独立再验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)、[`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)）。**M0-C、M1 已通过；M2 受约束分配器、ESC 接线和修订数值门槛保持放行。第五轮发现的 R5-F1--F3 已修复并经 39/39 针对性矩阵关闭验证（[`evidence/M2_REACCEPT_ROUND5_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND5_CODEX_20260902.md)、[`evidence/M2_REACCEPT_ROUND5_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND5_FIX_20260902.md)）。进入 M3：速度与转速比交替协同优化；不做 RL。**
+飞控平台的唯一执行基线是 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并通过独立再验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)、[`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)）。**M0-C、M1 已通过；M2 受约束分配器、ESC 接线和修订数值门槛保持放行。第六轮确认 R5-F1 四态快照契约关闭，但 R5-F2 的真实源码绑定仍不完整，并新增聚合器 verdict 未硬断言问题；完整标准矩阵因 C5 重复退出只完成 11/39，验收自动化为 PARTIAL（[`evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md)）。M3 方案与实现可继续；不做平台侧 RL。**
 
 **独立复验确认（2026-09-01，`00fd67e`）**：基线、四个速度场景、四类故障注入均实际复跑通过；另在保存快照上验证姿态保护和完整功率故障恢复（9.001 s 释放 fallback、11 s 回到 active/9 m/s）。详细证据与非阻塞建议见 [`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)。M0-B 阶段可放行；M0-C 开始实现成本窗口前须统一路线中状态 1/2 的歧义，排除 warmup、仅使用满足稳定条件的 active 样本。通过范围限于当前模型的速度通道及监视器/参考回退，不扩展为真实飞行安全或真实节能结论。
 
@@ -80,6 +80,7 @@ AI协助：Codex（路线与状态整理）
 - M2 第四轮独立验收（2026-09-02，[`evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND4_CODEX_20260902.md)）：仓库验证器内部 10/10 PASS，两次九场景 `pairs.csv` 哈希一致；独立真实探针确认三入口 global 恢复与 persistent fresh（最大差 0），故第三轮核心缺陷关闭。但验证器自身正常返回时清空调用者 global，persistent 检查为间接推断，且 10 行矩阵不是规则 §4.3 的完整组合。修订“自动化完全闭环”为部分通过；M2 核心成果保持放行。
 - M2 第四轮修复与关闭验证（2026-09-02，[`evidence/M2_REACCEPT_ROUND4_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND4_FIX_20260902.md)）：验证器入口快照/onCleanup 恢复调用者 global（非空调用者正常与 `'fail'` 注入路径均复验）；persistent fresh 改为前向时间直探（发现并修复原“首次输出对比”式探针因 t=0 重初始化而永真的缺陷，加灵敏度自检）；矩阵补 clean 入口态并全面改称针对性矩阵（15 行，声明=实际），规则升 v1.1；验证器分段执行规避本机 R2022b 单进程长序列堆损坏（崩溃深度 4/8/45 次仿真不等，环境限制如实入档）。15/15 PASS，M2 放行。
 - M2 第五轮独立验收（2026-09-02，[`evidence/M2_REACCEPT_ROUND5_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND5_CODEX_20260902.md)）：按独立进程完整重跑 `c1c2stale/c2clean/c3/c5/report`，15/15 PASS；双链 SHA-256 一致，S1/S2/S3 = −0.2626%/−0.2938%/−0.2147%。负向探针发现四入口只快照有限 Applied 值，NaN/Inf 错误出口变为空；`report` 无同批次/提交绑定，可在 stage 文件不变时复用旧证据返回 PASS；路径断言仅检查 `injected` 字面量。M2 核心维持放行，验收自动化修订为 PARTIAL。
+- M2 第五轮修复后的第六轮独立验收（2026-09-02，[`evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md)）：`c1c2stale/c2clean/c3` 合计 11/11 PASS，S1/S2/S3 = −0.2626%/−0.2938%/−0.2147%；有限/空/NaN/Inf 四态独立探针 20/20 PASS，R5-F1 关闭。C5 两次均在第二条长链中途退出，正式 39 行矩阵未完成；静态审计发现各 stage 只复制 init manifest 的提交号、未独立核验 HEAD/验证器哈希/dirty 状态，且聚合器未硬断言 CSV verdict 全 PASS。修订“五轮全部闭环”表述：M2 核心保持放行，验收自动化为 PARTIAL。
 
 ### 算法线速度模块证据（2026-09-01 并入）
 
