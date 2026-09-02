@@ -13,7 +13,11 @@
     S3  deterministic failure to the bound -> batch aborts after exactly Max attempts, logs kept
     S4  rc-only stage (no done marker)     -> nonzero re-executes, zero succeeds
     S5  STALE done from an earlier run     -> must NOT mask a crash; retry still happens
-    S6  rc=0 without a done marker         -> inconsistent stage, batch stops (throw)
+    S6  rc=0 WITHOUT done marker           -> still a retryable crash outcome (launcher can
+                                             exit 0 on a heap-corrupted child, live case
+                                             20260902_225209); budget aborts when persistent
+    S7  report-style archive evidence      -> a NEW directory under $DoneDir counts as the
+                                             fresh done marker; no new dir -> retry
 
     Run under BOTH PowerShell 7 and Windows PowerShell 5.1:
         pwsh -File tools\test_m2_batch_driver.ps1
@@ -112,11 +116,13 @@ $n = Invoke-StageWithRetry -Name 's5' -Invoke $invoke -DoneFile $done -Max 3 -Lo
 Assert-True ($n -eq 2) 'S5 stale done did not mask the crash; stage re-executed'
 Assert-True ((Get-Content $done -Raw).Trim() -eq 'done') 'S5 done marker rewritten by the completing attempt'
 
-# --- S6: rc=0 without a done marker -> inconsistent, batch stops -----------
+# --- S6: rc=0 without done -> still a retryable crash, budget aborts --------
+# Live basis results/batch_runs/20260902_225209: the R2022b heap
+# corruption killed the c2clean child and the matlab launcher exited 0.
 $done = Join-Path $base 's6.done.mat'
 $dir = Join-Path $base 's6'; New-Item -ItemType Directory -Force -Path $dir | Out-Null
 $invoke = { param($logPath)
-    'mock s6' | Out-File -FilePath $logPath -Encoding utf8
+    'mock s6 rc=0 but the child died before stamping' | Out-File -FilePath $logPath -Encoding utf8
     return 0
 }.GetNewClosure()
 $threw = $false; $msg = ''
@@ -124,12 +130,39 @@ try {
     Invoke-StageWithRetry -Name 's6' -Invoke $invoke -DoneFile $done -Max 3 -LogDir $dir | Out-Null
 }
 catch { $threw = $true; $msg = $_.Exception.Message }
-Assert-True $threw 'S6 rc=0 without done stopped the batch'
-Assert-True ($msg -match 'exited 0 but') 'S6 abort message names the rc/done inconsistency'
+Assert-True $threw 'S6 rc=0 without done did not fake a pass; budget aborted the batch'
+Assert-True ($msg -match 'budget exhausted') 'S6 abort message names the exhausted budget'
+Assert-True ((Get-ChildItem $dir -Filter '*.log').Count -eq 3) 'S6 kept all 3 attempt logs'
+Assert-True (-not (Test-Path $done)) 'S6 never produced a done marker'
+
+# --- S7: report-style evidence -- a NEW directory under $DoneDir ------------
+$archRoot = Join-Path $base 's7_arch'
+New-Item -ItemType Directory -Force -Path (Join-Path $archRoot 'old_batch') | Out-Null
+$dir = Join-Path $base 's7'; New-Item -ItemType Directory -Force -Path $dir | Out-Null
+$attempt = 0
+$invoke = { param($logPath)
+    $script:attempt++
+    ("mock s7 attempt " + $script:attempt) | Out-File -FilePath $logPath -Encoding utf8
+    if ($script:attempt -eq 1) { return 1 }   # crash before any archive
+    $d = Join-Path $archRoot ('batch_' + $script:attempt)
+    New-Item -ItemType Directory -Force -Path $d | Out-Null
+    return 0
+}.GetNewClosure()
+$n = Invoke-StageWithRetry -Name 's7' -Invoke $invoke -DoneFile $null -DoneDir $archRoot -Max 3 -LogDir $dir
+Assert-True ($n -eq 2) 'S7 new archive directory accepted as fresh evidence on attempt 2'
+$invoke2 = { param($logPath)
+    'mock s7b crash AFTER archiving' | Out-File -FilePath $logPath -Encoding utf8
+    $d = Join-Path $archRoot 'batch_late'
+    New-Item -ItemType Directory -Force -Path $d | Out-Null
+    return 1
+}.GetNewClosure()
+$dir2 = Join-Path $base 's7b'; New-Item -ItemType Directory -Force -Path $dir2 | Out-Null
+$n2 = Invoke-StageWithRetry -Name 's7b' -Invoke $invoke2 -DoneFile $null -DoneDir $archRoot -Max 3 -LogDir $dir2
+Assert-True ($n2 -eq 1) 'S7b post-archive crash (nonzero rc, fresh dir) accepted as harmless pass'
 
 # ---------------------------------------------------------------------------
 if ($script:Failures -eq 0) {
-    Write-Host 'DRIVER TESTS PASS (6 scenarios)'
+    Write-Host 'DRIVER TESTS PASS (8 scenarios)'
     exit 0
 }
 Write-Host ("DRIVER TESTS FAIL ({0} assertion(s))" -f $script:Failures)
