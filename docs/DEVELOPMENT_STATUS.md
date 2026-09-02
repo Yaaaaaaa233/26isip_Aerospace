@@ -1,12 +1,35 @@
 # 开发状态与下一步
 
-## 架构与问题定义（2026-09-01）
+更新时间：2026-09-02
+
+项目组：周航正、霍奕茗、于跃、叶安、王健祺
+文件负责人：叶安
+本次修订：周航正（提出 Plane 物理建模分工需求）
+审核：待项目组审核
+AI协助：Codex（路线与状态整理）
+
+## 9月2日进度快照
+
+| 部分 | 状态 | 当前结论 |
+|---|---|---|
+| 问题与架构 | 基线已形成，待老师确认最终任务 | Wind-Plane-Control-Evaluation、接口字典、追溯关系已有文档 |
+| 速度/转速比在线寻优 | 代理对象验证已完成 | 单变量 ESC、速度多峰/风场/自适应算法已有可复现实验 |
+| 风场与圆周场景 | 代理研究已完成一轮 | 恒风、正弦风、双正交风及空速物理调度均有测试和证据 |
+| MOP/MOE 与 Harness | 指标层可用，统一场景接入未完成 | 已能在代理对象上比较算法；尚未接入同一 Plane/PX4 闭环 |
+| PX4/Simulink Control 平台 | M2 已放行 | 速度通道、安全层、eta 分配器和日志链可用；下一步 M3 |
+| 残差 RL | 已有独立预研，不进入平台结论 | MATLAB 环境接口、Python 对拍、TD3/BC 候选与未见种子评估已完成；隐藏风和 TD3 稳定性仍未解决 |
+| Plane 物理建模 | **新增统一工作线，尚未实现** | 已有空速/风场与 PX4 6DOF 片段可复用；仍需统一执行动态、圆周需求、`P(v_air,eta)`、电池/SOC 与适配器 |
+| 真实数据/SITL/实机 | 尚未开始 | 当前全部节能结果均来自仿真代理数据 |
+
+总体判断：算法与场景探索推进较快，Control 平台已经走到 M2；当前主要缺口不再是“再加一种算法”，而是建立一个所有算法都能共用的 Plane 物理对象，并在统一 Harness 中完成 Wind-Plane-Control 闭环比较。项目现处于**独立模块成果向统一物理闭环集成**的阶段。
+
+## 架构与问题定义（2026-09-02）
 
 新增 [`architecture/01_problem_definition.md`](architecture/01_problem_definition.md) 至 [`architecture/05_verification_traceability.md`](architecture/05_verification_traceability.md)，形成 Wind-Plane-Control-Evaluation 的建议逻辑架构、运行场景、接口字典及需求-MoE/MoP-证据追溯。建议将“固定高度圆周盘旋等待下的在线平均功率最小化”作为待指导教师确认的最终主任务，直线无风速度ESC保留为开发基线；详见待确认的 [`decisions/ADR-001-objective-selection.md`](decisions/ADR-001-objective-selection.md)。
 
-[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 已记录当前决策：正式RL开发暂缓，现有 `speed_rl_residual` 仅保留为接口预研和候选插件；在任务口径、功率对象、统一接口、Harness、强基线及未见场景门槛成立前，不扩大训练或作“RL优于基线”结论。该架构文档不改变平台唯一执行路线的当前顺序。M2 的 120 s / `[90,120] s` 修订协议经多轮复验；第五轮按独立进程重跑标准分段矩阵 15/15 PASS，同会话双链哈希一致，M2 核心成果保持放行。第五轮同时确认验收自动化仍为 PARTIAL：非有限 `M2_ETA_APPLIED` 调用者状态不精确恢复，`report` 可复用无本次 run/提交绑定的旧 stage 文件，归档路径断言也需收紧（[`evidence/M2_REACCEPT_ROUND5_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND5_CODEX_20260902.md)）。上述 R5 缺陷已于同日修复并通过 39/39 针对性矩阵关闭验证（非有限四态契约、manifest 同批次绑定 + 三类负向证明、路径断言收紧；[`evidence/M2_REACCEPT_ROUND5_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND5_FIX_20260902.md)）。M2 五轮复验闭环，进入 M3。
+[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 的平台决策仍有效：虽然 `speed_rl_pytorch` 已完成 TD3/BC 独立训练与评估，但正式 RL 平台接入仍暂缓；在统一 Plane 对象、Harness、强基线及未见场景门槛成立前，不作“RL优于基线”结论。M2 的 120 s / `[90,120] s` 修订协议及五轮复验已闭环，进入 M3；同时按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 新增 P0--P4 Plane 物理建模并行工作线。
 
-## 总览：算法线三模块并行，平台线已完成 M0-C 接口集成、M1 鲁棒性验收与 M2 eta 分配器
+## 总览：算法与场景模块已有多条证据线，Control 平台完成 M2，Plane 物理对象待建
 
 | 工作线 | 当前状态 | 可作出的结论 | 不能作出的结论 |
 |---|---|---|---|
@@ -24,6 +47,7 @@
 | `modules/unified_search` | 2026-09-01 并入。速度优化任务1+2整合：调试二次曲线+对称崎岖+平移调度统一对象，能耗感知算法 ea_multistart，统一 MOP/MOE 评价；13 单元测试、8 门槛 | 计入搜索能耗后全遍历非最优：崎岖静态 1 小时窗 ea 平均 MOE=0.9927 > multistart 0.9924，搜索步数 165 vs 400（20 种子）；jumpUp 恢复 67 步、jumpDown 29 步、dy 零误触发 | 慢漂（ramp）恢复慢于跳变（9/10 种子 ≤1.6，尾部种子如实记录）；演示面板仅 tracker/esc（定稿口径），ea 等其余算法在包内供验收横比；真实 X8 节能 |
 | `harness`（指标层） | 2026-09-01 实现。三模块架构（environment/aircraft 黑箱/console）+ 1 小时任务窗 MOP/MOE；4 单元测试 | 统一口径横比成立：MOE_energy=Emin/E_actual，fixed 上界 1.0000、multistart 0.9912、grid 0.9905、esc 0.9819、single_golden 0.9226 | 风场场景（任务3-5 待接入）、真实瓦级标定（Pmin_W 为代理换算） |
 | `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1、M2 已放行（M2 五轮复验 2026-09-02 全部关闭） | 干净与脏入口下旁路与原基线零差异；M0-B 安全注入 4/4；M2 S1/S2/S3 = −0.2626%/−0.2938%/−0.2147%，同会话双链哈希一致；调用者状态恢复契约覆盖有限/空/NaN/Inf 四态（成功与错误出口）；分段验收绑定同批次 manifest，旧/缺/混证据硬失败；39/39 针对性矩阵 | 不外推真实功率/风场；esc 中心受 PWM 量化限制；长序列单进程仿真有堆损坏风险（分段执行规避，环境限制在案） |
+| Plane 物理建模（P0--P4） | 2026-09-02 纳入路线图，统一组件尚未实现；建议负责人霍奕茗（待组内确认） | `wind_field_sched` 的空速物理对象和 `px4_x8` 的 6DOF/执行器链可复用 | 尚无统一 `P(v_air,eta)`、圆周动力需求、电池/SOC 或与 PX4 的接入结果 |
 
 飞控平台的唯一执行基线是 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并通过独立再验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)、[`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)）。**M0-C、M1 已通过；M2 受约束分配器、ESC 接线和修订数值门槛保持放行。第五轮发现的 R5-F1--F3 已修复并经 39/39 针对性矩阵关闭验证（[`evidence/M2_REACCEPT_ROUND5_CODEX_20260902.md`](evidence/M2_REACCEPT_ROUND5_CODEX_20260902.md)、[`evidence/M2_REACCEPT_ROUND5_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND5_FIX_20260902.md)）。进入 M3：速度与转速比交替协同优化；不做 RL。**
 
@@ -76,19 +100,18 @@
 - `J = 1 + 4(eta - eta_optimum)^2` 是代理曲线，不是实验功率数据。
 - 当前“恒推力”是建模假设，尚未通过控制分配计算实际总推力、偏航力矩或八电机饱和。
 - Simulink一致性目前覆盖健康测量信号；冻结和无效数据恢复在MATLAB控制器API中验证。
-- RL接口已经可运行，但没有训练策略，不能以此宣称强化学习优于ESC。
+- RL 接口、Python 对拍和 TD3/BC 候选训练已经可运行，但结果仍局限于虚拟代理对象；从零 TD3 和隐藏风场表现存在明确不足，不能宣称强化学习优于 ESC。
 - 未接PX4、QGC、SITL/HITL、真实电压电流、螺旋桨台架数据或实机。
 - `speed_esc` 的两条速度功率曲线与 `speed_rl_residual` 的风场/电池/轨迹代理均为虚拟对象，三者功率模型互不相同，跨模块不得直接横比节能率；`speed_esc` 速度定位指标 63/74（未全达标）；`speed_rl_residual` 的 TD3 候选在不规则风下尚未胜出基线。`speed_rl_pytorch` 为该环境的 Python 移植（对拍一致），其"BC 超过解析残差"结论仅限同一 Python 引擎、可观测/缺测风口径；隐藏风与从零 TD3 的负结果如实保留；跨 MATLAB/Python 引擎不得直接横比节能率。
 
 ## 下一步优先级
 
-1. M3（速度与转速比交替协同优化）：两个 ESC 的更新/保持/优先级仲裁、同一条稳定窗口与约束总线、与 M0/M2 单变量基线同场景比较；方案文档先行，`.slx` 结构集成照红线与 M2 实现教训执行。M2 五轮复验已全部关闭（2026-09-02）；第五轮验收自动化问题修复与关闭验证见 [`evidence/M2_REACCEPT_ROUND5_FIX_20260902.md`](evidence/M2_REACCEPT_ROUND5_FIX_20260902.md)。
-2. 用台架、CFD/BEMT或文献校准数据替换代理功率对象，明确参数来源、适用区间和误差。
-3. 建立给定总推力与零偏航力矩条件下的上下桨分配器，输出可行性、饱和和约束违规标志。
-4. 将 `measuredPower` 对接真实或SITL的电压、电流与时间戳；加入日志回放测试。
-5. 在固定的训练/验证场景划分下训练TD3等策略，并与ESC、固定比值基线使用同一扰动和评价口径比较（`speed_rl_residual` 的课程训练与未见种子评估口径可直接沿用）。2026-09-02 实验证据（`speed_rl_pytorch`）建议把"BC 热启动"作为该步的标准训练范式，并把"隐藏风下主动激励（ESC dither 思想）并入残差策略"列为该步的新方向。
-6. 再考虑速度寻优与转速比寻优的交替或多频耦合，不能在单变量对象未标定前宣称二维优化成果。
-7. 评估是否用 `modules/speed_esc` 的回归估计器内核替换 `M0C v Ref ESC` 中的解调内核，并按 `M0C_SPEED_ESC.md` §7 重新验收。
+1. **并行 A，Plane P0--P4**：建议霍奕茗负责（待组内确认），完成风/空地速、速度与 eta 执行动态、圆周 `v^2/R` 需求、`P(v_air,eta)`、电池/SOC 和统一 `reset/step` 适配器；先独立验收，不直接改主 `.slx`。
+2. **并行 B，M3 方案与调度器**：叶安继续负责两个 ESC 的更新/保持/优先级仲裁、稳定窗口和约束总线；先在现有代理对象开发，Plane 通过后由其接入 `air_spare.slx` 并复跑 M0/M2 基线。
+3. 将 Wind、Plane、Control 与现有 MOP/MOE 接入同一 Harness，在相同场景、随机种子和约束下比较固定值、ESC、解析调度及候选学习策略。
+4. 用 CFD/BEMT、文献或后续台架数据校准 Plane 参数，明确来源、适用区间与误差；当前实机数据缺失，不把校准列作近期完成项。
+5. 将 `measuredPower` 对接真实或 SITL 的电压、电流与时间戳并加入日志回放；真实数据到位前保留 `estimated/proxy` 来源标志。
+6. RL 平台接入继续后置。后续以 BC 热启动为优先候选，并研究隐藏风下的主动激励，但必须在统一 Plane/Harness 上与 ESC 和固定基线复验。
 
 ## 当前可引用的结果边界
 
