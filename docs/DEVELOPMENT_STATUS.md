@@ -44,7 +44,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 
 新增 [`architecture/01_problem_definition.md`](architecture/01_problem_definition.md) 至 [`architecture/05_verification_traceability.md`](architecture/05_verification_traceability.md)，形成 Wind-Plane-Control-Evaluation 的建议逻辑架构、运行场景、接口字典及需求-MoE/MoP-证据追溯。建议将“固定高度圆周盘旋等待下的在线平均功率最小化”作为待指导教师确认的最终主任务，直线无风速度ESC保留为开发基线；详见待确认的 [`decisions/ADR-001-objective-selection.md`](decisions/ADR-001-objective-selection.md)。
 
-[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 的平台决策仍有效：虽然 `speed_rl_pytorch` 已完成 TD3/BC 独立训练与评估，但正式 RL 平台接入仍暂缓；在统一 Plane 对象、Harness、强基线及未见场景门槛成立前，不作“RL优于基线”结论。M2 的 120 s / `[90,120] s` 核心数值协议保持放行并进入 M3；第十轮在 `71acd56` 按规则 v1.7 独立复跑 52/52 PASS，R9-F1/R9-F2 具备原始复现、针对性负向、既有回归三件套并关闭。功能实现与验收基础设施均 VALIDATED；R2022b 堆损坏单独登记为 OPEN LIMITATION。分层治理的跨项目采用见 Proposed [`ADR-003`](decisions/ADR-003-layered-acceptance-closure-governance.md)，尚待项目组确认。同时按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 推进 P0--P4 Plane 物理建模并行工作线。
+[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 的平台决策仍有效：虽然 `speed_rl_pytorch` 已完成 TD3/BC 独立训练与评估，但正式 RL 平台接入仍暂缓；在统一 Plane 对象、Harness、强基线及未见场景门槛成立前，不作“RL优于基线”结论。M2 的 120 s / `[90,120] s` 核心数值协议保持放行并进入 M3；第十轮在 `71acd56` 按规则 v1.7 独立复跑 52/52 PASS，R9-F1/R9-F2 具备原始复现、针对性负向、既有回归三件套并关闭。功能实现与验收基础设施均 VALIDATED；R2022b 堆损坏单独登记为 OPEN LIMITATION。分层治理已由项目组采纳，见 [`ADR-003`](decisions/ADR-003-layered-acceptance-closure-governance.md)，指导教师复核记录待补；功率图信息边界见 Proposed [`ADR-004`](decisions/ADR-004-power-map-information-boundary.md)。同时按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 推进 P0--P4 Plane 物理建模并行工作线。
 
 ## 总览：算法与场景模块已有多条证据线，Control 平台完成 M2，Plane 物理对象待建
 
@@ -135,7 +135,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 
 ## 下一步优先级
 
-1. **R0概念确认**：由周航正组织组内和老师确认ADR-001/ADR-003，冻结主任务、`v_ref`地速语义、名义功率图和在线可见信息。
+1. **R0概念确认**：由周航正组织组内和老师确认ADR-001/ADR-004，冻结主任务、`v_ref`地速语义、名义功率图和在线可见信息；接口字典0.3仍待冻结为1.0。
 2. **并行Plane线**：建议霍奕茗负责（待确认），实现最小Plane API、空地速/圆周/执行动态、`P_nom/P_hidden/P_meas`分层、电池与测量链；先独立验收，不直接改主 `.slx`。
 3. **并行Environment线**：王健祺已有场景资产，建议继续统一PathCommand、NE风真值、风测量退化和训练/未见场景清单；首先关闭 `wind_field_sched` 的局部加号约定适配。
 4. **并行算法/Control线**：将固定、名义调度和速度ESC适配为同一慢层接口；叶安继续M3更新/保持/优先级仲裁和PX4安全门控，Plane通过后再接入 `air_spare.slx`。R9-F1/R9-F2已经第十轮独立关闭，R2022b堆崩溃继续按环境限制管理。

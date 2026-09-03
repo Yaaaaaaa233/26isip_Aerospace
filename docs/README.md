@@ -1,7 +1,7 @@
 # 项目文档导航与权威关系
 
-版本：1.0
-日期：2026-09-02
+版本：1.1
+日期：2026-09-03
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：周航正
@@ -19,6 +19,10 @@ AI协助：Codex（仓库审查、结构设计和成文）
 | 修改公共接口 | [`architecture/04_interface_dictionary.md`](architecture/04_interface_dictionary.md) → 对应 `interfaces/M*.md` | 先遵守跨组件字段，再看阶段接线 |
 | 修改算法或对象 | [`COLLABORATION.md`](COLLABORATION.md) → 模块 README | 确认因果边界、API和验收入口 |
 | 准备引用结果 | [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md) → [`evidence/README.md`](evidence/README.md) | 状态页给结论边界，证据索引给事实依据 |
+
+## R0确认入口
+
+R0会议先确认 [`decisions/ADR-001-objective-selection.md`](decisions/ADR-001-objective-selection.md) 的主任务和 [`decisions/ADR-004-power-map-information-boundary.md`](decisions/ADR-004-power-map-information-boundary.md) 的信息边界，再决定接口字典是否从0.3冻结为1.0。当前两项决策和接口字典均保持待确认状态；分层验收治理见 [`decisions/ADR-003-layered-acceptance-closure-governance.md`](decisions/ADR-003-layered-acceptance-closure-governance.md)，已由项目组采纳，教师复核记录待补。
 
 ## 权威来源
 

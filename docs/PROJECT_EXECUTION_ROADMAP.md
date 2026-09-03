@@ -24,7 +24,7 @@ P_hidden = F(v_air, eta, turn, battery, disturbance; hidden_parameters)
 P_meas   = delayed_noisy_measurement(P_hidden)
 ```
 
-第一阶段优化变量是沿航迹切向地速参考 `v_ref`，第二阶段加入上下桨转速比参考 `eta_ref`。主目标仍为固定任务时域内平均电功率最小，同时满足轨迹、姿态、速度和执行器约束。名义模型、隐藏对象和在线测量的信息边界见 [`decisions/ADR-003-power-map-information-boundary.md`](decisions/ADR-003-power-map-information-boundary.md)。
+第一阶段优化变量是沿航迹切向地速参考 `v_ref`，第二阶段加入上下桨转速比参考 `eta_ref`。主目标仍为固定任务时域内平均电功率最小，同时满足轨迹、姿态、速度和执行器约束。名义模型、隐藏对象和在线测量的信息边界见 [`decisions/ADR-004-power-map-information-boundary.md`](decisions/ADR-004-power-map-information-boundary.md)。
 
 ### 0.2 算法开发线
 
@@ -33,7 +33,7 @@ P_meas   = delayed_noisy_measurement(P_hidden)
 | ALG-A 接口适配 | 将固定值、名义调度、速度ESC统一为 `reset/step(MeasuredContext)->ControlCommand` | `speed_esc`、`wind_field_sched` | 模块各自可运行，统一适配未完成 |
 | ALG-B 因果风场决策 | `known`真风策略只作Oracle；正式策略只能用当前/历史风测量或功率反馈 | `wind_field_sched`在线/盲策略、风场搜索模块 | 有代理证据，尚未接统一接口 |
 | ALG-C 速度与转速比协同 | 先交替坐标下降：一次只更新 `v_ref` 或 `eta_ref`，共用稳定窗和安全门控 | `speed_esc`、`ratio_esc`、平台M2 | 尚未开始M3统一实现 |
-| ALG-D 模型不匹配评价 | 在多个未见 `P_hidden` 参数集上比较固定、名义调度和ESC，不按单一曲线调答案 | 多峰/平移/自适应模块 | 压力测试已有，需转为统一Plane变体 |
+| ALG-D 模型不匹配评价 | 在多个未见 `P_hidden` 参数集上比较固定、名义调度和ESC，不按单一曲线调答案 | 多峰/平移/自适应模块；`realistic_constraints_search`、`curve_case_calibration`、`wind_model_library` | 任务7–9已补充真实约束、文献曲线case和风模型库；其中因果策略在部分真实约束代理中不敌开环，曲线参数仍未校准，需先统一Plane与信息边界后再形成主结论 |
 | ALG-E 残差RL | 仅在强基线仍有可重复缺口时，用 `v_ref=guard(v_base+delta_v_RL)` 学习残差 | 两个RL预研模块 | 保留预研，暂不进入平台主线 |
 
 算法线不负责生成风、计算飞机真实空速/功率或跟踪姿态，也不得直接输出PWM。
@@ -65,7 +65,7 @@ Environment不输出飞机航向、地速、空速或功率。当前 `wind_field
 
 | 里程碑 | 三条线怎样汇合 | 放行条件 |
 |---|---|---|
-| R0 概念冻结 | 确认主任务、`v_ref`地速语义、名义/隐藏/测量边界 | ADR-001和ADR-003经组内/教师确认 |
+| R0 概念冻结 | 确认主任务、`v_ref`地速语义、名义/隐藏/测量边界 | ADR-001和ADR-004经组内/教师确认；接口字典仍需冻结 |
 | R1 Mock闭环 | Environment、Plane、Control各自可被Mock替换 | 接口契约测试和一键日志通过 |
 | R2 无风基线 | 同一Plane上比较固定、名义最优和速度ESC | 控制器无隐藏信息，配对评价成立 |
 | R3 因果风场 | 加入圆周规则/不规则风，区分Oracle、测量风和盲策略 | 无未来风泄漏，未见场景结果可复现 |

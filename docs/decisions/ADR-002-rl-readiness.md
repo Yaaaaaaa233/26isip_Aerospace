@@ -91,6 +91,6 @@ v_ref = guard(v_base + delta_v_RL)
 
 ## 2026-09-03接口复审
 
-[`ADR-003-power-map-information-boundary.md`](ADR-003-power-map-information-boundary.md) 进一步明确：无风扫描得到的 `P_nom` 可以作为名义调度基线，但RL不得读取 `P_hidden`、真实最优点或未来风。RL固定放在Control慢层策略插槽中，以 `delta_v`修正 `v_base`，不作为Environment或Plane组件，也不抢占快层控制。
+[`ADR-004-power-map-information-boundary.md`](ADR-004-power-map-information-boundary.md) 进一步明确：无风扫描得到的 `P_nom` 可以作为名义调度基线，但RL不得读取 `P_hidden`、真实最优点或未来风。RL固定放在Control慢层策略插槽中，以 `delta_v`修正 `v_base`，不作为Environment或Plane组件，也不抢占快层控制。
 
 本决定继续有效。近期只维护接口0.3适配和信息泄漏测试；修正版路线R0-R4未通过前，不扩大训练或把RL列为主交付。

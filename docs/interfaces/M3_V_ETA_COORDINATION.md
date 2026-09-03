@@ -5,11 +5,11 @@
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安（平台线）
 主要撰写：叶安（仲裁机制、槽参数与验收判据决策）、ZCode（方案文档代拟、调度/适配器/试验实现）
-技术依据：`docs/PROJECT_EXECUTION_ROADMAP.md` §5 M3、§0.2 ALG-C、§0.5 R4 与 §6 并行工作线（**交替的直接依据是路线图条款**）；[`ADR-001`](../decisions/ADR-001-objective-selection.md)（状态 Proposed、待指导教师确认：速度为第一决策变量、`eta_ref` 为第二变量；其"不要求一次完成二维学习"不等于已批准"禁止同时寻优"，本文不把它提升为已接受决策）；[`ADR-003-power-map-information-boundary`](../decisions/ADR-003-power-map-information-boundary.md)（状态 Proposed：`P_nom/P_hidden/P_meas` 分层与四类策略信息边界）；[`M0C_SPEED_ESC.md`](M0C_SPEED_ESC.md) §3 稳定窗口口径与 §2.4 参数；[`M2_ETA_ALLOCATOR.md`](M2_ETA_ALLOCATOR.md) §4 通路/参数与 §11 判据；`docs/architecture/04_interface_dictionary.md` **v0.3** §6 MeasuredContext、§7 ControlCommand、§12；`docs/ACCEPTANCE_AUTOMATION_RULES.md` v1.7
+技术依据：`docs/PROJECT_EXECUTION_ROADMAP.md` §5 M3、§0.2 ALG-C、§0.5 R4 与 §6 并行工作线（**交替的直接依据是路线图条款**）；[`ADR-001`](../decisions/ADR-001-objective-selection.md)（状态 Proposed、待指导教师确认：速度为第一决策变量、`eta_ref` 为第二变量；其"不要求一次完成二维学习"不等于已批准"禁止同时寻优"，本文不把它提升为已接受决策）；[`ADR-004-power-map-information-boundary`](../decisions/ADR-004-power-map-information-boundary.md)（状态 Proposed：`P_nom/P_hidden/P_meas` 分层与四类策略信息边界）；[`M0C_SPEED_ESC.md`](M0C_SPEED_ESC.md) §3 稳定窗口口径与 §2.4 参数；[`M2_ETA_ALLOCATOR.md`](M2_ETA_ALLOCATOR.md) §4 通路/参数与 §11 判据；`docs/architecture/04_interface_dictionary.md` **v0.3** §6 MeasuredContext、§7 ControlCommand、§12；`docs/ACCEPTANCE_AUTOMATION_RULES.md` v1.7
 审核：待项目组审核、待指导教师确认
 AI协助：ZCode（内核/适配器语义探针、本文档代拟与设计评审整改）
 
-红线（继承并具体化）：`air.slx` 只读；**V1 零 `.slx` 结构变更**（见 §3.4，若后续引入结构变更则回到安装器+快照+全回归流程）；**不做 RL**（R5 复审前不进入平台主线）；仲裁与两个 ESC 只接收测量功率、实际被控量、采样时间与有效性标志，不得接触模型内部最优值、解析梯度、完整功率面或 PWM 控制权（ADR-003 Proposed 同向）；安全层照旧在 M0-B selector/监视器与平台侧标志链，仲裁无任何安全旁路权；`P_est` 未校准，一切能耗结论只作"模型估算"口径。
+红线（继承并具体化）：`air.slx` 只读；**V1 零 `.slx` 结构变更**（见 §3.4，若后续引入结构变更则回到安装器+快照+全回归流程）；**不做 RL**（R5 复审前不进入平台主线）；仲裁与两个 ESC 只接收测量功率、实际被控量、采样时间与有效性标志，不得接触模型内部最优值、解析梯度、完整功率面或 PWM 控制权（ADR-004 Proposed 同向）；安全层照旧在 M0-B selector/监视器与平台侧标志链，仲裁无任何安全旁路权；`P_est` 未校准，一切能耗结论只作"模型估算"口径。
 
 ## 1. 目的与预期管理
 
@@ -185,7 +185,7 @@ Plane 接入（roadmap §6 汇合点）、sat 送达速度通道（若 §2.3 登
 - **验收治理**：`ACCEPTANCE_AUTOMATION_RULES.md` v1.7 全量适用——验收入口函数化并返回机器可查 `result`；四层判定与五型问题分类；缺陷关闭三件套（原始复现+针对性负向+既有回归）；本轮开始前冻结合同/矩阵/停止条件（评审 §4 A–E 顺序，停止条件绑定文档版本）；禁止"完全闭环"类无限全称措辞。文档修订只确认"合同已澄清"，运行时承诺须实现后以直接边界/负向/回归证据关闭（评审 §4 补充约束）；
 - **全局量**：`M3_ARB_PARAMS` 注册进 rules §7（读写者、缺省语义、恢复合同）后再投入使用；
 - **继承环境限制**：R2022b 堆崩溃（OPEN LIMITATION，分段批次管理）；全量场景同会话链、report 段崩溃注入、跨机器编码探针等登记项不变；
-- **权威关系登记**：ADR-003 编号现存在两份（`ADR-003-layered-acceptance-closure-governance.md` 与 2026-09-03 新增 `ADR-003-power-map-information-boundary.md`），编号冲突归周航正处理，本文档按文件全名引用两份（均为 Proposed）；ADR-001/两份 ADR-003 待确认状态不因本文档改变；
+- **权威关系登记**：分层验收治理为 `ADR-003`，项目组已采纳；功率图信息边界为 `ADR-004`，仍为 Proposed；ADR-001、接口字典0.3和M3 v0.2仍待确认或冻结。
 - **可选前置（非阻塞，roadmap §6）**：清理 `M0B Flags Override/Att Demux` 空支路告警。
 
 ## 9. 待项目组确认项（实施前；确认后冻结合同）

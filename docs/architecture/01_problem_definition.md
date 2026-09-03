@@ -52,7 +52,7 @@ AI协助：Codex（结构整理、文字与一致性检查、名义模型与在�
 P_hidden = P_nom + model_mismatch(wind, turn, battery, eta, parameters)
 ```
 
-具体信息边界和四类策略见 [`ADR-003-power-map-information-boundary.md`](../decisions/ADR-003-power-map-information-boundary.md)。
+具体信息边界和四类策略见 [`ADR-004-power-map-information-boundary.md`](../decisions/ADR-004-power-map-information-boundary.md)。
 
 三类常用图不得混名：
 

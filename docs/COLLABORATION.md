@@ -14,7 +14,7 @@ AI协助：Codex（权威边界、现状对齐与统一策略插槽整理，2026
 - `interfaces/M*.md` 只负责某个阶段怎样把公共字段接到 PX4/Simulink，不得改变公共字段语义。
 - 当前完成度、可引用结论和下一步只看 [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md)；模块入口和负责人只看 [`../modules/README.md`](../modules/README.md)。
 - 本文中的 MATLAB 函数签名是现有模块局部接口。接入统一 Plane 时由适配器转换，不把局部命名反向写入公共字典。
-- 名义功率图、隐藏运行对象和在线测量的可见范围以 [`decisions/ADR-003-power-map-information-boundary.md`](decisions/ADR-003-power-map-information-boundary.md) 为准。
+- 名义功率图、隐藏运行对象和在线测量的可见范围以 [`decisions/ADR-004-power-map-information-boundary.md`](decisions/ADR-004-power-map-information-boundary.md) 为准。
 
 ## 模块目标
 

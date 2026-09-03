@@ -139,6 +139,9 @@ AI协助：Codex（MoE/MoP归类、证据边界检查、名义/隐藏对象追�
 | `models/px4_x8` M0-C/M1/M2 | E1 | 闭环、保护、速度接口与受约束eta分配 | 校准能耗和真实风场外推 |
 | `harness` | E0 | 代理指标和固定时间窗比较 | 统一WPC端到端验收 |
 | `modules/speed_rl_residual` | E0 | RL接口、动作门控、课程训练起点 | 不规则风下RL优于基线 |
+| `modules/realistic_constraints_search` | E0 | 真实约束代理下的负结果、约束和时延诊断 | 因果策略在统一Plane上有效 |
+| `modules/curve_case_calibration` | E0 | 文献代理曲线锚点与不同谷深case的敏感性 | X8功率曲线已标定 |
+| `modules/wind_model_library` | E0 | 多种虚拟风场的接口烟测和信息价值诊断 | 风场参数已实测校准 |
 
 当前可引用结论以 [`../DEVELOPMENT_STATUS.md`](../DEVELOPMENT_STATUS.md) 为准。
 

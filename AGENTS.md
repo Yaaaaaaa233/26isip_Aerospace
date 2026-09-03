@@ -20,6 +20,7 @@
 | 何时读 | 文档 |
 |---|---|
 | 不确定文档角色或权威关系 | `docs/README.md`（文档导航、唯一事实来源与更新触发条件） |
+| 进行R0决策或验收治理 | `docs/decisions/ADR-001-objective-selection.md`、`ADR-003-layered-acceptance-closure-governance.md`、`ADR-004-power-map-information-boundary.md` |
 | 每次开工前 | `docs/DEVELOPMENT_STATUS.md`（当前状态、已知局限、下一步优先级） |
 | 新增、合并或冻结模块 | `modules/README.md`（模块登记表） |
 | 改动 ESC / RL 接口 | `docs/COLLABORATION.md`（接口签名与因果约定） |
@@ -87,6 +88,8 @@ run_air_m0b_safety_injection
 ## 验收基础设施规则
 
 改动验收入口、验收链或全局量状态管理时，必须遵循 [`docs/ACCEPTANCE_AUTOMATION_RULES.md`](docs/ACCEPTANCE_AUTOMATION_RULES.md)。三条硬要求：
+
+跨模块验收统一采用已采纳的ADR-003分层治理：分别报告功能实现、验收基础设施、环境限制和文档证据；缺陷关闭必须保留原始复现、针对性负向和既有回归证据。
 
 1. 验收入口必须是**函数**并返回机器可查的 `result`；链内每一段必须硬断言，禁止只打印 FAIL。
 2. 写全局量的入口必须"快照 → 规范化 → onCleanup 恢复（成功与错误路径）"；新增全局量先登记 `ACCEPTANCE_AUTOMATION_RULES.md` §7 注册表。
