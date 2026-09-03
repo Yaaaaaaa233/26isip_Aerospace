@@ -32,7 +32,7 @@ P_meas   = delayed_noisy_measurement(P_hidden)
 |---|---|---|---|
 | ALG-A 接口适配 | 将固定值、名义调度、速度ESC统一为 `reset/step(MeasuredContext)->ControlCommand` | `speed_esc`、`wind_field_sched` | 模块各自可运行，统一适配未完成 |
 | ALG-B 因果风场决策 | `known`真风策略只作Oracle；正式策略只能用当前/历史风测量或功率反馈 | `wind_field_sched`在线/盲策略、风场搜索模块 | 有代理证据，尚未接统一接口 |
-| ALG-C 速度与转速比协同 | 先交替坐标下降：一次只更新 `v_ref` 或 `eta_ref`，共用稳定窗和安全门控 | `speed_esc`、`ratio_esc`、平台M2 | 方案v0.2待项目组确认，统一实现未开始 |
+| ALG-C 速度与转速比协同 | 先交替坐标下降：一次只更新 `v_ref` 或 `eta_ref`，共用稳定窗和安全门控 | `speed_esc`、`ratio_esc`、平台M2 | 代理对象机制验证已通过（M3 配对批次 2026-09-03）；Plane 复跑（R4）待就绪 |
 | ALG-D 模型不匹配评价 | 在多个未见 `P_hidden` 参数集上比较固定、名义调度和ESC，不按单一曲线调答案 | 多峰/平移/自适应模块；`realistic_constraints_search`、`curve_case_calibration`、`wind_model_library` | 任务7–9已补充真实约束、文献曲线case和风模型库；其中因果策略在部分真实约束代理中不敌开环，曲线参数仍未校准，需先统一Plane与信息边界后再形成主结论 |
 | ALG-E 残差RL | 仅在强基线仍有可重复缺口时，用 `v_ref=guard(v_base+delta_v_RL)` 学习残差 | 两个RL预研模块 | 保留预研，暂不进入平台主线 |
 
@@ -303,6 +303,8 @@ Plane：执行动态 / 风与空地速 / X8 动力学 / 联合功率对象
 验收：不出现持续振荡或频繁互相覆盖；能耗与跟踪表现不差于两个单变量基线。
 
 执行基线 `docs/interfaces/M3_V_ETA_COORDINATION.md`（v0.2）：状态转移、门控、三套参数、执行证据与配对协议合同，已按实施前静态设计审查 `docs/evidence/M3_DESIGN_REVIEW_CODEX_20260903.md` 完成 F1–F6 文档级整改；§9 五项（槽比例、双窗口、配对矩阵、零 `.slx` 路线、B2 口径）待项目组确认后冻结，统一实现未开始。
+
+**代理对象机制验证已通过（2026-09-03）**：B1–B6 单测（含 F1 记账/相位/背叛适配器负向、串扰机制对照）、短时 Simulink 边界、既有回归（m0a 旁路差 0、m0b 4/4、M0-C/M2 协议零漂移）与 13 场景配对批次全 PASS——对 B2 基线 |ΔE%| ≤ 0.003%、对 B1 −0.28~−0.31%、v 跟踪 0.0097 m/s vs B1 0.198、M3-R1 复现逐位差 0、零 `.slx` 结构变更；M3 模型集 eta gain 经槽化复核冻结 2e-4。证据 [`evidence/M3_COORDINATION_20260903.md`](evidence/M3_COORDINATION_20260903.md)。此为 R4 机制前置开发，统一 Plane 复跑（R4 放行）待 Plane P0–P4 就绪。
 
 ### M4：统一 Wind-Plane-Control Harness 与 SITL/日志回放
 

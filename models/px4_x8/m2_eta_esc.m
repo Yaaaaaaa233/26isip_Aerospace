@@ -104,9 +104,21 @@ switch mode
                 satBit < 0.5 && eta_act > 0;
             [eta_ref, st] = ratioesc.esc_step(st, Pe, eta_act, valid, p);
         else
+            % hold: publish the CLEAN center (no dither). The reinitialize
+            % semantics guarantee that after this hold the kernel restarts
+            % with warmup (80 steps) whenever it was searching before; but
+            % the FIRST hold may arrive with warmup already consumed
+            % (invalid samples reset it earlier, and the v-slot boundary
+            % can land before the eta kernel ever took a valid step), so
+            % the reinitialize flag alone cannot express "not yet learned"
+            % -- the untouched bias survives the hold otherwise and the
+            % first post-hold valid steps update the gradient directly
+            % from the stale bias (violating the M3 doc 2.1 warmup intent
+            % and breaking etaHoldConst). Set warmup explicitly.
             eta_ref = st.center;
             st.lastReference = st.center;
             st.reinitialize = true;   % idempotent; consumed on resume
+            st.warmup = ceil(1 / (p.frequency * p.Ts));
         end
     otherwise
         error('m2:UnknownMode', 'unknown mode %s', mode);

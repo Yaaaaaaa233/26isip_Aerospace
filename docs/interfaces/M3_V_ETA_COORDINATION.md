@@ -34,16 +34,18 @@ AI协助：ZCode（内核/适配器语义探针、本文档代拟与设计评审
 |---|---|---|---|
 | search | role='search' ∧ valid | 调用 `esc_step`（既有语义逐字不变） | 内核 reference |
 | search | role='search' ∧ ~valid | 内核 invalid 路径（保持 `lastReference`、置 `reinitialize`）——现状行为 | `s.lastReference` |
-| → hold | role 由 search 变 hold | 置 `st.reinitialize=true`（幂等，恢复首步消费） | 本条起见 |
-| hold | role='hold'（无论 valid） | **不调用内核**；滤波状态（`bias/gradient/warmup/sample`）不动；**同步记账 `st.lastReference = st.center`** | `st.center`（无 dither） |
+| → hold | role 由 search 变 hold | 置 `st.reinitialize=true`（幂等，恢复首步消费）**并显式置 `st.warmup=80`** | 本条起见 |
+| hold | role='hold'（无论 valid） | **不调用内核**；滤波状态（`bias/gradient/sample`）不动；**同步记账 `st.lastReference = st.center`；每步保持 `st.warmup=80`** | `st.center`（无 dither） |
 | resume | role 由 hold 变 search ∧ valid | 内核 `reinitialize` 路径：`bias=measuredPower`、`gradient=0`、`warmup=80` | 内核 reference |
 | resume | role 由 hold 变 search ∧ ~valid | 内核 invalid 路径（因 hold 已同步 `lastReference=center`，返回的是干净中心而非陈旧参考） | `s.lastReference`（=center） |
+
+**warmup 语义精确化（2026-09-03 实施发现，替代 v0.2 的笼统表述）**：`reinitialize` 标志只在"内核曾消费过一次有效步"后才可靠表达"需重置滤波"；首个 hold 段可能在内核取得任何有效步之前到达（暖启动窗口全部 invalid，v0.2 假设不成立），此时 `bias` 是 `esc_reset` 的初始功率、未经 `reinitialize` 路径刷新——若不在 hold 步显式置 `warmup`，`adapt` 会在恢复后立即用陈旧 `bias` 更新梯度，违反 hold 期间"滤波状态不动"的意图并破坏 hold 段候选输出恒定。因此 **hold 步显式置 `st.warmup = ceil(1/(frequency·Ts))`**，与恢复路径的 warmup 语义完全一致；`bias/gradient` 不动（首个 hold 前无有效步意味着它们本就是初始值，无信息可丢）。该修正同时改善各槽恢复行为的一致性（每个 eta 槽首 4 s 恒为 warmup，不依赖前一槽末状态）。
 
 关键语义澄清（对应 F1 三项依据）：
 
 1. **记账对应适配器输出，不是 selector 施加值**：`st.lastReference` 在 hold 步同步为 `st.center`，保证恢复第一步若 invalid，内核返回的是最近一次适配器输出（干净中心），不会返回进入 hold 前带 dither 残余的陈旧参考（`esc_step` 行 10 直接返回 `lastReference`，`limit_reference` 行 4 以它为限速基准——两者都消费该记账，`limit_reference.m` 已核对）；
 2. **相位口径 = 内核累计搜索时间，非墙钟**：`esc_step` 的 dither 相位由 `s.sample·Ts` 生成，hold 不调用内核故 `sample` 不推进，恢复后相位从离开处续跑。该选择在本合同固定；单测须覆盖**非整扰动周期槽长**（如 66 s）下相位续跑无跳变、幅度不越界（不能依赖"槽长=4 s 周期整数倍"的偶然性）；墙钟 `t` 只用于 `m3_schedule` 调度判定；
-3. **warmup 断言口径**：resume 首步内内核先置 `warmup=80`、步末减为 79（`esc_step` 行 30），故"恢复首步执行后 `st.warmup==79`"才是正确断言；若断言 80 会有一位偏差（单测按 79 断言并在注释说明来源）。
+3. **warmup 断言口径**：resume 首步内内核先置 `warmup=80`、步末减为 79（`esc_step` 行 30），故"恢复首步执行后 `st.warmup==79`"才是正确断言；若断言 80 会有一位偏差（单测按 79 断言并在注释说明来源）。**首个 hold 段（暖启动全 invalid 下到达）在 hold 步显式置 `warmup=80`**（见 §2.1 精确化段落），故任一 hold 段后的首个有效搜索步后 `st.warmup==79`，warmup 期间（含恢复后前 80 个有效步）`adapt` 不更新中心——单测 B2 的"中心自恢复起第 81 个有效步才移动"断言覆盖该口径。
 
 槽边界微瞬态：search→hold 的输出差 = 末次 search 输出的 dither 分量（≤1×幅度：v 0.3 m/s，由 selector 2 m/s² 限速吸收；eta 0.02，分配器直接施加，量级即日常 dither），如实记录于日志与证据。
 
@@ -92,9 +94,11 @@ AI协助：ZCode（内核/适配器语义探针、本文档代拟与设计评审
 |---|---|---|---|
 | 玩具标定集 | §4.4/§4.5 玩具对象上的机制验证与参数探索（离线校准，不构成模型验收证据） | 3.2e-3（连续搜索口径，[`M2_ETA_ALLOCATOR.md`](M2_ETA_ALLOCATOR.md) §4.2） | 玩具标定 |
 | 模型既有集 | M2 正式批次的有效配置（干净入口继承的文件默认） | 1e-4（`m2_eta_esc.m` 默认） | 文件默认 + 批次配置证据 |
-| **M3 模型集（本协议显式配置）** | M3 正式试验，**试验入口逐字段显式设置两通道全部有效参数与仲裁配置**，不依赖任何默认/ambient 状态 | 拟 1e-4（与 M2 模型集一致，槽化占空比复核后冻结） | 本文 §5 冻结 |
+| **M3 模型集（本协议显式配置）** | M3 正式试验，**试验入口逐字段显式设置两通道全部有效参数与仲裁配置**，不依赖任何默认/ambient 状态 | **2e-4（2026-09-03 槽化占空比复核后冻结，见下段）** | 本文 §5 冻结 |
 
 M3 模型集同时显式设置：v 通道 `mode/center0/lower/upper/amplitude/frequency/hpOmega/lpOmega/gain/rateLimit`、eta 通道同列字段、`M3_ARB_PARAMS` 全字段；每个场景的完整有效配置随批次归档（机器可查）。槽长充分性论证挂在**模型集**上：M2 模型口径 1e-4 下 eta 120 s 收敛 ⇒ 槽化累计搜索 176 s 有裕量（§5）；玩具集的 3.2e-3 收敛速度不作为模型证据。正式协议冻结后禁止按验收结果改门槛（M2 §7 预注册先例）。
+
+**槽化占空比复核记录（2026-09-03，增益冻结依据）**：玩具口径复核通过（槽化与连续收敛所需搜索步数一致，240 步对 240 步），增益不需按占空比调整；但**模型口径复核发现** 1e-4 下 240 s 时程内四个名义臂的末槽收敛均值为 0.985–1.022（连续单变量 B2 同期 0.992/1.009，M3 因各槽 warmup 重启慢 3–4%），不满足 §6.4 的 ±0.01 收敛判据。按本节"复核后冻结"的预授权，M3 模型集 eta gain 冻结为 **2e-4**（M2 既有集 1e-4 保持不变——两套参数集本就分列，B2 基线臂代表 M2 语义）：标定运行（M3-N2，240 s）末槽均值 1.00495、对 B1-N1 −0.292%、对 B2-N2 −0.00071%，判据满足且有余量。标定运行与此前 1e-4 的四臂运行为标定证据，不计入正式验收批次；正式批次以冻结增益全新执行。
 
 ## 3. 实现清单（V1：零 `.slx` 结构变更）
 
