@@ -29,6 +29,8 @@ AI协助：Codex（证据分类与引用边界整理，2026-09-02）
 - [`wind_circle_search/`](wind_circle_search/)、[`sin_wind_search/`](sin_wind_search/)、[`ortho_wind_search/`](ortho_wind_search/) 与 [`wind_field_sched/`](wind_field_sched/)：圆周、正弦、正交和空速风场调度。
 - [`adaptive_search/`](adaptive_search/)：自适应算法比较。
 - [`mop_moe/`](mop_moe/)：指标和效能评价。
+- [`realistic_constraints_search/`](realistic_constraints_search/)、[`curve_case_calibration/`](curve_case_calibration/) 与 [`wind_model_library/`](wind_model_library/)：真实约束重评估（⚠️含负结果与有效性警示）、曲线case标定与七种风场模型库。
+
 
 ## PX4-X8平台证据
 
