@@ -2,12 +2,6 @@
 
 状态：**M0-A 已完成并通过验收（2026-08-31）**。开发模型 `models/px4_x8/air_spare.slx`，验收快照 `models/px4_x8/air_m0a.slx`。这份文件定义当前可安全使用的观测量；它不把估算量误称为实测量。
 
-项目组：周航正、霍奕茗、于跃、叶安、王健祺
-文件负责人：叶安
-主要撰写：叶安（观测口径与判据决策）、ZCode（文档代拟与验收执行）
-审核：待项目组审核、待指导教师确认
-AI协助：ZCode（观测层脚本与本文档代拟）
-
 | 字段 | 单位 | 来源 | 状态与限制 |
 |---|---:|---|---|
 | `t` | s | Simulink `tout` | 可用 |
@@ -21,7 +15,7 @@ AI协助：ZCode（观测层脚本与本文档代拟）
 | `m0a_log_bus` | 35 元向量 @1 ms | 根层 Mux | `[v, P_est, E_est, power_source, att(6)=φθψ pqr, pwm(8), rpm_est(8), flags(8), optimizer_enable]`；4 ms 的 pwm/P_est 经 ZOH 对齐 |
 | `m0a_constraint_flags` | 8 位 0/1 | `M0A Constraint Flags` 子系统输出，经 `M0B Flags Override` 覆盖位 3/5 后对外 | 可用；M0-B 起位 3/5 由运行时常量重算（`M0B Att Tol` 0.523 rad、`M0B Speed Tol` 1.0 m/s，位 5 语义 `|v−v_ref(延迟一拍)|>tol`）；其余位沿用原阈值：偏航率 1.5 rad/s、功率上限 1500 W、PWM 边界 5 us |
 | `m0a_optimizer_enable` | 0/1 | 常量 0 | 固定基线模式；M0-B 起接入参考选择器 |
-| `eta_ref`、实际 `eta` | -- | M2 X8受约束分配器/RPM接口 | 已接入并通过M2验收；详见 `M2_ETA_ALLOCATOR.md` |
+| `eta_ref`、实际 `eta` | -- | 待建 X8 受约束分配器/RPM 接口 | 缺失（M2） |
 
 姿态与角速度来源：`Attitude Control/quat2eul` 三输出（φ、θ、ψ）与 `AttitudeControl` 内 `control_and_mix` 第 5 输入口 `pqr`（按已核验函数签名 `(phi, theta, roll_pitch, yaw, pqr, Thrust, dt, arm)` 顺序）。
 
@@ -34,4 +28,12 @@ AI协助：ZCode（观测层脚本与本文档代拟）
 3. 每次优化试验必须与 `optimizer_enable=0` 的同条件固定参考基线配对。
 4. 数据源必须显式标注为 `estimated` 或 `measured`。未校准的 `P_est` 只用于模型内部对照，不得报告真实节能率。
 
-M0-B（速度闭环与安全回退）、M0-C（速度在线 ESC）、M1（鲁棒性）和M2（受约束eta分配）均已完成；接口分别见 [`M0B_SPEED_LOOP.md`](M0B_SPEED_LOOP.md)、[`M0C_SPEED_ESC.md`](M0C_SPEED_ESC.md)、[`M1_ROBUSTNESS.md`](M1_ROBUSTNESS.md) 和 [`M2_ETA_ALLOCATOR.md`](M2_ETA_ALLOCATOR.md)。当前按 [`PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) 并行推进M3方案与Plane P0--P4。
+## `+x8phys` MATLAB 适配边界
+
+`models/px4_x8/+x8phys` 是独立的、未校准的对象代理，不替换 `air.slx` 或冻结快照。通过 `x8phys.make_platform_adapter` / `x8phys.platform_step` 接入时，平台侧只提供最终执行器命令 `motor_pwm_us`、NED 风速和可选 `v_ref_mps`；适配器向 M0-C 暴露测量上下文：
+
+`sample` 是结构体，字段映射为 `t`、`v`、`P_e`、`E_e`、`attitude(6)`、`yaw_rate`、`motor_pwm(8)`、`motor_rpm(8)`、`constraint_flags(8)`、`power_source`，并附带电压、电流、SOC 和 `valid`。
+
+其中 `P_e`/`E_e` 来自对象的估算电功率与累计电能，`power_source=0` 表示 `estimated`；`motor_pwm` 是限幅和截止保护后的实际施加值，请求值只留在对象诊断中。对象诊断 `truth` 不属于 ESC/RL 观测；`map_flags` 是对象诊断到本总线 8 位约束标志的唯一映射层，`sample.valid` 仅在硬位 `[1 2 3 4 6 7]` 全部清零且全部测量字段数值有限时为真，速度失跟位 5 只记录。该 MATLAB 适配边界由 `models/px4_x8/run_x8phys_acceptance.m` 验证，但尚未从 Simulink 风场端口接线。
+
+M0-B（速度闭环与安全回退）已完成，接口见 [`M0B_SPEED_LOOP.md`](M0B_SPEED_LOOP.md)。注意 M0-B 起 `Attitude Control` 新增输入 13/14（`m0b_pitch_cmd`、`m0b_speed_loop_enable`），`Subsystem` 新增出口 9（`Ve_x`）。下一步按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 的 M0-C 项 1--5 接入单变量速度 ESC。

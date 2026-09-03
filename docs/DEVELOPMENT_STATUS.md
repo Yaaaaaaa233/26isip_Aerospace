@@ -4,7 +4,7 @@
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
-本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）；王健祺（2026-09-03 新增 realistic_constraints_search / curve_case_calibration / wind_model_library 三模块登记与进度补充）
+本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）；王健祺（2026-09-03 新增 realistic_constraints_search / curve_case_calibration / wind_model_library 三模块登记与进度补充）；Codex（X8PHYS/P0--P4 审核、验收收口与结论边界，2026-09-03）
 审核：待项目组审核
 AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮独立验收结果回填；2026-09-03问题与接口修订）
 
@@ -18,12 +18,12 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 | MOP/MOE 与 Harness | 指标层可用，统一场景接入未完成 | 已能在代理对象上比较算法；尚未接入同一 Plane/PX4 闭环 |
 | PX4/Simulink Control 平台 | M2 已放行 | 速度通道、安全层、eta 分配器和日志链可用；下一步 M3 |
 | 残差 RL | 已有独立预研，不进入平台结论 | MATLAB 环境接口、Python 对拍、TD3/BC 候选与未见种子评估已完成；隐藏风和 TD3 稳定性仍未解决 |
-| Plane 物理建模 | **新增统一工作线，尚未实现** | 已有空速/风场与 PX4 6DOF 片段可复用；仍需统一执行动态、圆周需求、`P(v_air,eta)`、电池/SOC 与适配器 |
+| Plane 物理建模 | P0 拟合与 P1--P4 独立代理契约已实现，统一闭环接入未完成 | 已有独立 Plane/X8PHYS 对象；仍需整机参数校准、MeasurementAdapter 与同一 PX4/Harness 接入 |
 | 仓库结构与治理 | 文档口径已收敛，自动检查已加入 | 已建立文档/模块/证据索引、权威关系和历史归档；未进行大规模目录搬迁 |
 | 真实数据/SITL/实机 | 尚未开始 | 当前全部节能结果均来自仿真代理数据 |
 | 算法线实际约束重评估（9月新增三模块） | 验收入口全绿，**有效性对后续工作存疑（特别标注）** | 真实约束口径（R=50-150、空速物理、风摆±3-4 m/s）下因果策略未逼近理论最优、不敌开环基线（5.6% vs oracle 0.2-0.4%）；主因是风→最优值摆幅较任务6代理（windDxGain=0.12）放大约7-8倍，时延几乎无贡献；诊断与负结果详见三模块README警示与worklog |
 
-总体判断：算法与场景探索推进较快，Control 平台已经走到 M2；当前主要缺口不再是“再加一种算法”，而是建立一个所有算法都能共用的 Plane 物理对象，并在统一 Harness 中完成 Wind-Plane-Control 闭环比较。项目现处于**独立模块成果向统一物理闭环集成**的阶段。
+总体判断：算法与场景探索推进较快，Control 平台已经走到 M2，Plane/X8PHYS 独立代理已形成；当前主要缺口不再是“再加一种算法”或再建一套独立对象，而是完成整机参数校准、MeasurementAdapter 和统一 Harness 接入，形成 Wind-Plane-Control 闭环比较。项目现处于**独立模块成果向统一物理闭环集成**的阶段。
 
 ## 9月3日问题与接口修订
 
@@ -32,7 +32,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 - Environment只生成风真值/风测量；Scenario/Path生成任务几何；飞机航向、地速、空速和功率属于Plane输出。接口字典已更新到0.3建议版。
 - `wind_field_sched`中的真风 `known` 策略重新明确为Oracle上界；正式因果策略只能使用当前/历史测量。其局部加号风约定接入时必须适配为全仓统一的 `v_air=v_ground-wind`。
 - RL位于Control慢层策略插槽，默认形式为 `v_ref=guard(v_base+delta_v_RL)`。它不是独立物理组件，也不是当前统一闭环的前置任务。
-- 修正版执行路线已将算法、Plane、Environment和集成Harness拆成可并行工作包；当前只完成文档与边界修订，统一实现仍待开发。
+- 修正版执行路线已将算法、Plane、Environment和集成Harness拆成可并行工作包；文档边界和 Plane/X8PHYS 独立代理已完成，Environment/MeasurementAdapter 与统一闭环实现仍待开发。
 
 ## 仓库治理状态（2026-09-02）
 
@@ -46,7 +46,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 
 [`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 的平台决策仍有效：虽然 `speed_rl_pytorch` 已完成 TD3/BC 独立训练与评估，但正式 RL 平台接入仍暂缓；在统一 Plane 对象、Harness、强基线及未见场景门槛成立前，不作“RL优于基线”结论。M2 的 120 s / `[90,120] s` 核心数值协议保持放行并进入 M3；第十轮在 `71acd56` 按规则 v1.7 独立复跑 52/52 PASS，R9-F1/R9-F2 具备原始复现、针对性负向、既有回归三件套并关闭。功能实现与验收基础设施均 VALIDATED；R2022b 堆损坏单独登记为 OPEN LIMITATION。分层治理已由项目组采纳，见 [`ADR-003`](decisions/ADR-003-layered-acceptance-closure-governance.md)，指导教师复核记录待补；功率图信息边界见 Proposed [`ADR-004`](decisions/ADR-004-power-map-information-boundary.md)。同时按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 推进 P0--P4 Plane 物理建模并行工作线。
 
-## 总览：算法与场景模块已有多条证据线，Control 平台完成 M2，Plane 物理对象待建
+## 总览：算法与场景模块已有多条证据线，Control 平台完成 M2，Plane 独立代理待校准和接入
 
 | 工作线 | 当前状态 | 可作出的结论 | 不能作出的结论 |
 |---|---|---|---|
@@ -67,7 +67,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 | `modules/unified_search` | 2026-09-01 并入。速度优化任务1+2整合：调试二次曲线+对称崎岖+平移调度统一对象，能耗感知算法 ea_multistart，统一 MOP/MOE 评价；13 单元测试、8 门槛 | 计入搜索能耗后全遍历非最优：崎岖静态 1 小时窗 ea 平均 MOE=0.9927 > multistart 0.9924，搜索步数 165 vs 400（20 种子）；jumpUp 恢复 67 步、jumpDown 29 步、dy 零误触发 | 慢漂（ramp）恢复慢于跳变（9/10 种子 ≤1.6，尾部种子如实记录）；演示面板仅 tracker/esc（定稿口径），ea 等其余算法在包内供验收横比；真实 X8 节能 |
 | `harness`（指标层） | 2026-09-01 实现。三模块架构（environment/aircraft 黑箱/console）+ 1 小时任务窗 MOP/MOE；4 单元测试 | 统一口径横比成立：MOE_energy=Emin/E_actual，fixed 上界 1.0000、multistart 0.9912、grid 0.9905、esc 0.9819、single_golden 0.9226 | 风场场景（任务3-5 待接入）、真实瓦级标定（Pmin_W 为代理换算） |
 | `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1、M2 核心已放行；第十轮当前提交 52/52 针对性矩阵，功能与验收基础设施 VALIDATED，规则 v1.7 | 干净与脏入口下旁路与原基线零差异；M0-B 安全注入 4/4；M2 S1/S2/S3 = −0.2626%/−0.2938%/−0.2147%；R9-F1 两个原始协同篡改由独立探针以 `ManifestContract` 拒绝，contract 四类负向与全部旧回归通过；8 份日志零 U+FFFD；52 行矩阵绑定 runId `88e0204a` @ `71acd56`，c3 盖章后崩溃无害、c5 盖章前崩溃后 attempt=2 完整重执行成功，双链哈希一致 | R2022b 堆崩溃为 OPEN LIMITATION（本批自然发生两次并被规则正确处理）；report 段崩溃注入未执行；全量同会话双链未覆盖；MATLAB 输出编码属机器区域设置需跨机探针复核；不外推真实功率/风场 |
-| Plane 物理建模（P0--P4） | 2026-09-02 纳入路线图，统一组件尚未实现；建议负责人霍奕茗（待组内确认） | `wind_field_sched` 的空速物理对象和 `px4_x8` 的 6DOF/执行器链可复用 | 尚无统一 `P(v_air,eta)`、圆周动力需求、电池/SOC 或与 PX4 的接入结果 |
+| Plane 物理建模（P0--P4） | P0 静推拟合门槛与 P1--P4 独立 MATLAB 代理契约已通过；整机 S/P 和动态校准未闭合；建议负责人霍奕茗（待组内确认） | `models/plane` 已按 0.3 边界分离 PathCommand/WindSample/ControlCommand，真实风驱动物理对象，并输出速度/eta 有限响应、圆周需求、联合功率、累计能量、电池/SOC；`models/px4_x8/+x8phys` 提供 PX4 PWM 兼容对象、KV/电机动态、OCV/内阻闭环，`run_x8phys_acceptance` 已通过 | 尚未接入同一 PX4 `.slx`/Harness/MeasurementAdapter；7S1P、动态桨效应、整机阻力和温度参数仍未校准，不能外推真实能耗或飞行安全 |
 
 飞控平台的唯一执行基线是 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md)。M0-B 复核缺陷已修复并通过独立再验收（[`evidence/M0B_RERUN_20260901.md`](evidence/M0B_RERUN_20260901.md)、[`evidence/M0B_REACCEPT_CODEX_20260901.md`](evidence/M0B_REACCEPT_CODEX_20260901.md)）。**M0-C、M1 已通过；M2 受约束分配器、ESC 接线和修订数值门槛保持放行。第十轮按 v1.7 四层判定在当前 `71acd56` 由入库驱动独立复跑 52/52 PASS（runId `88e0204a`，五段 attempt=1/1/1/2/1）：R9-F1 的“上限+stamps 协同篡改”和“删除 c5+声明行”两个原始复现均由独立探针以 `air:M2Verify:ManifestContract` 精确拒绝且零伪归档，R9-F2 的 8 份真实批次日志逐码点扫描零 U+FFFD；两项连同 R8-F1 满足关闭三件套。功能实现层与当前冻结验收基础设施层均 VALIDATED；环境层保持 OPEN LIMITATION——c3 盖章后、c5 盖章前各发生一次自然堆崩溃，驱动分别按 fresh done 放行和完整重执行正确处理；全量同会话双链仍未覆盖。证据见 [`evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md`](evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md)。M3 可继续并行推进；不做平台侧 RL。**
 
@@ -116,6 +116,8 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 - `modules/unified_search`：13 项单元测试、8 项验收门槛通过（含"ea 搜索步数 < multistart 全遍历步数（全部种子）""1 小时窗 ea 平均 MOE > multistart 平均 MOE"两条能耗感知主张门槛；tracker 平坦无噪 jumpDown 恢复 ≤30 步 ≥9/10 种子；能耗开关=关时 MOE 与能耗列全部 NaN）。1 小时窗横比：ea_multistart 平均 MOE 0.9927（0.9905–0.9938）、multistart 0.9924、fixed 1.0000（不可达上界）。证据：[`evidence/unified_search/report.md`](evidence/unified_search/report.md)、[`evidence/unified_search/scenarios.csv`](evidence/unified_search/scenarios.csv)、[`evidence/unified_search/moe_1h.csv`](evidence/unified_search/moe_1h.csv)。
 
 ## 已完成
+
+- `models/px4_x8/+x8phys` 新增可替换风场-运动-电池对象：按 `air.slx` 的 NED/电机几何约定计算 PWM→转速/推力/反扭矩，四元数刚体积分（含陀螺项），风致旋翼负载，电池端电压/电流/SOC/累计能量；PAW 静推拟合、KV 电压耦合、一阶电机动态、OCV 查表和串并联电池 proxy 已接入。`platform_step`、`make_platform_adapter` 和 `map_flags` 只提供 M0-C 测量边界，并区分请求/实际施加 PWM。2026-09-03 `run_x8phys_acceptance` 在 MATLAB R2022b 通过：同状态 800 rpm 零风/20 m/s 为 597.490/961.047 W，能量积分误差 0，功率平衡误差 `2.01e-16`；旁路回归须以同次 `run_air_m0a_baseline_compare` 结果为准。该对象尚未接入冻结 `.slx`，7S1P、动态桨效应、整机阻力和温度参数仍未校准。
 
 - 问题定义：在满足恒推力假设的代理对象上，在线最小化上下桨转速比对应的归一化功率。
 - 五阶段演示：静态对象、固定参考反馈、微扰观察、在线ESC、RL环境接口验证。

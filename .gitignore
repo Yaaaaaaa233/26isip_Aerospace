@@ -15,3 +15,8 @@ animation_frame.png
 Thumbs.db
 *.tmp
 *.bak
+
+# Local source data: keep these three root files out of Git.
+/1_电芯测试报告f.pdf
+/PAW 40X13.1R_推力_18V-30V @MN1005-V2.0-KV100_测试数据2026-07-04_1.xlsx
+/物理建模指引_电机电池测试数据.md

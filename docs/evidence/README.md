@@ -38,6 +38,7 @@ AI协助：Codex（证据分类与引用边界整理，2026-09-02）
 - M0-B与M0-C：[`M0B_RERUN_20260901.md`](M0B_RERUN_20260901.md)、[`M0B_REACCEPT_CODEX_20260901.md`](M0B_REACCEPT_CODEX_20260901.md)、[`M0C_TRIALS_20260901.md`](M0C_TRIALS_20260901.md)。
 - M1：[`M1_ROBUSTNESS_20260901.md`](M1_ROBUSTNESS_20260901.md) 与 [`M1_REACCEPT_CODEX_20260901.md`](M1_REACCEPT_CODEX_20260901.md)。
 - M2：从 [`M2_ETA_20260901.md`](M2_ETA_20260901.md) 到各轮 `M2_REACCEPT_*`；当前独立判定以 [`M2_REACCEPT_ROUND10_CODEX_20260903.md`](M2_REACCEPT_ROUND10_CODEX_20260903.md) 为准：治理提交 `71acd56` 按规则 v1.7 四层判定复跑 52/52 PASS（runId `88e0204a`），R9-F1 两个原始协同篡改由独立探针以 `ManifestContract` 拒绝，R9-F2 的 8 份批次日志零 U+FFFD，R9-F1/R9-F2/R8-F1 满足关闭三件套；功能实现与当前冻结验收基础设施 VALIDATED。c3 盖章后与 c5 盖章前各发生一次自然堆崩溃，驱动分别正确放行和 attempt=2 完整重执行，归类为 OPEN ENVIRONMENT LIMITATION，不是功能回归。第九轮修复实现见 [`M2_REACCEPT_ROUND9_FIX_20260903.md`](M2_REACCEPT_ROUND9_FIX_20260903.md)；跨项目分层治理见 Proposed [`ADR-003`](../decisions/ADR-003-layered-acceptance-closure-governance.md)。
+- Plane/X8PHYS：[`X8PHYS_REVIEW_20260903.md`](X8PHYS_REVIEW_20260903.md) 记录静推拟合复核、对象/适配器门槛、平台回归范围及未闭合的本机注入链。
 
 ## 新证据最少包含
 
