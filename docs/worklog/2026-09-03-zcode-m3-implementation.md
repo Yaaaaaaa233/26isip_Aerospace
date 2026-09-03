@@ -37,3 +37,11 @@ AI协助：ZCode（实现、执行与本文档代拟）
 
 - B/C/D/E 全 PASS（证据 `docs/evidence/M3_COORDINATION_20260903.md`，含四层判定与归档索引）；
 - 零 `.slx` 结构变更；四个配置全局量快照/恢复含错误路径；`M3_ARB_PARAMS` 已于 rules §7 登记。
+
+## 追加（同日）：与霍奕茗 x8phys PR 的并发合并
+
+- 提交 93b1b68 推送时发现远端已被 `570c846`（GitHub PR #1，霍奕茗 `codex/x8phys-physics-audit`）占据：该分支自 `e5d5745`（B 组之后）拉出，早于我 C–E 提交，合并时其树不含 M3 C–E 成果（试验脚本、证据、worklog、文档修正段）。Yaaaaaaa233 远端已收 93b1b68，Zhoucmd6 拒收。
+- 核实 x8phys 分支对 `m2_eta_esc`/`m0c_vref_esc`/调度与 M3 代码零 diff（真交叠仅文档），执行内容级合并 `1c5462a`：双方成果全部保留（M3 warmup 修正/2e-4 冻结/证据 + x8phys `+x8phys`、`models/plane`、P0–P4 契约、X8PHYS 证据）。
+- 合并树重验：`test_m3_coordination_unit`、`test_m0c_esc_unit`、`test_m2_eta_esc_unit`、`run_air_m0a_baseline_compare`（旁路差 0）全 PASS。
+- 影响：Plane 线进度超预期——`models/plane` P0 静推拟合与 P1–P4 契约已通过，`+x8phys` 提供 PX4 PWM 兼容对象；M3 的 R4 终验前置（Plane 接入 `air_spare.slx`）比计划更近。
+- 教训登记：两人同日并行大提交且远端走 PR 合并时，推送前必须 fetch 检查；本次为无损恢复，未 force-push。
