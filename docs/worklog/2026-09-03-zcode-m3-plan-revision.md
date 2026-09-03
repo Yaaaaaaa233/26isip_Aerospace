@@ -33,3 +33,10 @@ AI协助：ZCode（本文档及 M3 方案修订代拟）
 
 - `tools/check_repo_governance.ps1`：提交前运行（见提交记录）。
 - MATLAB/Simulink 验收：本次未运行（纯文档修订，无代码/模型变更）。
+
+## 追加（同日）：顶层设计引用同步
+
+- 应叶安要求核对顶层设计对其两项 Proposed 内容的体现，发现缺口：ADR-003-layered 仅 DEVELOPMENT_STATUS 引用、修正版路线图 §0 未引；M3 方案 v0.2 此前仅审查报告与 worklog 引用。
+- 路线图（叶安负责文件）三处补引：§0.2 ALG-C 状态改为"方案v0.2待项目组确认，统一实现未开始"；§5 M3 补执行基线行（仿 §5 M2 对 M2_ETA_ALLOCATOR.md 的引用惯例）；§7 补 ADR-003-layered Proposed 跨引用及编号冲突归属（消解归周航正）。
+- DEVELOPMENT_STATUS 下一步优先级第 4 条补 M3 v0.2 + 设计审查 + §9 待确认状态。
+- 未改动：R0 门槛范围（是否将 ADR-003-layered 纳入 R0 放行条件属项目组决策，本次仅在会议清单中列为独立议题）；接口字典（v0.3 不涉及 M3 接线细节，M3 文档侧已单向引用）。

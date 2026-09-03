@@ -134,7 +134,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 1. **R0概念确认**：由周航正组织组内和老师确认ADR-001/ADR-003，冻结主任务、`v_ref`地速语义、名义功率图和在线可见信息。
 2. **并行Plane线**：建议霍奕茗负责（待确认），实现最小Plane API、空地速/圆周/执行动态、`P_nom/P_hidden/P_meas`分层、电池与测量链；先独立验收，不直接改主 `.slx`。
 3. **并行Environment线**：王健祺已有场景资产，建议继续统一PathCommand、NE风真值、风测量退化和训练/未见场景清单；首先关闭 `wind_field_sched` 的局部加号约定适配。
-4. **并行算法/Control线**：将固定、名义调度和速度ESC适配为同一慢层接口；叶安继续M3更新/保持/优先级仲裁和PX4安全门控，Plane通过后再接入 `air_spare.slx`。R9-F1/R9-F2已经第十轮独立关闭，R2022b堆崩溃继续按环境限制管理。
+4. **并行算法/Control线**：将固定、名义调度和速度ESC适配为同一慢层接口；叶安继续M3更新/保持/优先级仲裁和PX4安全门控，Plane通过后再接入 `air_spare.slx`。M3协调方案v0.2（[`interfaces/M3_V_ETA_COORDINATION.md`](interfaces/M3_V_ETA_COORDINATION.md)）已按实施前设计审查（[`evidence/M3_DESIGN_REVIEW_CODEX_20260903.md`](evidence/M3_DESIGN_REVIEW_CODEX_20260903.md)）完成F1–F6文档级整改，待项目组确认§9五项后冻结实施。R9-F1/R9-F2已经第十轮独立关闭，R2022b堆崩溃继续按环境限制管理。
 5. **统一Harness汇合**：周航正负责接口与总装，使用同一场景、随机种子、隐藏对象和约束比较固定、名义调度、ESC及Oracle上界；Oracle结果不得写成在线策略结果。
 6. **数据与标定线**：用CFD/BEMT、文献或后续台架数据校准Plane参数；将`measuredPower`对接SITL或真实电压、电流与时间戳。真实数据缺失期间保留`estimated/proxy`来源标志，不把校准列作近期已完成项。
 7. **RL继续后置**：当前只做接口0.3适配和信息泄漏测试。R0-R4完成且强基线仍有稳定缺口后，才以BC热启动的残差结构重新评审训练；不把RL作为Plane或Environment的前置条件。

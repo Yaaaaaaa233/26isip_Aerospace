@@ -32,7 +32,7 @@ P_meas   = delayed_noisy_measurement(P_hidden)
 |---|---|---|---|
 | ALG-A 接口适配 | 将固定值、名义调度、速度ESC统一为 `reset/step(MeasuredContext)->ControlCommand` | `speed_esc`、`wind_field_sched` | 模块各自可运行，统一适配未完成 |
 | ALG-B 因果风场决策 | `known`真风策略只作Oracle；正式策略只能用当前/历史风测量或功率反馈 | `wind_field_sched`在线/盲策略、风场搜索模块 | 有代理证据，尚未接统一接口 |
-| ALG-C 速度与转速比协同 | 先交替坐标下降：一次只更新 `v_ref` 或 `eta_ref`，共用稳定窗和安全门控 | `speed_esc`、`ratio_esc`、平台M2 | 尚未开始M3统一实现 |
+| ALG-C 速度与转速比协同 | 先交替坐标下降：一次只更新 `v_ref` 或 `eta_ref`，共用稳定窗和安全门控 | `speed_esc`、`ratio_esc`、平台M2 | 方案v0.2待项目组确认，统一实现未开始 |
 | ALG-D 模型不匹配评价 | 在多个未见 `P_hidden` 参数集上比较固定、名义调度和ESC，不按单一曲线调答案 | 多峰/平移/自适应模块 | 压力测试已有，需转为统一Plane变体 |
 | ALG-E 残差RL | 仅在强基线仍有可重复缺口时，用 `v_ref=guard(v_base+delta_v_RL)` 学习残差 | 两个RL预研模块 | 保留预研，暂不进入平台主线 |
 
@@ -302,6 +302,8 @@ Plane：执行动态 / 风与空地速 / X8 动力学 / 联合功率对象
 
 验收：不出现持续振荡或频繁互相覆盖；能耗与跟踪表现不差于两个单变量基线。
 
+执行基线 `docs/interfaces/M3_V_ETA_COORDINATION.md`（v0.2）：状态转移、门控、三套参数、执行证据与配对协议合同，已按实施前静态设计审查 `docs/evidence/M3_DESIGN_REVIEW_CODEX_20260903.md` 完成 F1–F6 文档级整改；§9 五项（槽比例、双窗口、配对矩阵、零 `.slx` 路线、B2 口径）待项目组确认后冻结，统一实现未开始。
+
 ### M4：统一 Wind-Plane-Control Harness 与 SITL/日志回放
 
 目的：将可重复仿真扩展为工程化验证流程。
@@ -352,6 +354,7 @@ M0-C 最终交付边界为：算法接口仅输出小范围 `v_ref`（固定 `et
 ## 7. 变更与结果管理规则
 
 - 验收入口、验收链与全局量状态管理遵循 [`ACCEPTANCE_AUTOMATION_RULES.md`](ACCEPTANCE_AUTOMATION_RULES.md)（入口函数化、全局量注册表与状态协议、错误路径实跑、覆盖矩阵、裕量与措辞纪律）。
+- 分层判定、问题分类与关闭三件套的跨项目采用见 Proposed [`decisions/ADR-003-layered-acceptance-closure-governance.md`](decisions/ADR-003-layered-acceptance-closure-governance.md)（叶安负责，待项目组确认）。其编号与 [`decisions/ADR-003-power-map-information-boundary.md`](decisions/ADR-003-power-map-information-boundary.md) 的同名冲突消解由周航正负责。
 
 - `air.slx`：保留为已验证原始基线，不直接改。
 - `air_spare.slx`：当前开发模型；每一个可验收阶段另存稳定快照，例如 `air_m0a.slx`。
