@@ -18,10 +18,15 @@ function v_ref = m0c_vref_esc(u)
 %   Trial scripts configure a run through the global M0C_ESC_PARAMS
 %   struct (see m0c_config); a new simulation is detected by time going
 %   backwards and re-snapshots the configuration and ESC state.
+%
+%   mode = 'm3' (docs/interfaces/M3_V_ETA_COORDINATION.md) adds M3
+%   time-division arbitration: the role comes from the pure m3_schedule
+%   each step; hold steps never call the kernel. The fixed/esc branches
+%   are unchanged.
 
-persistent st p mode center0 lastK
+persistent st p mode center0 arb lastK
 if isempty(st)
-    st = []; p = []; mode = 'esc'; center0 = 9.0; lastK = Inf;
+    st = []; p = []; mode = 'esc'; center0 = 9.0; arb = []; lastK = Inf;
 end
 
 Ts = 0.05;
@@ -37,6 +42,17 @@ if k <= lastK
     cfg = m0c_config();
     mode = cfg.mode;
     center0 = cfg.center0;
+    if strcmp(mode, 'm3')
+        % M3 doc 2.4 legality, self-consistency half: mode='m3' with
+        % arbitration disabled is undefined and fails loud here; the
+        % cross-channel half (single-sided m3) is checked at trial entry
+        % (m3_validate_channels). Validating through m3_schedule now
+        % means every field is checked before the first step, not at it.
+        arb = m3_arb_config();
+        m3_schedule(0.0, arb);
+    else
+        arb = [];
+    end
     c = ratioesc.config('Ts', Ts, 'lower', cfg.lower, 'upper', cfg.upper, ...
         'amplitude', cfg.amplitude, 'frequency', cfg.frequency, ...
         'hpOmega', cfg.hpOmega, 'lpOmega', cfg.lpOmega, 'gain', cfg.gain, ...
@@ -62,6 +78,22 @@ switch mode
         valid = all(flags([1 2 3 4 6 7]) <= 0.5) && isfinite(Pe) && ...
             isfinite(v);
         [v_ref, st] = ratioesc.esc_step(st, Pe, v, valid, p);
+    case 'm3'
+        % M3 time-division arbitration (M3 doc 2.1): hold steps never call
+        % the kernel -- filter state frozen, output is the clean center,
+        % and lastReference is synced to it so that an invalid first
+        % resume step returns the center instead of a stale dithered
+        % reference (the kernel's invalid path and the rate limiter both
+        % consume lastReference as their base).
+        if strcmp(m3_schedule(t, arb).v, 'search')
+            valid = all(flags([1 2 3 4 6 7]) <= 0.5) && isfinite(Pe) && ...
+                isfinite(v);
+            [v_ref, st] = ratioesc.esc_step(st, Pe, v, valid, p);
+        else
+            v_ref = st.center;
+            st.lastReference = st.center;
+            st.reinitialize = true;   % idempotent; consumed on resume
+        end
     otherwise
         error('m0c:UnknownMode', 'unknown mode %s', mode);
 end

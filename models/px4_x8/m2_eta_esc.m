@@ -25,11 +25,17 @@ function etaOut = m2_eta_esc(u)
 %   The block runs at an explicit 0.05 s sample time; this function
 %   sample-holds on that grid internally, and a new simulation is detected
 %   by time going backwards (compile-probe safe, M0-C pattern).
+%
+%   mode = 'm3' (docs/interfaces/M3_V_ETA_COORDINATION.md) adds M3
+%   time-division arbitration: the role comes from the pure m3_schedule
+%   each step; hold steps never call the kernel and still publish the
+%   clean center through M2_ETA_APPLIED (M3 doc 3.2 -- it doubles as the
+%   execution-evidence source). The fixed/esc branches are unchanged.
 
-persistent st p mode center0 lastK
+persistent st p mode center0 arb lastK
 global M2_ETA_APPLIED M2_ETA_PARAMS
 if isempty(st)
-    st = []; p = []; mode = 'fixed'; center0 = 1.0; lastK = Inf;
+    st = []; p = []; mode = 'fixed'; center0 = 1.0; arb = []; lastK = Inf;
     M2_ETA_APPLIED = 1.0;            % safe default before the first update
 end
 
@@ -49,6 +55,17 @@ if k <= lastK
     cfg = m2_config();
     mode = cfg.mode;
     center0 = cfg.center0;
+    if strcmp(mode, 'm3')
+        % M3 doc 2.4 legality, self-consistency half: mode='m3' with
+        % arbitration disabled is undefined and fails loud here; the
+        % cross-channel half (single-sided m3) is checked at trial entry
+        % (m3_validate_channels). Validating through m3_schedule now
+        % means every field is checked before the first step, not at it.
+        arb = m3_arb_config();
+        m3_schedule(0.0, arb);
+    else
+        arb = [];
+    end
     c = ratioesc.config('Ts', Ts, 'lower', cfg.lower, 'upper', cfg.upper, ...
         'amplitude', cfg.amplitude, 'frequency', cfg.frequency, ...
         'hpOmega', cfg.hpOmega, 'lpOmega', cfg.lpOmega, 'gain', cfg.gain, ...
@@ -74,6 +91,23 @@ switch mode
         valid = all(flags([1 2 3 4 6 7]) <= 0.5) && isfinite(Pe) && ...
             satBit < 0.5 && eta_act > 0;
         [eta_ref, st] = ratioesc.esc_step(st, Pe, eta_act, valid, p);
+    case 'm3'
+        % M3 time-division arbitration (M3 doc 2.1): hold steps never call
+        % the kernel -- filter state frozen, output is the clean center,
+        % and lastReference is synced to it so that an invalid first
+        % resume step returns the center instead of a stale dithered
+        % reference (the kernel's invalid path and the rate limiter both
+        % consume lastReference as their base). The publish below then
+        % exports the clean center as the applied ratio.
+        if strcmp(m3_schedule(t, arb).eta, 'search')
+            valid = all(flags([1 2 3 4 6 7]) <= 0.5) && isfinite(Pe) && ...
+                satBit < 0.5 && eta_act > 0;
+            [eta_ref, st] = ratioesc.esc_step(st, Pe, eta_act, valid, p);
+        else
+            eta_ref = st.center;
+            st.lastReference = st.center;
+            st.reinitialize = true;   % idempotent; consumed on resume
+        end
     otherwise
         error('m2:UnknownMode', 'unknown mode %s', mode);
 end

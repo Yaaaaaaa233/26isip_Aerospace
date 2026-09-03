@@ -1,6 +1,6 @@
 # M3 速度与转速比交替协同优化（v/eta 仲裁）接口与工作步骤
 
-状态：**方案文档 v0.2（先于实施落地，待项目组审核冻结）**。本版按实施前设计审查 [`../evidence/M3_DESIGN_REVIEW_CODEX_20260903.md`](../evidence/M3_DESIGN_REVIEW_CODEX_20260903.md) 的发现 M3-DR-F1～F6 修订（对应关系见 §10）。M2 已放行：第十轮按规则 v1.7 在治理提交 `71acd56` 分层复跑 52/52 针对性矩阵 PASS（2026-09-03，runId `88e0204a`），功能实现层与验收基础设施层 VALIDATED，R9-F1/R9-F2/R8-F1 关闭，判定见 [`../evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md`](../evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md)。交付清单来源为 [`../PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) §5 M3 与 §0.2 ALG-C（先交替坐标下降）；在修正版路线的 R0–R5 汇合序中，M3 对应 R4（双变量协同），**代理对象阶段的 M3 是 R4 的机制前置开发，不构成 R4 放行**。开发在现有代理对象（`air_m2.slx` 语义基线）上进行，最终验收须在通过统一 Plane 工作包（PL-A～PL-E，原 P0–P4）的同一 Plane 对象上复跑（路线图 §5 M3 原文与 §6 汇合点）。
+状态：**v0.2（2026-09-03 经文件负责人叶安授权冻结为实施基线，§9 五项按所列默认执行；项目组如调整，按 [`../ACCEPTANCE_AUTOMATION_RULES.md`](../ACCEPTANCE_AUTOMATION_RULES.md) §9.4 升版本重开合同，不追溯已执行批次的冻结口径）**。本版按实施前设计审查 [`../evidence/M3_DESIGN_REVIEW_CODEX_20260903.md`](../evidence/M3_DESIGN_REVIEW_CODEX_20260903.md) 的发现 M3-DR-F1～F6 修订（对应关系见 §10）。M2 已放行：第十轮按规则 v1.7 在治理提交 `71acd56` 分层复跑 52/52 针对性矩阵 PASS（2026-09-03，runId `88e0204a`），功能实现层与验收基础设施层 VALIDATED，R9-F1/R9-F2/R8-F1 关闭，判定见 [`../evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md`](../evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md)。交付清单来源为 [`../PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) §5 M3 与 §0.2 ALG-C（先交替坐标下降）；在修正版路线的 R0–R5 汇合序中，M3 对应 R4（双变量协同），**代理对象阶段的 M3 是 R4 的机制前置开发，不构成 R4 放行**。开发在现有代理对象（`air_m2.slx` 语义基线）上进行，最终验收须在通过统一 Plane 工作包（PL-A～PL-E，原 P0–P4）的同一 Plane 对象上复跑（路线图 §5 M3 原文与 §6 汇合点）。
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安（平台线）
@@ -195,6 +195,8 @@ Plane 接入（roadmap §6 汇合点）、sat 送达速度通道（若 §2.3 登
 3. §5 配对矩阵（M3 名义 5 + 扰动 2 + 复现 1，B0/B1/B2 基线 7 行，按变量就近配对及工况差异声明）；
 4. V1 零 `.slx` 结构变更路线，含两个如实登记的 V1 限制：sat 不送达 v 通道在线门、位 5 只作离线评价口径（若需关闭走 §3.4）；
 5. B2 基线口径采用显式 v-hold 9（与 M2 原始 S 组的 v-ESC 在环差异如实记录）。
+
+**实施基线冻结记录（2026-09-03）**：经文件负责人叶安授权，B–E 组按上述默认执行；`M3_ARB_PARAMS` 已按规则先行登记入 [`../ACCEPTANCE_AUTOMATION_RULES.md`](../ACCEPTANCE_AUTOMATION_RULES.md) §7。玩具标定补充（B4 组实测，仅玩具口径，不构成模型证据）：槽化口径下 v 通道玩具增益取 0.024（扫描 {6e-3, 1.2e-2, 2.4e-2, 4.8e-2} 中最小达标值，两初值 7/11 均收敛到 |v−9| ≤ 0.1）；eta 玩具增益 3.2e-3 经占空比复核不变（槽化与连续收敛所需搜索步数一致，240 步对 240 步）。
 
 ## 10. 设计评审整改对照（v0.1 → v0.2）
 
