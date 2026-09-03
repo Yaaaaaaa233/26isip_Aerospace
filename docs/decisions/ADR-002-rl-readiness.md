@@ -88,3 +88,9 @@ v_ref = guard(v_base + delta_v_RL)
 本 ADR 的原始背景保留不改，用于说明 2026-09-01 为什么作出“暂缓正式平台接入”的决定。其后状态已有变化：M2和代理 Harness 已完成，`speed_rl_pytorch` 也完成一轮 MATLAB 对拍、TD3/BC 训练与未见种子评估。
 
 决定仍然有效，但“暂缓”现在特指：**不把学习策略接入正式 Plane/PX4 闭环，也不形成 RL 优于 ESC 的项目结论。** 当前准入缺口集中在统一 Plane 物理对象、WPC Harness、主任务确认和可追溯功率模型，而不是“没有训练代码”。达到上述条件后应新建后续 ADR 作出晋级或继续暂缓决定，不重写本记录。
+
+## 2026-09-03接口复审
+
+[`ADR-003-power-map-information-boundary.md`](ADR-003-power-map-information-boundary.md) 进一步明确：无风扫描得到的 `P_nom` 可以作为名义调度基线，但RL不得读取 `P_hidden`、真实最优点或未来风。RL固定放在Control慢层策略插槽中，以 `delta_v`修正 `v_base`，不作为Environment或Plane组件，也不抢占快层控制。
+
+本决定继续有效。近期只维护接口0.3适配和信息泄漏测试；修正版路线R0-R4未通过前，不扩大训练或把RL列为主交付。

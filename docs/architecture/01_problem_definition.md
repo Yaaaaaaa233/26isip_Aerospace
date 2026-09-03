@@ -1,7 +1,7 @@
 # 共轴八旋翼在线能耗优化：问题定义
 
-版本：0.2
-日期：2026-09-02
+版本：0.3
+日期：2026-09-03
 状态：**建议基线，待指导教师确认任务口径**
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
@@ -9,11 +9,12 @@
 主要撰写：周航正（问题与方向）、Codex（整理成文与状态收敛）
 技术依据：项目组现有算法、建模、平台、场景与评价成果
 审核：待项目组审核、待指导教师确认
-AI协助：Codex（结构整理、文字与一致性检查）
+AI协助：Codex（结构整理、文字与一致性检查、名义模型与在线信息边界修订）
 
 ## 先看结论
 
 - 我们建议把最终项目说成：**无人机绕圈等待时，根据风和实时功率自动调整速度，尽量省电，同时不能飞出轨迹或触发安全限制。**
+- 无风仿真可以得到名义空速-功率图，但它只是基准模型；在线策略面对的是受风、转弯、转速比、电池和模型误差影响的实际运行映射。
 - 现在先把直线、无风、只调速度做扎实；之后再加圆周、风、上下桨转速比。
 - RL 已有接口、TD3/BC 训练和对拍预研，但暂不接入正式平台。因为任务、统一 Plane 功率对象和评价闭环还没有完全定下来。
 
@@ -32,6 +33,36 @@ AI协助：Codex（结构整理、文字与一致性检查）
 该任务选择仍须由指导教师确认。确认项见 [`ADR-001-objective-selection.md`](../decisions/ADR-001-objective-selection.md)。
 
 ## 3. 我们到底在优化什么
+
+### 3.0 “知道功率曲线”不等于“知道在线答案”
+
+项目统一区分三层信息：
+
+| 信息 | 谁可以读取 | 用途 |
+|---|---|---|
+| 名义功率图 `P_nom(v_air,eta)` | Plane、评价器；解析基线按声明可读取 | 无风扫描、对象检查、解析/固定基线 |
+| 仿真器隐藏映射 `P_hidden(v_air,eta,state)` | Plane内部与评价器 | 模拟模型误差、风、转弯、电池和参数变化 |
+| 在线测量 `P_meas(t)` | 所有可部署策略 | 带时间戳、噪声、延迟和有效性的实际反馈 |
+
+在仿真中，开发者必然知道怎样生成对象；“未知”指控制器不得读取隐藏映射、真实最优点或未来场景。若名义图、当前及未来真实风、完整动力学都精确提供给策略，逐时刻解析求解即可，此时不再声称ESC或RL有必要。
+
+无风扫描得到的 `P_nom` 用作可解释先验。最终研究对象是名义模型不能完全覆盖时的在线决策：
+
+```text
+P_hidden = P_nom + model_mismatch(wind, turn, battery, eta, parameters)
+```
+
+具体信息边界和四类策略见 [`ADR-003-power-map-information-boundary.md`](../decisions/ADR-003-power-map-information-boundary.md)。
+
+三类常用图不得混名：
+
+| 图 | 横轴 | 纵轴 | 作用 |
+|---|---|---|---|
+| 名义物理图 | 实际空速 `v_air` | 名义稳态功率 `P_nom` | Plane建模和解析基线 |
+| 在线决策散点/局部曲线 | 与功率同一采样时刻的实际沿程地速 | `P_meas`或评价窗功率 | ESC/在线策略依据 |
+| 运行时间序列 | 时间 | `v_ref`、实际地速、空速、功率、风、`eta` | 检查动态、约束和因果性 |
+
+`v_ref`不是曲线横轴上的实际速度样本；它是控制命令。评价和梯度估计必须使用执行后、与功率时间戳配对的实际速度。
 
 ### 3.1 当前建议：让无人机留空更久
 
@@ -58,20 +89,20 @@ T_endurance ~= E_usable / mean(P_e)
 
 ## 4. 决策变量与分层控制
 
-当前阶段的慢层决策变量为：
+当前阶段的慢层决策变量明确为沿航迹切向地速参考，而不是空速真值或电机指令：
 
 ```text
-v_ref(t)                         前飞/沿轨迹速度参考值
+v_ground_ref(t)                  沿轨迹切向地速参考值
 ```
 
 M2 及后续阶段扩展为：
 
 ```text
-v_ref(t)                         速度参考值
+v_ground_ref(t)                  沿轨迹切向地速参考值
 eta_ref(t) = omega_upper / omega_lower
 ```
 
-慢层可由固定基线、解析策略、ESC或未来RL实现。慢层不得直接输出八路PWM。姿态、角速度、轨迹跟踪、速度闭环和X8控制分配属于快层控制责任。
+接口中为兼容现有模块继续使用字段名 `v_ref`，其规范语义就是 `v_ground_ref`。慢层可由固定基线、名义解析调度、ESC或未来残差RL实现。慢层不得直接输出八路PWM；实际地速由快层跟踪，空速由Plane根据实际地速与风计算。
 
 ## 5. 约束
 
@@ -95,12 +126,13 @@ eta_ref(t) = omega_upper / omega_lower
 
 ```text
 available: time, measured state, measured/estimated power,
-           data validity, past commands, optional measured wind
-forbidden: complete future wind, full hidden power map,
+           data validity, past commands, optional measured wind,
+           declared nominal model (only for nominal-model policy modes)
+forbidden: complete future wind, full hidden plant map,
            true optimum, analytical gradient of the hidden plant
 ```
 
-离线扫描、解析最优值和完整功率曲线可用于生成评价基准，但不得进入在线控制器或RL观测。
+离线扫描和隐藏对象的解析最优值只用于评价。名义解析策略可以使用公开的 `P_nom` 和当前可用风测量，但必须声明 `controller_information_mode`；ESC的 `measurement_only` 模式和RL观测不得偷读隐藏曲面或未来真实风。
 
 ## 7. 一步一步把问题做复杂
 

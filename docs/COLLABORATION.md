@@ -4,7 +4,7 @@
 文件负责人：周航正
 主要撰写：周航正（协作与接口需求）
 审核：待项目组审核
-AI协助：Codex（权威边界与现状对齐，2026-09-02）
+AI协助：Codex（权威边界、现状对齐与统一策略插槽整理，2026-09-02～09-03）
 
 ## 文档边界
 
@@ -14,6 +14,7 @@ AI协助：Codex（权威边界与现状对齐，2026-09-02）
 - `interfaces/M*.md` 只负责某个阶段怎样把公共字段接到 PX4/Simulink，不得改变公共字段语义。
 - 当前完成度、可引用结论和下一步只看 [`DEVELOPMENT_STATUS.md`](DEVELOPMENT_STATUS.md)；模块入口和负责人只看 [`../modules/README.md`](../modules/README.md)。
 - 本文中的 MATLAB 函数签名是现有模块局部接口。接入统一 Plane 时由适配器转换，不把局部命名反向写入公共字典。
+- 名义功率图、隐藏运行对象和在线测量的可见范围以 [`decisions/ADR-003-power-map-information-boundary.md`](decisions/ADR-003-power-map-information-boundary.md) 为准。
 
 ## 模块目标
 
@@ -26,6 +27,20 @@ AI协助：Codex（权威边界与现状对齐，2026-09-02）
 \]
 
 模块 `modules/speed_esc` 在配比固定 η=1 的假设下优化平飞速度参考 `v_ref`；模块 `modules/speed_rl_residual` 在速度基线之上学习残差修正 `v_ref = guard(v_base + Δv)`。三者当前都使用虚拟/代理功率对象，只用于验证在线寻优的软件逻辑。未来接入真实共轴模型时，功率、推力、偏航和饱和约束必须由经过标定的数据或模型提供。
+
+## 统一慢层策略插槽（0.3建议接口）
+
+现有模块局部API继续保留，由适配器统一成下面的概念接口：
+
+```matlab
+[policyState, candidate] = policy.reset(scenarioConfig);
+[policyState, candidate] = policy.step( ...
+    policyState, measuredContext, decisionDt);
+```
+
+`candidate`只包含 `v_ref_candidate_mps`、`eta_ref_candidate`、模式和诊断信息；SafetyGuard生成最终 `ControlCommand`。`fixed`、`nominal_sched`、`esc`和`rl_residual`一次只启用一种，使用同一个 `MeasuredContext`和同一套安全门控。
+
+RL位于这个策略插槽中。残差形式先调用固定/名义/ESC基线得到 `v_base`，再输出 `delta_v`；它不与ESC并行争用命令，也不接收Plane真值或未来WindTruth。
 
 ## 共同接口
 
