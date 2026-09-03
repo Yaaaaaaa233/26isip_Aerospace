@@ -53,7 +53,7 @@ AI协助：Codex（模块盘点、分类和入口整理）
 | [`../models/px4_x8`](../models/px4_x8/) | M2 已放行，下一步 M3 | Control、X8 分配、6DOF、日志和安全回退 | 叶安 |
 | [`../harness`](../harness/) | 代理指标层可运行 | 场景、MOP/MOE与公平横评；统一WPC接入未完成 | 待项目组确认 |
 | [`../integration/air_esc`](../integration/air_esc/) | 预留 | 算法、Plane与Control适配 | 待项目组确认 |
-| `../models/plane` | 路线已定义，目录尚未创建 | P0--P4统一Plane物理对象 | 建议霍奕茗，待组内确认 |
+| [`../models/plane`](../models/plane/) | P0 数据拟合门槛和 P1--P4 独立代理契约已通过；整机 S/P/动态校准与 PX4 `.slx` 接入未完成 | 统一 Wind-Plane-Control Plane 对象、联合功率、电池/SOC 与公共字段适配 | 建议霍奕茗，待组内确认 |
 
 ## 登记规则
 
