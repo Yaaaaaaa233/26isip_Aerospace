@@ -1,7 +1,7 @@
 # 运行场景定义
 
-版本：0.1
-日期：2026-09-01
+版本：0.2
+日期：2026-09-03
 状态：建议基线
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
@@ -9,7 +9,7 @@
 主要撰写：周航正（场景思路）、Codex（整理成文）
 技术依据：项目组现有直线/圆周、风场、ESC与RL预研成果
 审核：待项目组审核
-AI协助：Codex（结构整理、文字与一致性检查）
+AI协助：Codex（结构整理、文字与一致性检查、信息结构修订）
 
 ## 先看结论
 
@@ -58,14 +58,19 @@ random_seed
 initial_state
 wind_model
 power_model_id
+nominal_power_model_id
+hidden_plant_variant_id    只作追溯，参数不发给控制器
 power_source               proxy | estimated | calibrated | measured
-controller_mode            fixed | analytic | esc | rl_residual
+controller_mode            fixed | nominal_sched | esc | rl_residual
+controller_information_mode measurement_only | nominal_model | measured_wind
 baseline_mode
 constraint_profile
 evaluation_window_s
 ```
 
 圆周场景额外包含 `circle_center_ne_m`、`circle_radius_m`、`direction`；直线场景额外包含 `start_ne_m`、`track_heading_rad`。
+
+每个正式场景必须同时声明名义模型和隐藏运行对象。二者可以相同用于接口回归，但研究性试验至少使用多个未见隐藏参数集；否则只能证明算法在自己已知的单条曲线上工作。Oracle允许读取真风或隐藏最优值，只能作为Evaluation上界，不能填写为 `controller_mode`。
 
 ## 4. 递进场景矩阵
 
