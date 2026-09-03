@@ -4,7 +4,7 @@
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
-本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）
+本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）；王健祺（2026-09-03 新增 realistic_constraints_search / curve_case_calibration / wind_model_library 三模块登记与进度补充）
 审核：待项目组审核
 AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮独立验收结果回填；2026-09-03问题与接口修订）
 
@@ -21,6 +21,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 | Plane 物理建模 | **新增统一工作线，尚未实现** | 已有空速/风场与 PX4 6DOF 片段可复用；仍需统一执行动态、圆周需求、`P(v_air,eta)`、电池/SOC 与适配器 |
 | 仓库结构与治理 | 文档口径已收敛，自动检查已加入 | 已建立文档/模块/证据索引、权威关系和历史归档；未进行大规模目录搬迁 |
 | 真实数据/SITL/实机 | 尚未开始 | 当前全部节能结果均来自仿真代理数据 |
+| 算法线实际约束重评估（9月新增三模块） | 验收入口全绿，**有效性对后续工作存疑（特别标注）** | 真实约束口径（R=50-150、空速物理、风摆±3-4 m/s）下因果策略未逼近理论最优、不敌开环基线（5.6% vs oracle 0.2-0.4%）；主因是风→最优值摆幅较任务6代理（windDxGain=0.12）放大约7-8倍，时延几乎无贡献；诊断与负结果详见三模块README警示与worklog |
 
 总体判断：算法与场景探索推进较快，Control 平台已经走到 M2；当前主要缺口不再是“再加一种算法”，而是建立一个所有算法都能共用的 Plane 物理对象，并在统一 Harness 中完成 Wind-Plane-Control 闭环比较。项目现处于**独立模块成果向统一物理闭环集成**的阶段。
 
@@ -43,7 +44,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 
 新增 [`architecture/01_problem_definition.md`](architecture/01_problem_definition.md) 至 [`architecture/05_verification_traceability.md`](architecture/05_verification_traceability.md)，形成 Wind-Plane-Control-Evaluation 的建议逻辑架构、运行场景、接口字典及需求-MoE/MoP-证据追溯。建议将“固定高度圆周盘旋等待下的在线平均功率最小化”作为待指导教师确认的最终主任务，直线无风速度ESC保留为开发基线；详见待确认的 [`decisions/ADR-001-objective-selection.md`](decisions/ADR-001-objective-selection.md)。
 
-[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 的平台决策仍有效：虽然 `speed_rl_pytorch` 已完成 TD3/BC 独立训练与评估，但正式 RL 平台接入仍暂缓；在统一 Plane 对象、Harness、强基线及未见场景门槛成立前，不作“RL优于基线”结论。M2 的 120 s / `[90,120] s` 核心数值协议保持放行并进入 M3；第十轮在 `71acd56` 按规则 v1.7 独立复跑 52/52 PASS，R9-F1/R9-F2 具备原始复现、针对性负向、既有回归三件套并关闭。功能实现与验收基础设施均 VALIDATED；R2022b 堆损坏单独登记为 OPEN LIMITATION。分层治理的跨项目采用见 Proposed [`ADR-003`](decisions/ADR-003-layered-acceptance-closure-governance.md)，尚待项目组确认。同时按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 推进 P0--P4 Plane 物理建模并行工作线。
+[`decisions/ADR-002-rl-readiness.md`](decisions/ADR-002-rl-readiness.md) 的平台决策仍有效：虽然 `speed_rl_pytorch` 已完成 TD3/BC 独立训练与评估，但正式 RL 平台接入仍暂缓；在统一 Plane 对象、Harness、强基线及未见场景门槛成立前，不作“RL优于基线”结论。M2 的 120 s / `[90,120] s` 核心数值协议保持放行并进入 M3；第十轮在 `71acd56` 按规则 v1.7 独立复跑 52/52 PASS，R9-F1/R9-F2 具备原始复现、针对性负向、既有回归三件套并关闭。功能实现与验收基础设施均 VALIDATED；R2022b 堆损坏单独登记为 OPEN LIMITATION。分层治理已由项目组采纳，见 [`ADR-003`](decisions/ADR-003-layered-acceptance-closure-governance.md)，指导教师复核记录待补；功率图信息边界见 Proposed [`ADR-004`](decisions/ADR-004-power-map-information-boundary.md)。同时按 [`PROJECT_EXECUTION_ROADMAP.md`](PROJECT_EXECUTION_ROADMAP.md) 推进 P0--P4 Plane 物理建模并行工作线。
 
 ## 总览：算法与场景模块已有多条证据线，Control 平台完成 M2，Plane 物理对象待建
 
@@ -60,6 +61,9 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 | `modules/ortho_wind_search` | 2026-09-01 并入。任务5：双正交正弦风 x:A·sin(ω1t)+B / y:C·sin(ω2t)+D，异频拍频式时变；新增升级扫描去趋势与宽幅重定位；19 单元测试、8 门槛 | jumpUp 恢复 10/10 ≤260步（半数≤67）；EA 尾段均值 0.361、19/20 ≤0.85（v*摆幅±0.8口径） | 个别种子 0.6–0.84 滞后带（如实记录）；tracker 能耗占优；真实 X8 节能 |
 | `modules/adaptive_search` | 2026-09-02 并入。任务6自适应算法库：spsa占空比随机扰动/bayes GP代理/qnewton割线牛顿(两相制, 新推荐)+双层MOP/MOE(性能量×任务效能分层)；28 单元测试、10 门槛 | qnewton 风场尾段 0.272<tracker 0.805、1h MOE 0.987>ea 0.975；spsa 跳变恢复 10–18 步(ea口径≤260)；bayes settle 8–18 步(定位专长) | bayes 时变尾段跟踪劣于占空比法(如实记录)；tracker 能耗优势来自平坦无噪设计点；真实 X8 节能 |
 | `modules/wind_field_sched` | 2026-09-02 并入。路线§3-5交付口径的环境风场调度模块：空速物理P=P0(\|v·t̂+w\|)+解析调度+DP验证+最优匀速对照+可行性+滑窗LM在线风估计+敏感性扫描+三档信息结构；15 单元测试、8 门槛 | DP与解析一致(3.9e-6)；1h窗MOE 已知风1.000>在线0.974>匀速0.964>恒飞0.949>不知风0.938(风速信息价值3.6%)；带宽准则：短窗病态/长窗稳健 | 中频风区估计器谐振区(相位查表为下一步)；代理功率对象不代表真实X8节能 |
+| `modules/realistic_constraints_search` | 2026-09-03 并入（本地工作名 task7）。四项实际约束（半径50-150物理化/时延FIFO/限幅2m/s²/开环基线）+九策略+就位包装器；18 测试、9 门槛 | **负结果如实记录：R=50-150 无因果策略胜过开环（5.16%）**，R=500 仍胜（spsa 4.17% vs 5.76%）；信息价值≈5pp（oracle 0.14%）；时延冲激/限幅/航向积分物理回归通过 | ⚠️有效性对后续工作存疑（README警示）；est 估计器曾发散多次返工；加号约定待适配；真实 X8 节能 |
+| `modules/curve_case_calibration` | 2026-09-03 并入（本地工作名 task8）。DJI Mavic Pro 参考曲线重标定（悬停103.7W/谷底6.3m-s/P(20)=134.5W）+三case（谷底=悬停95/90/85%）+运行前三case预览；11 测试、5 门槛 | 锚点精确（1e-9级）；信息价值保持：known 三case超额 0.17-0.19% vs 开环 4.92-6.93%（谷越深开环越亏） | ⚠️文献代理与X8机型不符，后续应以 P(v_air,η)+实测数据重标定（README警示）；真实 X8 节能 |
+| `modules/wind_model_library` | 2026-09-03 并入（本地工作名 task9）。七种可选风场（const/sin/软边方波/三角/OU湍流/复合/扇区）+选中即预览+空速地速语义显式化+τ=0对照口径；18 测试、5 门槛 | 空速恒等式 1e-9；扇区风下 qnewton 唯一明显胜开环（4.65-5.92% vs 4.86-6.70%）；τ=0 与 τ=0.3 几乎相同（时延非瓶颈）；归因：MOE下降主因是风→最优值摆幅较任务6放大约7-8倍 | ⚠️参数未实测校准、加号约定待适配（README警示）；相位查表/风感知前馈尚未实现；真实 X8 节能 |
 | `modules/unified_search` | 2026-09-01 并入。速度优化任务1+2整合：调试二次曲线+对称崎岖+平移调度统一对象，能耗感知算法 ea_multistart，统一 MOP/MOE 评价；13 单元测试、8 门槛 | 计入搜索能耗后全遍历非最优：崎岖静态 1 小时窗 ea 平均 MOE=0.9927 > multistart 0.9924，搜索步数 165 vs 400（20 种子）；jumpUp 恢复 67 步、jumpDown 29 步、dy 零误触发 | 慢漂（ramp）恢复慢于跳变（9/10 种子 ≤1.6，尾部种子如实记录）；演示面板仅 tracker/esc（定稿口径），ea 等其余算法在包内供验收横比；真实 X8 节能 |
 | `harness`（指标层） | 2026-09-01 实现。三模块架构（environment/aircraft 黑箱/console）+ 1 小时任务窗 MOP/MOE；4 单元测试 | 统一口径横比成立：MOE_energy=Emin/E_actual，fixed 上界 1.0000、multistart 0.9912、grid 0.9905、esc 0.9819、single_golden 0.9226 | 风场场景（任务3-5 待接入）、真实瓦级标定（Pmin_W 为代理换算） |
 | `models/px4_x8` | 阶段 0、M0-A、M0-B、M0-C、M1、M2 核心已放行；第十轮当前提交 52/52 针对性矩阵，功能与验收基础设施 VALIDATED，规则 v1.7 | 干净与脏入口下旁路与原基线零差异；M0-B 安全注入 4/4；M2 S1/S2/S3 = −0.2626%/−0.2938%/−0.2147%；R9-F1 两个原始协同篡改由独立探针以 `ManifestContract` 拒绝，contract 四类负向与全部旧回归通过；8 份日志零 U+FFFD；52 行矩阵绑定 runId `88e0204a` @ `71acd56`，c3 盖章后崩溃无害、c5 盖章前崩溃后 attempt=2 完整重执行成功，双链哈希一致 | R2022b 堆崩溃为 OPEN LIMITATION（本批自然发生两次并被规则正确处理）；report 段崩溃注入未执行；全量同会话双链未覆盖；MATLAB 输出编码属机器区域设置需跨机探针复核；不外推真实功率/风场 |
@@ -131,7 +135,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 
 ## 下一步优先级
 
-1. **R0概念确认**：由周航正组织组内和老师确认ADR-001/ADR-003，冻结主任务、`v_ref`地速语义、名义功率图和在线可见信息。
+1. **R0概念确认**：由周航正组织组内和老师确认ADR-001/ADR-004，冻结主任务、`v_ref`地速语义、名义功率图和在线可见信息；接口字典0.3仍待冻结为1.0。
 2. **并行Plane线**：建议霍奕茗负责（待确认），实现最小Plane API、空地速/圆周/执行动态、`P_nom/P_hidden/P_meas`分层、电池与测量链；先独立验收，不直接改主 `.slx`。
 3. **并行Environment线**：王健祺已有场景资产，建议继续统一PathCommand、NE风真值、风测量退化和训练/未见场景清单；首先关闭 `wind_field_sched` 的局部加号约定适配。
 4. **并行算法/Control线**：将固定、名义调度和速度ESC适配为同一慢层接口；叶安继续M3更新/保持/优先级仲裁和PX4安全门控，Plane通过后再接入 `air_spare.slx`。M3协调方案v0.2（[`interfaces/M3_V_ETA_COORDINATION.md`](interfaces/M3_V_ETA_COORDINATION.md)）已按实施前设计审查（[`evidence/M3_DESIGN_REVIEW_CODEX_20260903.md`](evidence/M3_DESIGN_REVIEW_CODEX_20260903.md)）完成F1–F6文档级整改，待项目组确认§9五项后冻结实施。R9-F1/R9-F2已经第十轮独立关闭，R2022b堆崩溃继续按环境限制管理。
