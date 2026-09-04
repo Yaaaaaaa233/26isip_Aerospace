@@ -1,12 +1,12 @@
 # 开发状态与下一步
 
-更新时间：2026-09-03
+更新时间：2026-09-04（本次仅更新 M3 平台线独立验收）
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
 本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）；王健祺（2026-09-03 新增 realistic_constraints_search / curve_case_calibration / wind_model_library 三模块登记与进度补充）；Codex（X8PHYS/P0--P4 审核、验收收口与结论边界，2026-09-03）
 审核：待项目组审核
-AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮独立验收结果回填；2026-09-03问题与接口修订）
+AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮独立验收结果回填；2026-09-03问题与接口修订；2026-09-04 按叶安要求回填 M3 第二轮独立验收，纠正提前关闭表述）
 
 ## 9月3日进度快照
 
@@ -16,7 +16,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 | 速度/转速比在线寻优 | 代理对象验证已完成 | 单变量 ESC、速度多峰/风场/自适应算法已有可复现实验 |
 | Environment与圆周场景 | 代理研究已完成一轮，公共适配未完成 | 恒风、正弦风、双正交风及空速调度有测试；仍需拆分PathCommand、WindTruth和WindMeasurement |
 | MOP/MOE 与 Harness | 指标层可用，统一场景接入未完成 | 已能在代理对象上比较算法；尚未接入同一 Plane/PX4 闭环 |
-| PX4/Simulink Control 平台 | M2 已放行；**M3 机制证据保留并经两轮独立验收（第一轮判基础设施 NOT VALIDATED 的 4 项 P1 已于第二轮全部修复复验，2026-09-04）** | 速度通道、安全层、eta 分配器和日志链可用；M3 时分仲裁 14 场景批次按新冻结合同（提交 `1e3e0e4`）整批复跑 PASS：对 B1 −0.277~−0.306%（掩码门槛口径+全窗并列，覆盖率如实报告 5.0%）、对 B2 |ΔE| ≤ 0.0032%、v 跟踪 0.0097 m/s、eta 收敛 [192,240) 全部达标且单调、R1 复现逐位差 0、零 `.slx` 结构变更；批次 verdict 经 `m3_aggregate_batch` 14 臂 manifest 聚合（8/8 篡改负向实测拒收）；证据 [`evidence/M3_COORDINATION_20260903.md`](evidence/M3_COORDINATION_20260903.md)、[`evidence/M3_REACCEPT_CODEX_20260904.md`](evidence/M3_REACCEPT_CODEX_20260904.md)、[`evidence/M3_REACCEPT_ROUND2_FIX_20260904.md`](evidence/M3_REACCEPT_ROUND2_FIX_20260904.md)；R2022b 堆崩溃维持 OPEN LIMITATION；待 Plane 复跑（R4） |
+| PX4/Simulink Control 平台 | M2 已放行；**M3 第二轮独立验收：功能 PARTIAL（已测证据保留），基础设施 NOT VALIDATED** | 当前判定见 [`M3 第二轮独立报告`](evidence/M3_REACCEPT_ROUND2_CODEX_20260904.md)（源码 `f949b9c`）：配置漂移 F1、能量统计口径 F5 在问题范围内关闭；F2 中心/候选评价、F3 扰动姿态门、F4 分段证据治理仍为开放 P1。三套单测、11 行恢复矩阵、M0-A/M0-B/边界回归通过；历史 14 臂数值重算与五名义臂真实中心重放通过，不等于整批独立放行。修复方报告保留为 [`第二轮修复记录`](evidence/M3_REACCEPT_ROUND2_FIX_20260904.md)。R2022b 堆风险 OPEN LIMITATION，Plane/R4 待复跑；未发现内核或模型回归 |
 | 残差 RL | 已有独立预研，不进入平台结论 | MATLAB 环境接口、Python 对拍、TD3/BC 候选与未见种子评估已完成；隐藏风和 TD3 稳定性仍未解决 |
 | Plane 物理建模 | P0 拟合与 P1--P4 独立代理契约已实现，统一闭环接入未完成 | 已有独立 Plane/X8PHYS 对象；仍需整机参数校准、MeasurementAdapter 与同一 PX4/Harness 接入 |
 | 仓库结构与治理 | 文档口径已收敛，自动检查已加入 | 已建立文档/模块/证据索引、权威关系和历史归档；未进行大规模目录搬迁 |
@@ -140,7 +140,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 1. **R0概念确认**：由周航正组织组内和老师确认ADR-001/ADR-004，冻结主任务、`v_ref`地速语义、名义功率图和在线可见信息；接口字典0.3仍待冻结为1.0。
 2. **并行Plane线**：建议霍奕茗负责（待确认），实现最小Plane API、空地速/圆周/执行动态、`P_nom/P_hidden/P_meas`分层、电池与测量链；先独立验收，不直接改主 `.slx`。
 3. **并行Environment线**：王健祺已有场景资产，建议继续统一PathCommand、NE风真值、风测量退化和训练/未见场景清单；首先关闭 `wind_field_sched` 的局部加号约定适配。
-4. **并行算法/Control线**：将固定、名义调度和速度ESC适配为同一慢层接口；叶安继续M3更新/保持/优先级仲裁和PX4安全门控，Plane通过后再接入 `air_spare.slx`。M3协调方案v0.2（[`interfaces/M3_V_ETA_COORDINATION.md`](interfaces/M3_V_ETA_COORDINATION.md)）已按实施前设计审查（[`evidence/M3_DESIGN_REVIEW_CODEX_20260903.md`](evidence/M3_DESIGN_REVIEW_CODEX_20260903.md)）完成F1–F6文档级整改，待项目组确认§9五项后冻结实施。R9-F1/R9-F2已经第十轮独立关闭，R2022b堆崩溃继续按环境限制管理。
+4. **并行算法/Control线**：将固定、名义调度和速度ESC适配为同一慢层接口；叶安按已冻结的 [M3 v0.2](interfaces/M3_V_ETA_COORDINATION.md) 继续平台线。先按 [M3 第二轮独立报告 §6](evidence/M3_REACCEPT_ROUND2_CODEX_20260904.md) 关闭中心评价、扰动姿态门与分段证据治理，再在单一干净提交复跑完整 14 臂；Plane 通过后接入 `air_spare.slx` 并执行 R4。M2 的 R9-F1/R9-F2 已由第十轮独立关闭，R2022b 堆崩溃继续按环境限制管理。
 5. **统一Harness汇合**：周航正负责接口与总装，使用同一场景、随机种子、隐藏对象和约束比较固定、名义调度、ESC及Oracle上界；Oracle结果不得写成在线策略结果。
 6. **数据与标定线**：用CFD/BEMT、文献或后续台架数据校准Plane参数；将`measuredPower`对接SITL或真实电压、电流与时间戳。真实数据缺失期间保留`estimated/proxy`来源标志，不把校准列作近期已完成项。
 7. **RL继续后置**：当前只做接口0.3适配和信息泄漏测试。R0-R4完成且强基线仍有稳定缺口后，才以BC热启动的残差结构重新评审训练；不把RL作为Plane或Environment的前置条件。

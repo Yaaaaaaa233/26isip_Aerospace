@@ -2,6 +2,8 @@
 
 状态：**v0.2（2026-09-03 经文件负责人叶安授权冻结为实施基线，§9 五项按所列默认执行；项目组如调整，按 [`../ACCEPTANCE_AUTOMATION_RULES.md`](../ACCEPTANCE_AUTOMATION_RULES.md) §9.4 升版本重开合同，不追溯已执行批次的冻结口径）**。本版按实施前设计审查 [`../evidence/M3_DESIGN_REVIEW_CODEX_20260903.md`](../evidence/M3_DESIGN_REVIEW_CODEX_20260903.md) 的发现 M3-DR-F1～F6 修订（对应关系见 §10）。M2 已放行：第十轮按规则 v1.7 在治理提交 `71acd56` 分层复跑 52/52 针对性矩阵 PASS（2026-09-03，runId `88e0204a`），功能实现层与验收基础设施层 VALIDATED，R9-F1/R9-F2/R8-F1 关闭，判定见 [`../evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md`](../evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md)。交付清单来源为 [`../PROJECT_EXECUTION_ROADMAP.md`](../PROJECT_EXECUTION_ROADMAP.md) §5 M3 与 §0.2 ALG-C（先交替坐标下降）；在修正版路线的 R0–R5 汇合序中，M3 对应 R4（双变量协同），**代理对象阶段的 M3 是 R4 的机制前置开发，不构成 R4 放行**。开发在现有代理对象（`air_m2.slx` 语义基线）上进行，最终验收须在通过统一 Plane 工作包（PL-A～PL-E，原 P0–P4）的同一 Plane 对象上复跑（路线图 §5 M3 原文与 §6 汇合点）。
 
+> **第二轮独立判定（2026-09-04，合同门槛不变）**：[独立验收报告](../evidence/M3_REACCEPT_ROUND2_CODEX_20260904.md) 确认配置漂移和能量统计口径已修复，但搜索中心评价、扰动姿态硬判、分段证据治理仍未闭合；功能 PARTIAL、基础设施 NOT VALIDATED，不能用下方修复方勘误/复验声明代替独立放行。已测历史数值与代理机制证据保留；下一步按独立报告 §6 关闭后复跑。
+
 > **v0.2 勘误（2026-09-04，第二轮修复口径统一——非门槛变更，两个窗口均系冻结文本预注册，勘误取其一并如实记录）**，依据第一轮独立验收 [`../evidence/M3_REACCEPT_CODEX_20260904.md`](../evidence/M3_REACCEPT_CODEX_20260904.md) 与第二轮修复 [`../evidence/M3_REACCEPT_ROUND2_FIX_20260904.md`](../evidence/M3_REACCEPT_ROUND2_FIX_20260904.md)：
 > 1. eta 收敛窗统一为 **[192,240) s**（§6.4 的"最后一个完整搜索槽"语义；§5 旧写 [200,240] 为冲突笔误；第一轮验收已按 [192,240) 复核五名义臂全部通过，第二轮批次同窗口复验）；
 > 2. §5"基线 7 行"勘误为 **6 行**（B0-N/B0-D/B1-N1/B1-N2/B2-N1/B2-N2），场景总数 **14**（8 个 M3 臂中 R1 与 N5 同配置、以独立档案复现同会话确定性）；
@@ -15,7 +17,7 @@
 主要撰写：叶安（仲裁机制、槽参数与验收判据决策）、ZCode（方案文档代拟、调度/适配器/试验实现）
 技术依据：`docs/PROJECT_EXECUTION_ROADMAP.md` §5 M3、§0.2 ALG-C、§0.5 R4 与 §6 并行工作线（**交替的直接依据是路线图条款**）；[`ADR-001`](../decisions/ADR-001-objective-selection.md)（状态 Proposed、待指导教师确认：速度为第一决策变量、`eta_ref` 为第二变量；其"不要求一次完成二维学习"不等于已批准"禁止同时寻优"，本文不把它提升为已接受决策）；[`ADR-004-power-map-information-boundary`](../decisions/ADR-004-power-map-information-boundary.md)（状态 Proposed：`P_nom/P_hidden/P_meas` 分层与四类策略信息边界）；[`M0C_SPEED_ESC.md`](M0C_SPEED_ESC.md) §3 稳定窗口口径与 §2.4 参数；[`M2_ETA_ALLOCATOR.md`](M2_ETA_ALLOCATOR.md) §4 通路/参数与 §11 判据；`docs/architecture/04_interface_dictionary.md` **v0.3** §6 MeasuredContext、§7 ControlCommand、§12；`docs/ACCEPTANCE_AUTOMATION_RULES.md` v1.7
 审核：待项目组审核、待指导教师确认
-AI协助：ZCode（内核/适配器语义探针、本文档代拟与设计评审整改）
+AI协助：ZCode（内核/适配器语义探针、本文档代拟与设计评审整改）；Codex（2026-09-04 按叶安要求追加第二轮独立判定，不修改冻结合同）
 
 红线（继承并具体化）：`air.slx` 只读；**V1 零 `.slx` 结构变更**（见 §3.4，若后续引入结构变更则回到安装器+快照+全回归流程）；**不做 RL**（R5 复审前不进入平台主线）；仲裁与两个 ESC 只接收测量功率、实际被控量、采样时间与有效性标志，不得接触模型内部最优值、解析梯度、完整功率面或 PWM 控制权（ADR-004 Proposed 同向）；安全层照旧在 M0-B selector/监视器与平台侧标志链，仲裁无任何安全旁路权；`P_est` 未校准，一切能耗结论只作"模型估算"口径。
 
