@@ -59,9 +59,9 @@ for d = 1:numel(segs)
         arms{end + 1} = strrep(fn{j}, '_', '-'); %#ok<AGROW>
     end
 end
-[uniqueArms, ~, iu] = unique(arms);
+uniqueArms = unique(arms);
 for j = 1:numel(uniqueArms)
-    n = sum(arms == uniqueArms{j});
+    n = sum(strcmp(arms, uniqueArms{j}));
     if n > 1
         error('air:M3Agg:DuplicateArm', ...
             'arm %s appears in %d segments -- a batch arm runs exactly once', ...
