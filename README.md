@@ -31,6 +31,18 @@ flowchart LR
   G --> D
 ```
 
+## 算法路线现状（2026-09-04）
+
+**ESC（极值搜索控制）不再是当前推荐的算法路线。** 它是项目起步模块（`ratio_esc`、`speed_esc`），也是 ADR-001 保留的"直线无风开发基线"，但统一口径横评显示其能效不占优：
+
+- 统一指标层 1 小时窗 MOE：esc 0.9819 < grid 0.9905 < multistart 0.9912（fixed 1.0000 为上界）。
+- 任务1 全程能耗：tracker 0.21% 优于 esc 0.64%；任务4/5 风场 esc 0.970/0.960，低于 tracker 0.985/0.984。
+- 任务6 起 **qnewton 割线牛顿为新推荐**（1 小时窗 MOE 0.987），spsa/bayes 各有专长。
+- 路线§3-5 的交付口径转向**名义功率图 `P_nom` + 解析调度 + 在线风估计**（`wind_field_sched`：已知风 1.000 / 在线估计 0.974 / 不知风 0.938，风速信息价值 3.6%）。
+- 任务7 真实约束重评估得到核心负结果：R=50–150 m 空速物理下**没有任何因果在线策略胜过开环固定速度**（5.16% vs oracle 0.14%）。
+
+因此当前重心不是继续调 ESC，而是建立统一 Plane 物理对象（`+x8phys` 已并入）并在统一 Harness 中做 Wind-Plane-Control 闭环公平横评。ESC 保留为 WPC 四种慢层模式（fixed / nominal_sched / ESC / RL residual）之一与开发基线。
+
 ## 快速开始
 
 环境要求：MATLAB R2022b；运行 Simulink 模型需要 Simulink；运行 RL 接口需要 Reinforcement Learning Toolbox。
@@ -95,6 +107,14 @@ cd ../wind_field_sched
 START_HERE                 % 三模块面板(解析调度/在线风估计/风矢量环境模型)
 run_wind_acceptance        % 8项门槛验收(DP/可行性/信息结构/带宽准则)
 tests_wind                 % 15项单元测试
+
+% 真实约束重评估系列（任务7/8/9，2026-09-03 并入；⚠️负结果与有效性警示见各模块README）
+cd ../realistic_constraints_search   % 任务7：R=50-150物理化+时延+限幅，9策略横比(负结果)
+cd ../curve_case_calibration         % 任务8：DJI Mavic Pro参考曲线重标定+三谷case
+START_HERE                 % 任务8动画面板(任务9同款三模块面板)
+run_task8_checks           % 11项测试+5项门槛
+cd ../wind_model_library             % 任务9：七种风场模型库(const/sin/方波/三角/OU/复合/扇区)
+run_task9_checks           % 18项测试+5项门槛
 
 % 统一速度寻优程序（任务1+2整合 + MOP/MOE）
 cd ../unified_search
@@ -182,6 +202,16 @@ run_harness                % 三模块接线测试 + 1小时窗五算法MOE横�
 - **任务5三档信息结构后悔值对比**（1小时窗MOE）：已知风1.000 / 在线估计0.974 / 匀速0.964 / 恒飞V* 0.949 / 不知风0.938——**风速信息价值=在线估计比不知风省3.6%能量**。
 - 验收8/8门槛、15/15单元测试；三模块面板（调度/风估计曲线+飞机模型双表盘+环境模型航迹风矢量）。证据见 [docs/evidence/wind_field_sched/](docs/evidence/wind_field_sched/)。
 
+### 真实约束重评估系列（任务7/8/9，modules/realistic_constraints_search、curve_case_calibration、wind_model_library，2026-09-03 并入）
+
+对任务6自适应算法库做实际约束下的重评估，三模块验收入口全绿，但**所得方法、参数与结论对后续工作有效性存疑**（各模块 README 均有警示，项目组特别标注）：
+
+- **任务7 实际约束重评估**：四项真实约束（转弯半径 500→50-150 m 物理化 ψ'=v/R、通信时延 FIFO、加速度限幅 2 m/s²、开环固定速度基线）+ 九策略横比。**核心负结果：R=50-150 无因果在线策略胜过开环基线**（开环 5.16% vs 已知风 oracle 0.14%，信息价值约 5pp）；R=500 时 spsa 仍胜（4.17% vs 5.76%）。归因：风→最优值摆幅较任务6平移代理放大约 7-8 倍，相位由控制自身耦合。
+- **任务8 曲线case标定**：DJI Mavic Pro 参考曲线重标定（悬停 103.7 W、谷底 6.3 m/s、P(20)=134.5 W）+ 三谷 case（95/90/85% 悬停）；known oracle 0.17-0.19% vs 开环 4.92-6.93%。⚠️文献代理与 X8 机型不符，后续应以 `P(v_air,η)`+实测数据重标定。
+- **任务9 风场模型库**：七种可选风场（const/sin/软边方波/三角/OU 湍流/复合/扇区）+ 空速地速语义显式化；扇区风下 qnewton 唯一明显胜开环；τ=0 与 τ=0.3 几乎相同（时延非瓶颈）。
+
+证据见 [docs/evidence/realistic_constraints_search/](docs/evidence/realistic_constraints_search/)、[docs/evidence/curve_case_calibration/](docs/evidence/curve_case_calibration/)、[docs/evidence/wind_model_library/](docs/evidence/wind_model_library/)。
+
 ### 统一指标层 MOP/MOE（harness，2026-09-01 实现）
 
 - 落地预留的 harness 指标层：三模块架构（environment 风的模型 / aircraft 速度+功率双表盘黑箱 / console 算法）+ 1 小时任务窗评价。
@@ -197,8 +227,9 @@ run_harness                % 三模块接线测试 + 1小时窗五算法MOE横�
 - M0-B 已完成（2026-09-01 复核修复后再验收通过）：受保护速度闭环与安全回退，逐位故障注入全链保护通过。
 - M0-C 已完成并通过验收：四组 fixed/ESC 配对及一组确定性复现全绿，稳定快照为 `air_m0c.slx`；见 [接口与验收基线](docs/interfaces/M0C_SPEED_ESC.md) 和 [证据报告](docs/evidence/M0C_TRIALS_20260901.md)。
 - M1 已完成并通过验收（2026-09-01）：噪声/时延/组合扰动 27 场景零安全误触发，11 组配对 regret 最大 |0.000133%|；见 [接口与验收基线](docs/interfaces/M1_ROBUSTNESS.md) 和 [证据报告](docs/evidence/M1_ROBUSTNESS_20260901.md)。
-- M2 核心成果保持放行（2026-09-02）：受约束 eta 分配器 + `ratioesc` 原生转速比接线；修订协议下 `[90,120] s` 配对门槛通过（±0.5% 门槛未变），快照 `air_m2.slx`。第六轮独立复验确认非有限四态状态恢复 20/20 PASS、九场景数值无回归，但标准分段矩阵因 R2022b 的 C5 第二链重复退出只完成 11/39；同时发现 stage 源码指纹未独立取证、聚合器未硬断言 verdict 全 PASS，故验收自动化为 PARTIAL。见 [第六轮独立验收](docs/evidence/M2_REACCEPT_ROUND6_CODEX_20260902.md)。
-- M3 方案与实现照常进行。
+- M2 核心成果保持放行（2026-09-02）：受约束 eta 分配器 + `ratioesc` 原生转速比接线；修订协议下 `[90,120] s` 配对门槛通过（±0.5% 门槛未变），快照 `air_m2.slx`。第十轮独立复验（规则 v1.7）52/52 PASS，R9-F1/R9-F2 关闭；R2022b 堆崩溃登记为环境限制。见 [第十轮独立验收](docs/evidence/M2_REACCEPT_ROUND10_CODEX_20260903.md)。
+- **X8 物理代理与 Plane 契约已并入（2026-09-03，霍奕茗线）**：审计后的 `+x8phys` 包（四元数姿态、电机一阶动态、电池/SOC、`P(v_air,η)` 功率）与 Plane 接口契约进入 `models/px4_x8/`，见 [X8PHYS_README](models/px4_x8/X8PHYS_README.md)；统一 Plane 工作线 P0--P4 启动。
+- **M3 v/eta 交替协同 B–E 组已实现（2026-09-03）**：调度器、适配器、边界试验、13(实为14)场景配对批次；第一轮独立验收（2026-09-04）判定功能层 PARTIAL、基础设施 NOT VALIDATED，F1–F4 待关闭，未整体放行。见 [M3 独立验收报告](docs/evidence/M3_REACCEPT_CODEX_20260904.md)。
 
 完整路线、阶段门槛和当前文件清单见 [开发状态](docs/DEVELOPMENT_STATUS.md)、[执行路线](docs/PROJECT_EXECUTION_ROADMAP.md) 与 [模型说明](models/px4_x8/README.md)。
 
@@ -218,7 +249,10 @@ modules/sin_wind_search/     环境风场（任务4）：正弦风W(t)=A·sin(ω
 modules/ortho_wind_search/   环境风场（任务5）：双正交正弦风 x/y分量+合成矢量
 modules/adaptive_search/     自适应算法库（任务6）：spsa/bayes/qnewton+双层MOP/MOE
 modules/wind_field_sched/    环境风场调度（路线§3-5交付）：空速物理+解析调度+DP+三档信息结构
-models/px4_x8/               PX4 X8验证平台：基线、M0-A/M0-B/M0-C/M1快照与M2入口
+modules/realistic_constraints_search/ 真实约束重评估（任务7）：R=50-150物理化9策略横比（负结果）
+modules/curve_case_calibration/      曲线case标定（任务8）：Mavic Pro参考曲线+三谷case
+modules/wind_model_library/          风场模型库（任务9）：七种风场+空速语义
+models/px4_x8/               PX4 X8验证平台：M0-M2快照、M3入口与+x8phys物理代理
 integration/air_esc/         慢层算法接入与安全层（预留）
 harness/                     统一指标层：三模块架构 + MOP/MOE + 1小时任务窗横比
 docs/TASKS_1_5_ROUTE.md      速度优化五任务技术路线
