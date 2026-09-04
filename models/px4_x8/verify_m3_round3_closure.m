@@ -403,8 +403,10 @@ if nargin < 3
         wantId = 'air:None';
     elseif strcmp(hook, 'cfgmismatch')
         wantId = 'air:M3Trials:ConfigDrift';
-    elseif any(strcmp(hook, {'savefail', 'postwrite'}))
-        wantId = ['air:M3Trials:Injected' upper(hook(1)) hook(2:end)];
+    elseif strcmp(hook, 'savefail')
+        wantId = 'air:M3Trials:InjectedSaveFail';
+    elseif strcmp(hook, 'postwrite')
+        wantId = 'air:M3Trials:InjectedPostWrite';
     else
         wantId = 'air:None';
     end
