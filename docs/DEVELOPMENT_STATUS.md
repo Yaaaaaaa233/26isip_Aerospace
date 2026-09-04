@@ -16,7 +16,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 | 速度/转速比在线寻优 | 代理对象验证已完成 | 单变量 ESC、速度多峰/风场/自适应算法已有可复现实验 |
 | Environment与圆周场景 | 代理研究已完成一轮，公共适配未完成 | 恒风、正弦风、双正交风及空速调度有测试；仍需拆分PathCommand、WindTruth和WindMeasurement |
 | MOP/MOE 与 Harness | 指标层可用，统一场景接入未完成 | 已能在代理对象上比较算法；尚未接入同一 Plane/PX4 闭环 |
-| PX4/Simulink Control 平台 | M2 已放行；**M3 代理对象机制验证完成（2026-09-03）** | 速度通道、安全层、eta 分配器和日志链可用；M3 时分仲裁（B1–B6 单测、边界、既有回归、13 场景配对批次）全 PASS：对 B2 基线 |ΔE%| ≤ 0.003%、对 B1 −0.28~−0.31%、R1 复现逐位差 0、零 `.slx` 结构变更；证据 [`evidence/M3_COORDINATION_20260903.md`](evidence/M3_COORDINATION_20260903.md)；待项目组追认 §9 五项与 Plane 复跑（R4） |
+| PX4/Simulink Control 平台 | M2 已放行；**M3 机制证据保留并经两轮独立验收（第一轮判基础设施 NOT VALIDATED 的 4 项 P1 已于第二轮全部修复复验，2026-09-04）** | 速度通道、安全层、eta 分配器和日志链可用；M3 时分仲裁 14 场景批次按新冻结合同（提交 `1e3e0e4`）整批复跑 PASS：对 B1 −0.277~−0.306%（掩码门槛口径+全窗并列，覆盖率如实报告 5.0%）、对 B2 |ΔE| ≤ 0.0032%、v 跟踪 0.0097 m/s、eta 收敛 [192,240) 全部达标且单调、R1 复现逐位差 0、零 `.slx` 结构变更；批次 verdict 经 `m3_aggregate_batch` 14 臂 manifest 聚合（8/8 篡改负向实测拒收）；证据 [`evidence/M3_COORDINATION_20260903.md`](evidence/M3_COORDINATION_20260903.md)、[`evidence/M3_REACCEPT_CODEX_20260904.md`](evidence/M3_REACCEPT_CODEX_20260904.md)、[`evidence/M3_REACCEPT_ROUND2_FIX_20260904.md`](evidence/M3_REACCEPT_ROUND2_FIX_20260904.md)；R2022b 堆崩溃维持 OPEN LIMITATION；待 Plane 复跑（R4） |
 | 残差 RL | 已有独立预研，不进入平台结论 | MATLAB 环境接口、Python 对拍、TD3/BC 候选与未见种子评估已完成；隐藏风和 TD3 稳定性仍未解决 |
 | Plane 物理建模 | P0 拟合与 P1--P4 独立代理契约已实现，统一闭环接入未完成 | 已有独立 Plane/X8PHYS 对象；仍需整机参数校准、MeasurementAdapter 与同一 PX4/Harness 接入 |
 | 仓库结构与治理 | 文档口径已收敛，自动检查已加入 | 已建立文档/模块/证据索引、权威关系和历史归档；未进行大规模目录搬迁 |

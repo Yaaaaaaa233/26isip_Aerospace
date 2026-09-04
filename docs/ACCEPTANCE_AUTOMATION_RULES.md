@@ -91,10 +91,10 @@ AI协助：ZCode（缺陷模式归纳、审计与本文档代拟）
 
 | 全局量 | owner 阶段 | 写者（入口） | 恢复契约 | 状态 |
 |---|---|---|---|---|
-| `M0C_ESC_PARAMS` | M0-C / M1 / M3（v 通道） | `test_m0c_esc_unit`、`run_air_m0c_trials`、`run_air_m1_robustness`、`run_air_m0b_safety_injection`（applyCommon）、`test_m3_coordination_unit`（M3 模型集逐字段显式设置） | 快照 + onCleanup 恢复（2026-09-02 整改）；遗留脚本入口的错误路径恢复为已知限制 | 已整改 |
-| `M2_ETA_PARAMS` | M2 / M3（eta 通道） | `test_m2_eta_esc_unit`、`run_air_m2_trials`、`run_m2_session_chain`、`add_air_m2_allocator`、`test_m3_coordination_unit` | 快照/规范化 + onCleanup 恢复；三入口已函数化（含错误路径） | 已整改 |
+| `M0C_ESC_PARAMS` | M0-C / M1 / M3（v 通道） | `test_m0c_esc_unit`、`run_air_m0c_trials`、`run_air_m1_robustness`、`run_air_m0b_safety_injection`（applyCommon）、`test_m3_coordination_unit`、`run_air_m3_trials`、`run_air_m3_boundary`、`verify_m3_round2_closure` | 快照 + onCleanup 恢复（2026-09-02 整改）；遗留脚本入口的错误路径恢复为已知限制 | 已整改 |
+| `M2_ETA_PARAMS` | M2 / M3（eta 通道） | `test_m2_eta_esc_unit`、`run_air_m2_trials`、`run_m2_session_chain`、`add_air_m2_allocator`、`test_m3_coordination_unit`、`run_air_m3_trials`（按臂参数集：m3 臂 2e-4 / 基线臂 1e-4）、`run_air_m3_boundary`、`verify_m3_round2_closure` | 快照/规范化 + onCleanup 恢复；三入口已函数化（含错误路径） | 已整改 |
 | `M2_ETA_APPLIED` | M2 / M3 | `m2_eta_esc`（每 0.05 s 写当前比值；m3 hold 步写干净中心，M3 文档 §3.2）；读者 `m2_eta_allocator`、`m2_alloc_diag`；试验入口 `test_m3_coordination_unit`、`run_air_m2_trials` | 链/试验入口规范化为恒等 1.0；空值 = 恒等缺省；快照-恢复 exactly-as-found 含 NaN/Inf（R5-F1 后，四态×成功/错误出口已测） | 已整改 |
-| `M3_ARB_PARAMS` | M3 | `test_m3_coordination_unit`（试验入口 `run_air_m3_trials` 于 E 组实现后补入）；读者 `m0c_vref_esc`、`m2_eta_esc`（仅 `mode='m3'` 初始化时只读） | 快照 + onCleanup 恢复（含错误路径，B4 组实测）；空值 = `enable='off'` 缺省（`fixed`/`esc` 语义不受影响；`mode='m3'` ∧ `enable='off'` 为硬错误，fail loud）；只传配置与模式，不传最优点/未来风/评价结果（接口字典 v0.3 §12.4） | 已登记（2026-09-03，M3 文档 §2.4） |
+| `M3_ARB_PARAMS` | M3 | `test_m3_coordination_unit`、`run_air_m3_trials`（E 组已实现：逐臂按 mode 写入/清空）、`run_air_m3_boundary`、`verify_m3_round2_closure`（恢复矩阵写者）；读者 `m0c_vref_esc`、`m2_eta_esc`（仅 `mode='m3'` 初始化时只读）、`m3_aggregate_batch`（仅读段绑定的 runId/commit，不读参数）；恢复矩阵（有限/空/NaN/Inf × 成功/受控错误出口，含写入后失败）见 `M3_REACCEPT_ROUND2_FIX_20260904.md` §4 | 快照 + onCleanup 恢复（含错误路径，B4 组实测）；空值 = `enable='off'` 缺省（`fixed`/`esc` 语义不受影响；`mode='m3'` ∧ `enable='off'` 为硬错误，fail loud）；只传配置与模式，不传最优点/未来风/评价结果（接口字典 v0.3 §12.4） | 已登记（2026-09-03，M3 文档 §2.4） |
 
 新增全局量：先在本表登记 owner、写者与恢复契约，再写代码。
 
