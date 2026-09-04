@@ -42,7 +42,28 @@ for d = 1:numel(segDirs)
         'air:M3Agg:SourceMismatch', ...
         'segment %s commit %s differs from live HEAD %s -- mixed batch', ...
         segDirs{d}, r.binding.gitCommit, live.gitCommit);
-    segs(d).result = r;
+    % LIGHT per-arm copies: keep only what the gates consume (validity
+    % masks, power/time grids, eta log, v ref column, verdict scalars) --
+    % the 35-column 1 ms bus (A, ~65 MB/arm) is stripped so all 14 arms
+    % stay resident without tripping the R2022b heap limitation
+    fn = fieldnames(r.runs);
+    for j = 1:numel(fn)
+        a = r.runs.(fn{j});
+        lite = struct();
+        lite.ok = isfield(a, 'ok') && islogical(a.ok) && a.ok;
+        lite.nominal = isfield(a, 'nominal') && a.nominal;
+        lite.vTrk = getf(a, 'vTrk');
+        lite.etaConv = getf(a, 'etaConv');
+        lite.etaCenter = getf(a, 'etaCenter');
+        lite.validCostMs = getf(a, 'validCostMs');
+        if isfield(a, 'logs') && ~isempty(fieldnames(a.logs))
+            lite.logs = struct('ta', a.logs.ta, 'Pe', a.logs.Pe, ...
+                'el', a.logs.el, 'vRef', a.logs.Mb(:, 1));
+        end
+        r.runs.(fn{j}) = lite;
+    end
+    segs(d).runs = r.runs;
+    segs(d).binding = r.binding;
     segs(d).dir = segDirs{d};
 end
 
@@ -90,7 +111,7 @@ end
 assert(n5s == r1s, 'air:M3Agg:ReproSession', ...
     'M3-N5 (segment %d) and M3-R1 (segment %d) must share one session', ...
     n5s, r1s);
-assert(strcmp(segs(n5s).result.binding.runId, segs(r1s).result.binding.runId), ...
+assert(strcmp(segs(n5s).binding.runId, segs(r1s).binding.runId), ...
     'air:M3Agg:ReproSession', ...
     'M3-N5 and M3-R1 runIds differ -- not a same-process pair');
 e5 = getArm('M3-N5').logs.el;
@@ -99,11 +120,11 @@ assert(size(e5, 1) == size(eR, 1), 'air:M3Agg:ReproGrid', ...
     'M3-N5/R1 eta log lengths differ (%d vs %d)', ...
     size(e5, 1), size(eR, 1));
 dv = max(abs(e5(:, 1) - eR(:, 1)));
-dv2 = max(abs(getArm('M3-N5').logs.Mb(:, 1) - getArm('M3-R1').logs.Mb(:, 1)));
+dv2 = max(abs(getArm('M3-N5').logs.vRef - getArm('M3-R1').logs.vRef));
 assert(max(dv, dv2) < 1e-9, 'air:M3Agg:ReproDiff', ...
     'M3-R1 vs M3-N5 not sample-exact: dEta %.3g, dV %.3g', dv, dv2);
 fprintf('repro: M3-R1 vs M3-N5 same session %s: max|d eta| %.3g, max|d v| %.3g\n', ...
-    segs(n5s).result.binding.runId, dv, dv2);
+    segs(n5s).binding.runId, dv, dv2);
 
 % ---- 5. recompute the paired gates from the archived arms
 pair = struct();
@@ -175,6 +196,15 @@ fprintf(['M3 AGGREGATE BATCH PASS (%d segments, %d arms, commit %s)\n'], ...
 end
 
 % ---------------------------------------------------------------------------
+function v = getf(a, name)
+%GETF field value or [] when absent (failed-arm records stay loadable).
+if isfield(a, name)
+    v = a.(name);
+else
+    v = [];
+end
+end
+
 function c = expectedBatchContract()
 %EXPECTEDEDBATCHCONTRACT the ONE fixed batch contract (rules section 2
 %   rule 8 pattern): the aggregate never takes the segment set as its own
@@ -201,8 +231,8 @@ function a = getArmFromSegs(segs, id)
 %GETARMFROMSEGS the arm record from whichever segment ran it.
 fieldName = strrep(id, '-', '_');
 for d = 1:numel(segs)
-    if isfield(segs(d).result.runs, fieldName)
-        a = segs(d).result.runs.(fieldName);
+    if isfield(segs(d).runs, fieldName)
+        a = segs(d).runs.(fieldName);
         return;
     end
 end
@@ -213,7 +243,7 @@ function [segIdx, fieldName] = locateArm(segs, id)
 %LOCATEARM segment index and runs-field name of an arm.
 fieldName = strrep(id, '-', '_');
 for d = 1:numel(segs)
-    if isfield(segs(d).result.runs, fieldName)
+    if isfield(segs(d).runs, fieldName)
         segIdx = d;
         return;
     end
