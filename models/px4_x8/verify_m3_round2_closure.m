@@ -420,11 +420,11 @@ end
 
 function dirs = cSourceMismatch(negRoot, segDirs)
 dirs = copySegs(negRoot, segDirs);
-f = fullfile(dirs{2}, 'result.mat');
+f = fullfile(findArmSeg(dirs, 'M3_N2'), 'result.mat');
 S = load(f, 'result');
 result = S.result;
 result.binding.gitCommit = repmat('0', 1, 40);
-saveResult(dirs{2}, result);
+save(f, 'result');
 end
 
 function dirs = cDuplicateArm(negRoot, segDirs)
@@ -434,53 +434,56 @@ end
 
 function dirs = cMissingArm(negRoot, segDirs)
 dirs = copySegs(negRoot, segDirs);
-f = fullfile(dirs{2}, 'result.mat');
+f = fullfile(findArmSeg(dirs, 'M3_N1'), 'result.mat');
 S = load(f, 'result');
 result = S.result;
 result.runs = rmfield(result.runs, 'M3_N1');
-saveResult(dirs{2}, result);
+save(f, 'result');
 end
 
 function dirs = cExtraArm(negRoot, segDirs)
 dirs = copySegs(negRoot, segDirs);
-f = fullfile(dirs{2}, 'result.mat');
+f = fullfile(findArmSeg(dirs, 'M3_N1'), 'result.mat');
 S = load(f, 'result');
 result = S.result;
 result.runs.M3_ZZ = result.runs.M3_N1;
-saveResult(dirs{2}, result);
+save(f, 'result');
 end
 
 function dirs = cArmFailed(negRoot, segDirs)
 dirs = copySegs(negRoot, segDirs);
-f = fullfile(dirs{2}, 'result.mat');
+f = fullfile(findArmSeg(dirs, 'M3_N2'), 'result.mat');
 S = load(f, 'result');
 result = S.result;
 result.runs.M3_N2.ok = false;
-saveResult(dirs{2}, result);
+save(f, 'result');
 end
 
 function dirs = cArchiveMissing(negRoot, segDirs)
 dirs = copySegs(negRoot, segDirs);
-delete(fullfile(dirs{2}, 'M3-N1.mat'));
+delete(fullfile(findArmSeg(dirs, 'M3_N1'), 'M3-N1.mat'));
 end
 
 function dirs = cReproSession(negRoot, segDirs)
 % split M3-R1 into its own fabricated segment with a DIFFERENT runId:
 % all 14 arms appear exactly once, but the repro pair is cross-session
+% (the segment holding M3-R1 is LOCATED dynamically -- the batch layout
+% may use any segmentation)
 dirs = copySegs(negRoot, segDirs);
-f3 = fullfile(dirs{3}, 'result.mat');
-S = load(f3, 'result');
+r1dir = findArmSeg(dirs, 'M3_R1');
+f = fullfile(r1dir, 'result.mat');
+S = load(f, 'result');
 full = S.result;
 result = full;
 result.runs = rmfield(result.runs, 'M3_R1');
-saveResult(dirs{3}, result);
+save(f, 'result');
 mini = fullfile(negRoot, 'segMini');
 mkdir(mini);
-copyfile(fullfile(dirs{3}, 'M3-R1.mat'), mini);
+copyfile(fullfile(r1dir, 'M3-R1.mat'), mini);
 result = full;
 result.runs = struct('M3_R1', full.runs.M3_R1);
 result.binding.runId = 'fab-run-id';
-saveResult(mini, result);
+save(fullfile(mini, 'result.mat'), 'result');
 dirs{end + 1} = mini;
 end
 
@@ -488,11 +491,23 @@ function dirs = cReproGrid(negRoot, segDirs)
 dirs = copySegs(negRoot, segDirs);
 % result.mat carries no logs (log-free segment results): tamper the
 % per-arm archive so the repro pair grids mismatch
-f = fullfile(dirs{3}, 'M3-R1.mat');
+f = fullfile(findArmSeg(dirs, 'M3_R1'), 'M3-R1.mat');
 S = load(f, 'r');
 r = S.r;
 r.logs.el = r.logs.el(1:4000, :);
 save(f, 'r');
+end
+
+function d = findArmSeg(dirs, fieldName)
+%FINDARMSEG the copied segment dir whose result contains the arm.
+for j = 1:numel(dirs)
+    S = load(fullfile(dirs{j}, 'result.mat'), 'result');
+    if isfield(S.result.runs, fieldName)
+        d = dirs{j};
+        return;
+    end
+end
+error('air:M3Verify:Internal', 'arm %s not found in any segment', fieldName);
 end
 
 % ---------------------------------------------------------------------------
