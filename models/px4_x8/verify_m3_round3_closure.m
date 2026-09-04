@@ -846,7 +846,7 @@ mf = fullfile(stg, 'manifest.mat');
 M = load(mf, 'manifest');
 manifest = M.manifest;
 manifest.segments(end + 1) = struct('name', 's6', ...
-    'arms', manifest.segments(2).arms);
+    'arms', {manifest.segments(2).arms});
 save(mf, 'manifest');
 fid = fopen(fullfile(stg, 's6.attempts'), 'w');
 fprintf(fid, '1\n');
@@ -911,7 +911,7 @@ for g = 1:numel(groups)
     fid = fopen(fullfile(stg, [nm '.attempts']), 'w');
     fprintf(fid, '1\n');
     fclose(fid);
-    manifest.segments(g) = struct('name', nm, 'arms', groups{g});
+    manifest.segments(g) = struct('name', nm, 'arms', {groups{g}});
     dirs{end + 1} = dst; %#ok<AGROW>
 end
 save(fullfile(stg, 'manifest.mat'), 'manifest');
