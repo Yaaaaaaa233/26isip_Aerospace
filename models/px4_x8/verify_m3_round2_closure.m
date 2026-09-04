@@ -292,6 +292,9 @@ if isempty(hook)
 elseif strcmp(hook, 'trials')
     fprintf('R2-M   trials entry    %-6s x pre-write return        restored\n', ...
         stateName);
+elseif strcmp(hook, 'cfgmismatch')
+    fprintf('R2-M   trials entry    %-6s x cfgmismatch(post-cfg)   restored\n', ...
+        stateName);
 else
     fprintf('R2-M   trials entry    %-6s x %s (after-write) restored\n', ...
         stateName, hook);
