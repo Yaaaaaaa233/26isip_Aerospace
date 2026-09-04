@@ -746,7 +746,7 @@ result.segName = 's6';
 result.binding.runId = 'fab-run-id';
 save(fullfile(mini, 'result.mat'), 'result');
 fid = fopen(fullfile(stg, 's6.attempts'), 'w');
-fprintf(fid, '1\n');
+fprintf(fid, '%d\n', result.attempts);
 fclose(fid);
 result = full;
 result.runs = rmfield(result.runs, 'M3_R1');
@@ -856,8 +856,9 @@ manifest = M.manifest;
 manifest.segments(end + 1) = struct('name', 's6', ...
     'arms', {manifest.segments(2).arms});
 save(mf, 'manifest');
+S2 = load(fullfile(dup, 'result.mat'), 'result');
 fid = fopen(fullfile(stg, 's6.attempts'), 'w');
-fprintf(fid, '1\n');
+fprintf(fid, '%d\n', S2.result.attempts);
 fclose(fid);
 dirs{end + 1} = dup;
 end
@@ -916,8 +917,10 @@ for g = 1:numel(groups)
     result.segName = nm;
     result.scenarioSet = groups{g};
     save(fullfile(dst, 'result.mat'), 'result');
+    % the marker mirrors the source segment's REAL attempt count (a
+    % heap-crash retry makes it 2 -- the accounting must stay consistent)
     fid = fopen(fullfile(stg, [nm '.attempts']), 'w');
-    fprintf(fid, '1\n');
+    fprintf(fid, '%d\n', result.attempts);
     fclose(fid);
     manifest.segments(g) = struct('name', nm, 'arms', {groups{g}});
     dirs{end + 1} = dst; %#ok<AGROW>
