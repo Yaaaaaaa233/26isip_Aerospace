@@ -366,7 +366,19 @@ else
     fprintf('no B0-N baseline available (this segment or baseDir): paired gates not run\n');
 end
 
-result = struct('pass', ok, 'archiveDir', string(outDir), 'runs', R, ...
+% segment-level result WITHOUT the embedded logs: the per-arm <id>.mat
+% archives keep them; a multi-arm result with logs exceeded the 2 GB
+% MAT-v7 limit in the round-2 rerun and the save silently skipped the
+% variable (128-byte stub). Verdicts, bindings and pair metrics are all
+% log-free; the aggregate loads arm data from the per-arm archives.
+runsLite = R;
+fnR = fieldnames(runsLite);
+for j = 1:numel(fnR)
+    if isfield(runsLite.(fnR{j}), 'logs')
+        runsLite.(fnR{j}) = rmfield(runsLite.(fnR{j}), 'logs');
+    end
+end
+result = struct('pass', ok, 'archiveDir', string(outDir), 'runs', runsLite, ...
     'pair', pair, 'binding', binding, 'isFullBatch', ...
     strcmp(scenarioSet, 'full'), 'scenarioSet', scenarioSet);
 save(fullfile(outDir, 'result.mat'), 'result');

@@ -42,27 +42,11 @@ for d = 1:numel(segDirs)
         'air:M3Agg:SourceMismatch', ...
         'segment %s commit %s differs from live HEAD %s -- mixed batch', ...
         segDirs{d}, r.binding.gitCommit, live.gitCommit);
-    % LIGHT per-arm copies: keep only what the gates consume (validity
-    % masks, power/time grids, eta log, v ref column, verdict scalars) --
-    % the 35-column 1 ms bus (A, ~65 MB/arm) is stripped so all 14 arms
-    % stay resident without tripping the R2022b heap limitation
-    fn = fieldnames(r.runs);
-    for j = 1:numel(fn)
-        a = r.runs.(fn{j});
-        lite = struct();
-        lite.ok = isfield(a, 'ok') && islogical(a.ok) && a.ok;
-        lite.nominal = isfield(a, 'nominal') && a.nominal;
-        lite.vTrk = getf(a, 'vTrk');
-        lite.etaConv = getf(a, 'etaConv');
-        lite.etaCenter = getf(a, 'etaCenter');
-        lite.validCostMs = getf(a, 'validCostMs');
-        if isfield(a, 'logs') && ~isempty(fieldnames(a.logs))
-            lite.logs = struct('ta', a.logs.ta, 'Pe', a.logs.Pe, ...
-                'el', a.logs.el, 'vRef', a.logs.Mb(:, 1));
-        end
-        r.runs.(fn{j}) = lite;
-    end
+    % result.runs is stored log-free by the entry (per-arm <id>.mat
+    % archives keep the logs); arm data for the gates is loaded from
+    % those per-arm files on demand (getArmFromSegs)
     segs(d).runs = r.runs;
+    segs(d).dir = segDirs{d};
     segs(d).binding = r.binding;
     segs(d).dir = segDirs{d};
 end
@@ -196,15 +180,6 @@ fprintf(['M3 AGGREGATE BATCH PASS (%d segments, %d arms, commit %s)\n'], ...
 end
 
 % ---------------------------------------------------------------------------
-function v = getf(a, name)
-%GETF field value or [] when absent (failed-arm records stay loadable).
-if isfield(a, name)
-    v = a.(name);
-else
-    v = [];
-end
-end
-
 function c = expectedBatchContract()
 %EXPECTEDEDBATCHCONTRACT the ONE fixed batch contract (rules section 2
 %   rule 8 pattern): the aggregate never takes the segment set as its own
@@ -228,15 +203,12 @@ c.vTrkTol = 0.05;
 end
 
 function a = getArmFromSegs(segs, id)
-%GETARMFROMSEGS the arm record from whichever segment ran it.
-fieldName = strrep(id, '-', '_');
-for d = 1:numel(segs)
-    if isfield(segs(d).runs, fieldName)
-        a = segs(d).runs.(fieldName);
-        return;
-    end
-end
-error('air:M3Agg:Internal', 'arm %s not located', id);
+%GETARMFROMSEGS the FULL arm record (logs included) from the per-arm
+%   archive of whichever segment ran it.
+[segIdx, ~] = locateArm(segs, id);
+f = fullfile(segs(segIdx).dir, [id '.mat']);
+S = load(f, 'r');
+a = S.r;
 end
 
 function [segIdx, fieldName] = locateArm(segs, id)

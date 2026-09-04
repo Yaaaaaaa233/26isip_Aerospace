@@ -485,11 +485,13 @@ end
 
 function dirs = cReproGrid(negRoot, segDirs)
 dirs = copySegs(negRoot, segDirs);
-f = fullfile(dirs{3}, 'result.mat');
-S = load(f, 'result');
-result = S.result;
-result.runs.M3_R1.logs.el = result.runs.M3_R1.logs.el(1:4000, :);
-saveResult(dirs{3}, result);
+% result.mat carries no logs (log-free segment results): tamper the
+% per-arm archive so the repro pair grids mismatch
+f = fullfile(dirs{3}, 'M3-R1.mat');
+S = load(f, 'r');
+r = S.r;
+r.logs.el = r.logs.el(1:4000, :);
+save(f, 'r');
 end
 
 % ---------------------------------------------------------------------------
