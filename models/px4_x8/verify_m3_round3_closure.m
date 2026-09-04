@@ -902,7 +902,7 @@ for g = 1:numel(groups)
         armDir = findSegByArm(segDirs, arm);
         Sa = load(fullfile(armDir, 'result.mat'), 'result');
         runs.(fn) = Sa.result.runs.(fn);
-        hardlinkOrCopy(fullfile(armDir, arm), fullfile(dst, arm));
+        hardlinkOrCopy(fullfile(armDir, [arm '.mat']), fullfile(dst, [arm '.mat']));
     end
     result.runs = runs;
     result.segName = nm;
