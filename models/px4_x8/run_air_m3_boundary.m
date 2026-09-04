@@ -123,6 +123,11 @@ for k = 1:size(runs, 1)
             ok = false;
         end
     catch err
+        % controlled-injection hooks escape the per-run degrade path: they
+        % prove the ERROR-exit restore contract (see trials entry)
+        if startsWith(err.identifier, 'air:M3Boundary:Injected')
+            rethrow(err);
+        end
         fprintf('  %s FAILED: %s\n', name, err.message);
         R.(name) = struct('name', name, 'ok', false);
         ok = false;

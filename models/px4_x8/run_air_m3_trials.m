@@ -208,6 +208,12 @@ for k = 1:size(plan, 1)
             ok = false;
         end
     catch err
+        % controlled-injection hooks escape the per-arm degrade path: they
+        % exist to prove the ERROR-exit restore contract, not to exercise
+        % the (already covered) arm-failure degradation
+        if startsWith(err.identifier, 'air:M3Trials:Injected')
+            rethrow(err);
+        end
         fprintf('  %s FAILED: %s\n', id, err.message);
         R.(fieldOf(id)) = struct('id', id, 'ok', false, 'error', err.message);
         ok = false;
