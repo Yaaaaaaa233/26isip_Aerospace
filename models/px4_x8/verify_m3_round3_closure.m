@@ -626,7 +626,8 @@ for d = 1:numel(segDirs)
     for f = 1:numel(listing)
         if ~listing(f).isdir && ~strcmp(listing(f).name, 'result.mat')
             src = fullfile(segDirs{d}, listing(f).name);
-            wantCopy = any(strcmp(modifySegs(:, 1), nm) & ...
+            wantCopy = ~isempty(modifySegs) && ...
+                any(strcmp(modifySegs(:, 1), nm) & ...
                 strcmp(modifySegs(:, 2), listing(f).name));
             if wantCopy
                 copyfile(src, fullfile(dst, listing(f).name));
