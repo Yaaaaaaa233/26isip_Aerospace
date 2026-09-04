@@ -378,9 +378,13 @@ for j = 1:numel(fnR)
         runsLite.(fnR{j}) = rmfield(runsLite.(fnR{j}), 'logs');
     end
 end
+% NOTE: scenarioSet is a cell array for segment runs -- struct() name/value
+% REPLICATES the struct per cell element unless the cell is wrapped, which
+% silently produced a 1xN result struct array (the round-2 rerun archives
+% 20260904_112953/114351 carry that defect and are superseded)
 result = struct('pass', ok, 'archiveDir', string(outDir), 'runs', runsLite, ...
     'pair', pair, 'binding', binding, 'isFullBatch', ...
-    strcmp(scenarioSet, 'full'), 'scenarioSet', scenarioSet);
+    strcmp(scenarioSet, 'full'), 'scenarioSet', {scenarioSet});
 save(fullfile(outDir, 'result.mat'), 'result');
 if ~strcmp(scenarioSet, 'full')
     fprintf(['SEGMENT result (%s): the batch verdict requires ' ...
