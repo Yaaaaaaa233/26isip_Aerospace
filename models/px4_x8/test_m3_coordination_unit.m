@@ -520,6 +520,92 @@ re7 = m3_eval_energy(tb, 199.6 * ones(nB, 1), true(nB, 1), ...
 assert(re7.pass && abs(re7.dEPct + 0.2) < 1e-9, 'B6 positive control failed');
 fprintf('  fixtures: 4 exact error ids + breach/positive controls all land correctly\n');
 
+%% ================= B7: round-2 evaluator/checker negatives ===========
+fprintf('=== B7 round-2 negatives (direction/finiteness/participation) ===\n');
+tb7 = (0:0.05:240)';
+n7 = numel(tb7);
+srch7 = false(n7, 1); srch7(tb7 >= 192 & tb7 < 240) = true;
+per4 = round(4.0 / 0.05);   % 80 samples per dither period
+
+% N1: a center APPROACHING the target (0.98 -> 0.99 -> 1.00 at the first
+% three period ends of the last search slot) is monotonic -- the old
+% abs(pe) reference point (distance to 0, not to 1.0) rejected exactly
+% this trace (round-1 report negative N1)
+endsA = [0.98 0.99 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00 1.00];
+cA = 1.0 * ones(n7, 1);
+cA(srch7) = repelem(endsA, 1, per4)';
+rcA = m3_eval_convergence(tb7, cA, srch7, f0, 0.01, 5e-3);
+assert(rcA.monotonic, 'B7 N1: converging 0.98->1.00 wrongly rejected');
+% N2: a center DEPARTING from the target (1.00 -> 0.99 -> 0.98) is NOT
+% monotonic -- the old reference accepted it (round-1 negative N2)
+endsB = [1.00 0.99 0.98 0.98 0.98 0.98 0.98 0.98 0.98 0.98 0.98 0.98];
+cB = 1.0 * ones(n7, 1);
+cB(srch7) = repelem(endsB, 1, per4)';
+rcB = m3_eval_convergence(tb7, cB, srch7, f0, 0.01, 5e-3);
+assert(~rcB.monotonic, 'B7 N2: diverging 1.00->0.98 wrongly accepted');
+assert(abs(rcA.periodMean - mean(endsA)) < 1e-12 && ...
+    abs(rcB.periodMean - mean(endsB)) < 1e-12, ...
+    'B7 N1/N2: period means drifted off the fixture');
+
+% N3: a fully DEAD pair (both candidates constant everywhere) must fail
+% participation when required -- it passed vacuously before (negative N3)
+planV7 = srch7; planE7 = ~srch7;
+prm7v = struct('amplitude', 0.3, 'rateLimit', 2.0, 'Ts', 0.05);
+prm7e = struct('amplitude', 0.02, 'rateLimit', 0.05, 'Ts', 0.05);
+cstV = 9.0 * ones(n7, 1); cstE = 1.0 * ones(n7, 1);
+chk7 = m3_check_execution(tb7, planV7, planE7, cstV, cstE, cstV, cstE, ...
+    prm7v, prm7e, 'requireParticipation', true);
+assert(~chk7.pass, 'B7 N3: dead constant pair passed');
+assert(any(strcmp(chk7.failFields, 'searchParticipationV')) && ...
+    any(strcmp(chk7.failFields, 'searchParticipationE')), ...
+    'B7 N3: participation not named as the failure (got %s)', ...
+    strjoin(chk7.failFields, ','));
+% without the requirement the ranges are still MEASURED and reported
+chk7b = m3_check_execution(tb7, planV7, planE7, cstV, cstE, cstV, cstE, ...
+    prm7v, prm7e);
+assert(chk7b.pass && chk7b.minSearchRangeV == 0 && ...
+    chk7b.minSearchRangeE == 0, 'B7 N3b: measured ranges not reported');
+
+% N4: a NaN trace must fail the finiteness gate up front -- every NaN
+% comparison evaluates false, so the old predicates let it through
+nanE = cstE; nanE(100) = NaN;
+chk8 = m3_check_execution(tb7, planV7, planE7, cstV, nanE, cstV, nanE, ...
+    prm7v, prm7e);
+assert(~chk8.pass && any(strcmp(chk8.failFields, 'nonFiniteE')), ...
+    'B7 N4: NaN trace passed (%s)', strjoin(chk8.failFields, ','));
+
+% vViaApplied: hold constancy for v on the APPLIED trace after each
+% hold run's rate-limit transition. A clean 3-sample ramp passes; a
+% post-transition drift inside the hold run fails.
+appV = cstV;
+appV(1:3) = [9.3 9.2 9.1]';   % exactly the Lm = 3 transition samples
+chk9 = m3_check_execution(tb7, planV7, planE7, cstV, cstE, appV, cstE, ...
+    prm7v, prm7e, 'vViaApplied', true);
+assert(chk9.pass, 'B7 vViaApplied clean ramp failed (%s)', ...
+    strjoin(chk9.failFields, ','));
+appVb = appV; appVb(50) = 9.5;   % inside the hold run, past the margin
+chk10 = m3_check_execution(tb7, planV7, planE7, cstV, cstE, appVb, cstE, ...
+    prm7v, prm7e, 'vViaApplied', true);
+assert(~chk10.pass && any(strcmp(chk10.failFields, 'holdConstancyV')), ...
+    'B7 vViaApplied drift passed (%s)', strjoin(chk10.failFields, ','));
+
+% dual-track energy: the coverage fractions and the full-window integral
+% are first-class outputs (a 4.8 s common subset must be visible as such)
+maskA7 = false(n7, 1); maskA7(tb7 >= 144 & tb7 < 148.8) = true;
+re8 = m3_eval_energy(tb7, 199.4 * ones(n7, 1), maskA7, ...
+    tb7, 200 * ones(n7, 1), true(n7, 1), [144, 240], 0.5);
+nWin7 = sum(tb7 >= 144 - 1e-9 & tb7 <= 240 + 1e-9);
+assert(re8.pass && re8.nMask == 96 && re8.nWin == nWin7, ...
+    'B7 energy: window/mask counts wrong (%d/%d)', re8.nMask, re8.nWin);
+assert(abs(re8.maskFrac - 96 / nWin7) < 1e-12 && ...
+    abs(re8.covA - 96 / nWin7) < 1e-12 && re8.covB == 1, ...
+    'B7 energy: coverage fractions wrong');
+assert(abs(re8.dEPct - (-0.3)) < 1e-9 && ...
+    abs(re8.dEPctFull - (-0.3)) < 1e-9, ...
+    'B7 energy: dual-track percentages wrong');
+fprintf(['  negatives: direction x2, dead-pair, NaN, vViaApplied ramp/' ...
+    'drift, coverage bookkeeping all land correctly\n']);
+
 ok = true;
 fprintf('M3 COORDINATION UNIT TESTS PASS\n');
 end

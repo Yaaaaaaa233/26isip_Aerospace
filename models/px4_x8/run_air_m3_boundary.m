@@ -1,9 +1,8 @@
-function result = run_air_m3_boundary()
+function result = run_air_m3_boundary(injectError)
 %RUN_AIR_M3_BOUNDARY M3 group-C boundary trial: short Simulink, real wiring.
 %   Two 160 s runs on air_spare (M2 semantic baseline; nominal + roll-sine
-%   disturbed), M3 model set fully explicit (docs/interfaces/
-%   M3_V_ETA_COORDINATION.md sections 2.5/5), slots eta 64 / v 32 with
-%   firstSlot = 'eta' and (v0, eta0) = (9, 1.0):
+%   disturbed), slots eta 64 / v 32 with firstSlot = 'eta' and
+%   (v0, eta0) = (9, 1.0):
 %     - both channels take both roles (eta: search [0,64) hold [64,96)
 %       search [96,160); v: hold [0,64) search [64,96) hold [96,160));
 %     - eta's armed-floor startup (eta_act = 0 until the rotors spin up)
@@ -14,10 +13,20 @@ function result = run_air_m3_boundary()
 %       column 1, after the selector ramp) must be constant through the
 %       planned eta slots; invalid windows are itemized per cause from
 %       the archived inputs, never blanket-exempted.
+%   CONFIGURATION CALIBER (declared 2026-09-04, round-1 M3-R1-F6): this
+%   entry is a MECHANISM PROBE at the M2-legacy eta gain 1e-4 -- it is
+%   NOT the frozen M3 model set (2e-4, run_air_m3_trials) and never
+%   grades the formal convergence numbers. The full effective config is
+%   archived to effective_config.mat so the caliber is machine-checkable.
 %   Zero .slx structure change (V1). FUNCTION ENTRY per rules 2.1/3.1:
 %   machine-checkable result; the three config globals and M2_ETA_APPLIED
 %   are snapshotted and restored on exit (success and error paths).
-
+%   injectError = 'postwrite' throws after the first run's globals were
+%   written and archived (restore-after-write evidence; not evidence
+%   itself, so the dirty-tree gate does not apply to it).
+if nargin < 1
+    injectError = '';
+end
 model = 'air_spare';
 modelDir = fileparts(mfilename('fullpath'));
 wsRoot = fileparts(fileparts(modelDir));
@@ -26,8 +35,15 @@ global M0C_ESC_PARAMS M2_ETA_PARAMS M2_ETA_APPLIED M3_ARB_PARAMS
 snap = snapshotGlobals();
 cleanup = onCleanup(@() m3b_restore(snap)); %#ok<NASGU>
 
-% ---- M3 model set: every field of both channels and the arbitration
-% explicit, no ambient inheritance (M3 doc 2.5)
+binding = m3_source_binding([mfilename('fullpath') '.m']);
+assert(binding.dirty == 0 || strcmp(injectError, 'postwrite'), ...
+    'air:M3Boundary:DirtyTree', ...
+    ['evidence runs require a clean working tree; uncommitted ' ...
+    'changes:\n%s'], strjoin(binding.dirtyLines, newline));
+
+% ---- boundary mechanism-probe config: every field explicit, M2-legacy
+% eta gain 1e-4 (see header -- NOT the 2e-4 M3 model set), no ambient
+% inheritance (M3 doc 2.5)
 pv = struct('mode', 'm3', 'center0', 9.0, 'lower', 6.0, 'upper', 12.0, ...
     'amplitude', 0.3, 'frequency', 0.25, 'hpOmega', 0.6, 'lpOmega', 0.6, ...
     'gain', 6e-3, 'rateLimit', 2.0);
@@ -43,6 +59,9 @@ outDir = fullfile(wsRoot, 'results', 'air_m3_boundary', ...
 if ~exist(outDir, 'dir')
     mkdir(outDir);
 end
+cfgB = struct('pv', pv, 'pe', pe, 'arb', arb, 'stopT', STOP_T, ...
+    'caliber', 'mechanism probe, M2-legacy eta gain 1e-4');
+save(fullfile(outDir, 'effective_config.mat'), 'cfgB');
 
 runs = {'BN_nominal', true; 'BD_disturbed', false};
 R = struct();
@@ -96,6 +115,10 @@ for k = 1:size(runs, 1)
         printBoundary(r);
         save(fullfile(outDir, [name '.mat']), 'r', 'Mb', 'tb', 'A', 'ta', ...
             'Pe', 'el', 'te2');
+        if k == 1 && strcmp(injectError, 'postwrite')
+            error('air:M3Boundary:InjectedPostWrite', ...
+                'controlled failure after globals were written and archived');
+        end
         if ~r.ok
             ok = false;
         end
@@ -109,7 +132,8 @@ for k = 1:size(runs, 1)
     end
 end
 
-result = struct('pass', ok, 'archiveDir', string(outDir), 'runs', R);
+result = struct('pass', ok, 'archiveDir', string(outDir), 'runs', R, ...
+    'binding', binding, 'isFullBatch', true);
 save(fullfile(outDir, 'result.mat'), 'result');
 if ok
     fprintf('M3 BOUNDARY TRIAL PASS\n');

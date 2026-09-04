@@ -35,6 +35,19 @@ end
 EA = sum(PA(mask)) * Ts;
 EB = sum(PB(mask)) * Ts;
 dEPct = 100 * (EA - EB) / EB;
+% dual-track statistics (round-1 finding M3-R1-F5): the frozen primary
+% gate stays on the pairwise-common valid mask, but the full continuous
+% window integral and the actual mask coverage are reported alongside --
+% a 4.8 s / 96 s common subset must never be described as the whole
+% cycle window again.
+EAfull = sum(PA(sel)) * Ts;
+EBfull = sum(PB(sel)) * Ts;
+nWin = sum(sel);
 r = struct('pass', dEPct <= thr, 'dEPct', dEPct, 'EA', EA, 'EB', EB, ...
-    'nMask', sum(mask), 'mask', mask, 'Ts', Ts);
+    'nMask', sum(mask), 'mask', mask, 'Ts', Ts, ...
+    'nWin', nWin, 'covA', sum(sel & logical(validA(:))) / nWin, ...
+    'covB', sum(sel & logical(validB(:))) / nWin, ...
+    'maskFrac', sum(mask) / nWin, ...
+    'dEPctFull', 100 * (EAfull - EBfull) / EBfull, ...
+    'EAfull', EAfull, 'EBfull', EBfull);
 end

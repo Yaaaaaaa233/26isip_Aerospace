@@ -31,8 +31,12 @@ idx = reshape(win, pLen, nAvail);
 pm = mean(center(idx), 1);             % period means over search samples
 pe = center(idx(pLen, :));             % period-end centers
 m = mean(pm);
-dist = abs(pe(:).');                    % force a row: pe keeps the column
-reg = diff(dist);                       % orientation of the source vector
+% distance to the TARGET 1.0, not to 0: abs(pe) measured the distance to
+% zero and inverted the monotonicity direction (round-1 finding M3-R1-F2;
+% a 0.98->0.99->1.00 approach was rejected, a 1.00->0.99->0.98 departure
+% was accepted). Force a row: pe keeps the source column orientation.
+dist = abs(pe(:).' - 1.0);
+reg = diff(dist);
 r = struct('converged', abs(m - 1.0) <= tolDist, ...
     'periodMean', m, 'monotonic', all(reg <= tolMono), ...
     'maxRegression', max([0, reg]), 'nPeriods', nAvail, ...
