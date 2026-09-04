@@ -138,7 +138,8 @@ for k = 1:size(runs, 1)
 end
 
 result = struct('pass', ok, 'archiveDir', string(outDir), 'runs', R, ...
-    'binding', binding, 'isFullBatch', true);
+    'binding', binding, 'bindingExit', m3_source_binding( ...
+    [mfilename('fullpath') '.m']), 'isFullBatch', true);
 save(fullfile(outDir, 'result.mat'), 'result');
 if ok
     fprintf('M3 BOUNDARY TRIAL PASS\n');

@@ -10,10 +10,19 @@ function r = m3_eval_arm(id, nominal, modeV, modeEta, v0, eta0, arb, ...
 %     - eta convergence runs through m3_eval_convergence (the same
 %       evaluator the unit fixtures use), window [192,240) per M3 doc
 %       6.4, and MONOTONICITY is a hard gate for nominal m3 arms (it was
-%       computed but never gated before);
+%       computed but never gated before). Round-2 M3-R2-F2: the graded
+%       input is the search CENTER reconstructed by replaying the frozen
+%       kernel on the archived measurements (m3_replay_eta_center); the
+%       replay must reproduce the archived candidate sample-exact
+%       (air:M3EvalArm:ReplayMismatch) -- the candidate itself is
+%       center+dither and its period-end samples are dither-polluted;
 %     - every arm (nominal AND disturbed) is subject to the section 6.2
 %       rule-3 long-window saturation cap: bits 1/2 continuously hot for
 %       at most 2 s;
+%     - every arm is subject to the section 6.3 attitude-limit gate:
+%       bit 3 (log column 29) must never fire (round-2 M3-R2-F3 -- it
+%       was gated for nominal arms only, leaving disturbed arms without
+%       the contract's 姿态限幅内 requirement);
 %     - allocator-sat run length is reported (not gated: the cap is on
 %       bits 1/2).
 %   pv/pe are THIS arm's effective channel configs (frozen per-arm
@@ -111,6 +120,15 @@ r.nFb = sum(diff(interp1(tb, Mb(:, 4), tb, 'previous', 0) == 4) == 1);
 r.etaBandOK = all(etaCand(te2 >= 10.0) >= 0.73 & etaCand(te2 >= 10.0) <= 1.27);
 r.vBandOK = all(vrefApplied(te2 >= 10.0) >= 5.95 & vrefApplied(te2 >= 10.0) <= 12.05);
 
+% ---- attitude-limit gate (round-2 M3-R2-F3): contract section 6.3
+% requires 姿态限幅内 for EVERY trial, not only nominal arms -- bit 3
+% (log column 29, M0B Att Tol 0.523 rad) firing at any sample after
+% spin-up fails the arm. The remaining hard bits stay reported (bits 1/2
+% are capped at 2 s below on every arm; the nominal branch additionally
+% requires zero hard events and zero saturation).
+att3i = interp1(ta, double(A(:, 29) > 0.5), te2, 'previous', 0) > 0.5;
+r.attLimitMax = max(double(att3i(hardBase)));
+
 % ---- long-window saturation cap (M3 doc 6.2 rule 3): bits 1/2 (m0a log
 % columns 27/28) may not stay continuously hot longer than 2 s -- this
 % applies to NOMINAL AND DISTURBED arms; the allocator sat run length is
@@ -122,19 +140,32 @@ r.satRunMax = maxRunDur(sat, te2);
 r.hard12OK = r.hard12RunMax <= 2.0 + 0.05;
 
 % ---- eta convergence through the SINGLE shared evaluator (M3 doc 6.4:
-% last full search slot [192,240), period means of the candidate --
-% dither is zero-mean over full 4 s periods, so period means equal the
-% center means; a hold-only window is rejected by the evaluator itself).
-% Pure-esc arms (B2) search continuously: the criterion window is applied
-% as the search mask so both arm families are graded on the same window.
+% period means / period-END CENTERS on the last full search slot
+% [192,240)). Round-2 M3-R2-F2: the graded input is the VERIFIABLE SEARCH
+% CENTER, not the archived candidate -- the candidate is center + dither
+% and its period-end samples are dither-polluted (a phase-shifted dither
+% could pass a departing center or reject an approaching one). The center
+% is reconstructed by replaying the frozen kernel on the archived
+% measurements (m3_replay_eta_center); a faithful replay reproduces the
+% archived candidate sample-exact, which is asserted here as the evidence
+% self-consistency gate. Pure-esc arms (B2) search continuously: both arm
+% families are graded on the SAME explicit [192,240) window.
 r.etaCenter = [];
 r.etaConv = [];
+r.etaReplayDiff = Inf;
 if strcmp(modeEta, 'm3') || strcmp(modeEta, 'esc')
-    convMask = searchE;
-    if strcmp(modeEta, 'esc')
-        convMask = te2 >= convWin(1) & te2 < convWin(2);
+    convMask = te2 >= convWin(1) & te2 < convWin(2);
+    if strcmp(modeEta, 'm3')
+        convMask = convMask & searchE;
     end
-    ec = m3_eval_convergence(te2, etaCand, convMask, pe.frequency, ...
+    [ctr, ~, repDiff] = m3_replay_eta_center(te2, Pe, etaAct, sat, ...
+        hardEi, searchE, modeEta, eta0, pe, etaCand);
+    assert(repDiff <= 1e-12, 'air:M3EvalArm:ReplayMismatch', ...
+        ['kernel replay diverges from the archived candidate (max ' ...
+        'abs diff %.3g): the logs are not self-consistent evidence'], ...
+        repDiff);
+    r.etaReplayDiff = repDiff;
+    ec = m3_eval_convergence(te2, ctr, convMask, pe.frequency, ...
         0.01, 5e-3);
     if strcmp(modeEta, 'm3')
         % the evaluator's last search run must BE the criterion window:
@@ -151,7 +182,7 @@ end
 
 % ---- hard gates per arm (safety + execution evidence + convergence)
 r.ok = r.exe.planExclusive && r.etaBandOK && r.vBandOK && r.nFb == 0 && ...
-    r.yawMax <= 1.5 && r.hard12OK;
+    r.yawMax <= 1.5 && r.hard12OK && r.attLimitMax == 0;
 if nominal
     r.ok = r.ok && r.hardMax == 0 && r.satFrac == 0;
 end

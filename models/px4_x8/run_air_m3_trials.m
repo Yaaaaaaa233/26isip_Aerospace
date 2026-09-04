@@ -1,4 +1,4 @@
-function result = run_air_m3_trials(injectError, scenarioSet, baseDir)
+function result = run_air_m3_trials(injectError, scenarioSet, baseDir, stagedDir)
 %RUN_AIR_M3_TRIALS M3 paired coordination trials (M3_V_ETA_COORDINATION.md
 %   section 5, pre-registered). 14-scenario row-frozen pairing matrix:
 %   M3 nominal 5 ({7,11} x {0.8,1.2} + (9,1.0)), disturbed 2,
@@ -32,6 +32,11 @@ function result = run_air_m3_trials(injectError, scenarioSet, baseDir)
 %   R2022b heap limitation requires (M2 'keep' filter precedent). A
 %   subset result is a SEGMENT result: the batch verdict comes from
 %   m3_aggregate_batch over all segments.
+%   stagedDir (round-2 M3-R2-F4): when set, this invocation is a staged
+%   BATCH SEGMENT -- the manifest is validated against m3_batch_contract,
+%   the persistent attempt counter is bumped (bounded, atomic) and the
+%   result carries batchId/segName/attempts plus a driver done stamp.
+%   The formal batch runs exclusively through tools/run_m3_batch.ps1.
 
 
 if nargin < 1
@@ -43,6 +48,13 @@ end
 if nargin < 3
     baseDir = '';   % archive of a previous segment: baseline arms are
 end                 % loaded from there for the cross-segment paired gates
+if nargin < 4
+    stagedDir = '';  % batch staging (round-2 M3-R2-F4): when set, this
+end                 % invocation is a BATCH SEGMENT -- the staged manifest
+                     % is validated against the source contract, the
+                     % persistent attempt counter is bumped (bounded,
+                     % atomic) and the result carries the batch binding
+                     % plus a done stamp for the driver
 
 model = 'air_spare';
 modelDir = fileparts(mfilename('fullpath'));
@@ -105,6 +117,42 @@ if iscell(scenarioSet)
 elseif ~strcmp(scenarioSet, 'full')
     error('air:M3Trials:BadScenarioSet', ...
         'scenarioSet must be ''full'' or a cell of row IDs');
+end
+
+% ---- batch staging (round-2 M3-R2-F4; rules v1.7 section 2 rules 4-8):
+% a staged invocation is a BATCH SEGMENT: the staged manifest is
+% validated against the SOURCE contract (the manifest is evidence, not
+% authority), the live commit must still match the manifest's batch
+% commit (no cross-commit mixing), and the bounded persistent attempt
+% counter is bumped atomically BEFORE any work -- an over-budget entry
+% is refused here, independently of the driver.
+batchId = '';
+segName = '';
+attempts = [];
+if ~isempty(stagedDir)
+    assert(isfolder(stagedDir), 'air:M3Trials:NoStagedDir', ...
+        'staged directory %s does not exist', stagedDir);
+    S = load(fullfile(stagedDir, 'manifest.mat'), 'manifest');
+    [segs, info] = m3_batch_validate(S.manifest);
+    assert(strcmp(binding.gitCommit, info.gitCommit), ...
+        'air:M3Trials:ManifestCommit', ...
+        'live HEAD %s differs from the batch commit %s -- mixed batch', ...
+        binding.gitCommit, info.gitCommit);
+    want = plan(:, 1)';
+    hit = 0;
+    for k = 1:numel(segs)
+        if isequal(sort(segs(k).arms), sort(want))
+            hit = k;
+            break
+        end
+    end
+    assert(hit > 0, 'air:M3Trials:NotInManifest', ...
+        'this segment (%s) is not a manifest segment', strjoin(want, ','));
+    segName = segs(hit).name;
+    batchId = info.batchId;
+    attempts = m3_stage_attempt(stagedDir, segName, info.maxAttempts);
+    fprintf('batch segment %s, attempt %d/%d, batchId %s\n', ...
+        segName, attempts, info.maxAttempts, batchId);
 end
 
 % controlled-failure hook: fires after the entry contract exists
@@ -382,10 +430,32 @@ end
 % REPLICATES the struct per cell element unless the cell is wrapped, which
 % silently produced a 1xN result struct array (the round-2 rerun archives
 % 20260904_112953/114351 carry that defect and are superseded)
+% bindingExit (round-2 M3-R2-F4): exit-time live re-capture -- the
+% aggregate checks entry AND exit bindings of every segment, so evidence
+% produced by a tree that changed mid-run cannot aggregate
+bindingExit = m3_source_binding([mfilename('fullpath') '.m']);
 result = struct('pass', ok, 'archiveDir', string(outDir), 'runs', runsLite, ...
-    'pair', pair, 'binding', binding, 'isFullBatch', ...
-    strcmp(scenarioSet, 'full'), 'scenarioSet', {scenarioSet});
+    'pair', pair, 'binding', binding, 'bindingExit', bindingExit, ...
+    'batchId', batchId, 'segName', segName, 'attempts', attempts, ...
+    'isFullBatch', strcmp(scenarioSet, 'full'), 'scenarioSet', {scenarioSet});
 save(fullfile(outDir, 'result.mat'), 'result');
+if ~isempty(stagedDir)
+    if ok
+        % the driver's authoritative freshness marker: written only when
+        % the segment evidence is complete AND passing (rules section 2
+        % rule 7d/7e) -- a failed segment leaves NO stamp, so the driver
+        % treats it as a stage failure and the bounded-retry budget
+        % applies (deterministic failures abort the batch, honestly)
+        m3_stage_done(stagedDir, segName, struct('runId', binding.runId, ...
+            'batchId', batchId, 'attempts', attempts, ...
+            'archiveDir', string(outDir), 'gitCommit', binding.gitCommit));
+    else
+        error('air:M3Trials:SegmentFailed', ...
+            ['segment %s completed with pass=false; evidence archived in ' ...
+            '%s -- no done stamp (the driver must treat this as a stage ' ...
+            'failure, not a post-stamp crash)'], segName, outDir);
+    end
+end
 if ~strcmp(scenarioSet, 'full')
     fprintf(['SEGMENT result (%s): the batch verdict requires ' ...
         'm3_aggregate_batch over all segments\n'], ...
@@ -473,19 +543,20 @@ if ~isempty(r.exe.chk)
     chkPass = r.exe.chk.pass;
 end
 fprintf(['  ok %d (chk %d) | hold: eta dev %.3g, v dev %.3g | ' ...
-    'vTrk %.5f sat %.3f yaw %.3f pwm [%.0f %.0f] hard %d fb %d | ' ...
+    'vTrk %.5f sat %.3f yaw %.3f pwm [%.0f %.0f] hard %d att %d fb %d | ' ...
     'bit12run %.2f s satRun %.2f s\n'], ...
     r.ok, chkPass, r.exe.etaHoldDev, r.exe.vHoldDev, ...
     r.vTrk, r.satFrac, r.yawMax, r.pwmMin, ...
-    r.pwmMax, r.hardMax, r.nFb, r.hard12RunMax, r.satRunMax);
+    r.pwmMax, r.hardMax, r.attLimitMax, r.nFb, r.hard12RunMax, ...
+    r.satRunMax);
 if ~isempty(r.exe.chk) && ~r.exe.chk.pass
     fprintf('    chk failFields: %s\n', strjoin(r.exe.chk.failFields, ','));
 end
 if ~isempty(r.etaConv)
-    fprintf(['  eta conv: [192,240) mean %.5f (converged %d, ' ...
-        'monotonic %d, maxRegression %.2g)\n'], ...
+    fprintf(['  eta conv: [192,240) center mean %.5f (converged %d, ' ...
+        'monotonic %d, maxRegression %.2g, replayDiff %.3g)\n'], ...
         r.etaCenter, r.etaConv.converged, r.etaConv.monotonic, ...
-        r.etaConv.maxRegression);
+        r.etaConv.maxRegression, r.etaReplayDiff);
 end
 for j = 1:numel(r.exe.etaInvalid)
     w = r.exe.etaInvalid(j);

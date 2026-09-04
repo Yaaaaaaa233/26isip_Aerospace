@@ -606,6 +606,33 @@ assert(abs(re8.dEPct - (-0.3)) < 1e-9 && ...
 fprintf(['  negatives: direction x2, dead-pair, NaN, vViaApplied ramp/' ...
     'drift, coverage bookkeeping all land correctly\n']);
 
+%% ================= B8: alternating-period regression ===========
+fprintf('=== B8 alternating-period center (round-1 N6 class) ===\n');
+% period constants alternating 1.000/1.009: the slot MEAN (1.0045) passes
+% the 0.01 convergence tolerance but the adjacent period-end regression
+% (0.009) breaches the frozen 5e-3 -- an oscillating center must be
+% rejected by monotonicity even though it "converges" on average
+endsC = 1.0 + 0.009 * mod(0:11, 2);
+cC = 1.0 * ones(n7, 1);
+cC(srch7) = repelem(endsC, 1, per4)';
+rcC = m3_eval_convergence(tb7, cC, srch7, f0, 0.01, 5e-3);
+assert(rcC.converged, 'B8 sanity: mean 1.0045 must pass the 0.01 tolerance');
+assert(~rcC.monotonic && abs(rcC.maxRegression - 0.009) < 1e-12, ...
+    'B8: alternating center not rejected by monotonicity (maxReg %.4g)', ...
+    rcC.maxRegression);
+% ... and the evaluator keeps the trailing full periods only: a 961-sample
+% search run (t=192..240 inclusive, the round-2 off-by-one shape) grades
+% on the LAST 960 samples, so its first sample never leaks into the window
+srch961 = false(n7, 1);
+srch961(tb7 >= 192 & tb7 <= 240) = true;
+assert(sum(srch961) == 961, 'B8 sanity: 961-sample run fixture');
+cD = 1.0 * ones(n7, 1);
+cD(find(srch961, 1)) = 1.5;   % a poisoned FIRST sample of the long run
+rcD = m3_eval_convergence(tb7, cD, srch961, f0, 0.01, 5e-3);
+assert(rcD.converged && rcD.monotonic && abs(rcD.periodMean - 1.0) < 1e-12, ...
+    'B8: the 961-sample run did not grade on its trailing 960 samples');
+fprintf('  alternating center rejected; 961-sample run graded on trailing 960\n');
+
 ok = true;
 fprintf('M3 COORDINATION UNIT TESTS PASS\n');
 end
