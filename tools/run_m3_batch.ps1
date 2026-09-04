@@ -66,6 +66,7 @@ param(
     [int]$MaxAttempts = 3,
     [string]$Matlab = 'matlab',
     [string]$LogRoot = '',
+    [string]$StagedDir = '',
     [string[]]$Stages = @('init', 's1', 's2', 's3', 's4', 's5', 'aggregate', 'vunit', 'vnegative', 'vaggregate', 'vreport'),
     [switch]$SourceOnly
 )
@@ -161,9 +162,23 @@ if (-not $LogRoot) {
 New-Item -ItemType Directory -Force -Path $LogRoot | Out-Null
 Write-Output ("batch log dir: " + $LogRoot)
 
-$stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
-$stagedDir = Join-Path $RepoRoot ('results\air_m3_batch_staged\' + $stamp)
-New-Item -ItemType Directory -Force -Path $stagedDir | Out-Null
+if ($StagedDir) {
+    # resume an EXISTING staged directory (same batchId/manifest): used
+    # when a verifier-stage defect exhausted its own budget in an earlier
+    # driver run -- the batch segments and aggregate stay done; only the
+    # stages still missing/re-budgeted run. Their counters must have been
+    # reset deliberately in that dir (the budget is never silently
+    # bypassed); every attempt log of the failed run stays kept.
+    if (-not (Test-Path (Join-Path $StagedDir 'manifest.mat'))) {
+        throw ("resume staged dir " + $StagedDir + " has no manifest.mat")
+    }
+}
+else {
+    $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+    $StagedDir = Join-Path $RepoRoot ('results\air_m3_batch_staged\' + $stamp)
+    New-Item -ItemType Directory -Force -Path $StagedDir | Out-Null
+}
+$stagedDir = $StagedDir
 Write-Output ("staged dir: " + $stagedDir)
 
 # segment stages (names must match the manifest's canonical s1..s5);
