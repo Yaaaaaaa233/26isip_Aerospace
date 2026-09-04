@@ -54,7 +54,7 @@ end
 % ---- 2. frozen 14-arm manifest: exact cover, no duplicates, no extras
 arms = {};
 for d = 1:numel(segs)
-    fn = fieldnames(segs(d).result.runs);
+    fn = fieldnames(segs(d).runs);
     for j = 1:numel(fn)
         arms{end + 1} = strrep(fn{j}, '_', '-'); %#ok<AGROW>
     end
