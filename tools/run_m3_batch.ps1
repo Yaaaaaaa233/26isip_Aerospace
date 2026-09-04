@@ -153,6 +153,10 @@ function Invoke-LoggedNative {
 
 if ($SourceOnly) { return }
 
+# -File passes a comma list as ONE string; normalize to a flat array
+$Stages = @($Stages | ForEach-Object { $_ -split ',' } | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+
+
 if ($MaxAttempts -lt 1 -or $MaxAttempts -gt 10) {
     throw ("MaxAttempts {0} out of the sane range 1..10" -f $MaxAttempts)
 }
