@@ -699,21 +699,27 @@ assert(numel(dirs) == numel(segDirs) - 1, 'fixture: one dir dropped');
 end
 
 function [dirs, stg] = cManifestArms(negRoot, segDirs, stagedDir)
-% manifest declares a different arm list than the segment actually ran
-% (all files present: the rejection must come from the content check)
+% manifest declares arms SWAPPED between two segments: the cover stays
+% contract-valid, every file is present, but the declared lists no
+% longer match what the segments actually ran -> the CONTENT check
 [dirs, stg] = copyBatch(negRoot, 'manifestarms', segDirs, stagedDir, {});
 f = fullfile(stg, 'manifest.mat');
 S = load(f, 'manifest');
 manifest = S.manifest;
-hit = 0;
+i1 = 0;
+i3 = 0;
 for k = 1:numel(manifest.segments)
     if any(strcmp(manifest.segments(k).arms, 'M3-N1'))
-        hit = k;
-        break
+        i1 = k;
+    end
+    if any(strcmp(manifest.segments(k).arms, 'M3-N3'))
+        i3 = k;
     end
 end
-manifest.segments(hit).arms = regexprep(manifest.segments(hit).arms, ...
-    '^M3-N1$', 'M3-ZZ');
+manifest.segments(i1).arms = regexprep(manifest.segments(i1).arms, ...
+    '^M3-N1$', 'M3-N3');
+manifest.segments(i3).arms = regexprep(manifest.segments(i3).arms, ...
+    '^M3-N3$', 'M3-N1');
 save(f, 'manifest');
 end
 
