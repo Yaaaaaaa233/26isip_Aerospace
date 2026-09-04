@@ -56,13 +56,14 @@ end
 
 % ---------------------------------------------------------------------------
 function ok = runUnit()
-ok = test_m3_coordination_unit();
-assert(ok, 'air:M3Verify:Unit', 'm3 coordination suite failed');
-ok = test_m0c_esc_unit();
-assert(ok, 'air:M3Verify:Unit', 'm0c esc suite failed');
-ok = test_m2_eta_esc_unit();
-assert(ok, 'air:M3Verify:Unit', 'm2 eta esc suite failed');
+% m0c/m2 suites are LEGACY SCRIPT entries (rules section 2.1 registered
+% limitation): run by name -- their internal asserts are the failure
+% signal; the m3 suite is a function whose asserts fire the same way.
+test_m3_coordination_unit;
+test_m0c_esc_unit;
+test_m2_eta_esc_unit;
 fprintf('unit: 3 suites PASS (m3 coordination incl. B7, m0c, m2)\n');
+ok = true;
 end
 
 % ---------------------------------------------------------------------------

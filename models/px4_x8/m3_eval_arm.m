@@ -72,7 +72,8 @@ if strcmp(modeV, 'm3') || strcmp(modeEta, 'm3')
         'Ts', 0.05);
     r.exe.chk = m3_check_execution(te2, searchV, searchE, vrefApplied, ...
         etaCand, vrefApplied, etaAct, prmV, prmE, ...
-        'vViaApplied', true, 'requireParticipation', nominal);
+        'vViaApplied', true, 'requireParticipation', nominal, ...
+        'etaAppliedIsActual', true, 'vHoldMask', status == 2 & ~hardEi);
     r.exe.etaHoldDev = r.exe.chk.maxHoldDevE;
     r.exe.etaHoldSamples = r.exe.chk.nHoldRunsE;
     r.exe.vHoldDev = r.exe.chk.maxHoldDevV;

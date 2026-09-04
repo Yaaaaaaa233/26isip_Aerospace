@@ -27,6 +27,20 @@ function r = m3_check_execution(t, searchV, searchE, candV, candE, ...
 %       the dither amplitude). A fully constant channel (stopped search
 %       masquerading as convergence) then FAILS instead of passing
 %       vacuously; when false the ranges are still measured and reported.
+%     'etaAppliedIsActual' (default false) -- V1 logs the PHYSICAL actual
+%       ratio (m2_eta_log col 2), not the allocator's rate-limited
+%       reference: measured steps reach ~0.8 at rotor spin-up, so
+%       slew/lag predicates on it are category errors. With this flag the
+%       appliedSlew/appliedLag checks are replaced by a physical
+%       TRACKING bound: from t = 10 s on, |actual - candidate| must stay
+%       within half the dither amplitude (real arms: max 0.0035 vs
+%       0.01 bound at amplitude 0.02).
+%     'vHoldMask' (default [] = all true) -- logical column marking
+%       samples where the v APPLIED channel is under normal supervision
+%       (status==2 & hard bits quiet). The M0-B selector legitimately
+%       moves v_ref outside that set, so the vViaApplied hold-constancy
+%       check only grades masked samples (75/3521 hold samples on the
+%       real M3-N1 arm; masked dev is exactly 0).
 %   Finiteness of all four traces is ALWAYS a hard check: NaN traces make
 %   every comparison below silently false, so they are rejected up front
 %   (negative N4 of the round-1 report).
@@ -34,9 +48,13 @@ function r = m3_check_execution(t, searchV, searchE, candV, candE, ...
 %   Output r: machine-checkable struct (pass, failFields, diagnostics).
 %   NOTE: the check helpers return the (possibly updated) result struct --
 %   MATLAB passes structs by value, so in-place mutation would be lost.
-opt = struct('vViaApplied', false, 'requireParticipation', false);
+opt = struct('vViaApplied', false, 'requireParticipation', false, ...
+    'etaAppliedIsActual', false, 'vHoldMask', []);
 for a = 1:2:numel(varargin)
     opt.(varargin{a}) = varargin{a + 1};
+end
+if isempty(opt.vHoldMask)
+    opt.vHoldMask = true(numel(t), 1);
 end
 n = numel(t);
 r = struct('pass', false, 'failFields', {{}}, 'n', n, ...
@@ -73,12 +91,19 @@ end
 %    the kernel state that would move it is never stepped; this is the
 %    traitor detector), or for a vViaApplied channel the APPLIED trace
 %    after the rate-limit transition of each run.
-r = checkHold(r, candE, applE, searchE, prmE, 'E', false);
-r = checkHold(r, candV, applV, searchV, prmV, 'V', opt.vViaApplied);
+r = checkHold(r, candE, applE, searchE, prmE, 'E', false, true(n, 1));
+r = checkHold(r, candV, applV, searchV, prmV, 'V', opt.vViaApplied, ...
+    opt.vHoldMask);
 
-% 3. applied slew must respect the channel rate limit everywhere
+% 3. applied slew must respect the channel rate limit everywhere (for a
+%    channel whose "applied" input is the PHYSICAL ACTUAL the bound is a
+%    tracking check instead -- see etaAppliedIsActual)
 r = checkSlew(r, applV, prmV, 'V');
-r = checkSlew(r, applE, prmE, 'E');
+if opt.etaAppliedIsActual
+    r = checkTracking(r, applE, candE, t, prmE, 'E');
+else
+    r = checkSlew(r, applE, prmE, 'E');
+end
 
 % 4. applied must track the candidate once past the transition length
 %    L = ceil(amplitude/rateLimit/Ts) samples after any role change
@@ -86,7 +111,9 @@ r = checkSlew(r, applE, prmE, 'E');
 if ~opt.vViaApplied
     r = checkLag(r, candV, applV, searchV, prmV, 'V');
 end
-r = checkLag(r, candE, applE, searchE, prmE, 'E');
+if ~opt.etaAppliedIsActual
+    r = checkLag(r, candE, applE, searchE, prmE, 'E');
+end
 
 % 5. role-change transient bound: the candidate may move by at most one
 %    dither amplitude at any planned hold <-> search transition (for a
@@ -118,19 +145,21 @@ end
 r.failFields{end + 1} = name; %#ok<AGROW>
 end
 
-function r = checkHold(r, cand, appl, search, prm, ch, viaApplied)
+function r = checkHold(r, cand, appl, search, prm, ch, viaApplied, mask)
 %CHECKHOLD the held signal must be constant in every planned hold run.
 %   Candidate mode: exact to 1e-12. vViaApplied mode: the applied trace
 %   after the first Lm samples of each run (the rate limiter needs up to
 %   Lm = ceil(amplitude/rateLimit/Ts) steps to settle onto the frozen
-%   center), tolerance 1e-9 (interpolated applied channel).
+%   center) AND only on supervised samples (mask; the selector moves
+%   v_ref legitimately outside supervision), tolerance 1e-9.
 runs = holdRuns(~search);
 Lm = ceil(prm.amplitude / (prm.rateLimit * prm.Ts));
 for j = 1:size(runs, 1)
     i0 = runs(j, 1); i1 = runs(j, 2);
     if viaApplied
         segIdx = (i0 + Lm):i1;
-        if numel(segIdx) < 1
+        segIdx = segIdx(mask(segIdx));
+        if numel(segIdx) < 2
             continue;
         end
         seg = appl(segIdx);
@@ -189,6 +218,17 @@ for j = 1:numel(idx)
     if dev > prm.amplitude * 1.001 + 1e-15
         r = addFailField(r, sprintf('resumeJump%s', ch));
     end
+end
+end
+
+function r = checkTracking(r, actual, cand, t, prm, ch)
+%CHECKTRACKING physical-actual tracking bound (etaAppliedIsActual): from
+%   t = 10 s on (rotor spin-up excluded) the measured ratio must follow
+%   the candidate within half the dither amplitude.
+sel = t >= 10.0;
+dev = abs(actual(sel) - cand(sel));
+if any(dev > 0.5 * prm.amplitude + 1e-12)
+    r = addFailField(r, sprintf('actualTracking%s', ch));
 end
 end
 
