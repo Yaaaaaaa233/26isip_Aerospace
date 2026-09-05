@@ -256,8 +256,10 @@ models/px4_x8/               PX4 X8验证平台：M0-M2快照、M3入口与+x8ph
 integration/air_esc/         慢层算法接入与安全层（预留）
 harness/                     统一指标层：三模块架构 + MOP/MOE + 1小时任务窗横比
 docs/TASKS_1_5_ROUTE.md      速度优化五任务技术路线
+docs/SIM_ACCEPTANCE_ROUTE.md 仿真集成与验收路线（Task 1 开环 / Task 2 闭环、Percent 口径）
 docs/ARCHITECTURE_MOP_MOE.md 三模块架构与MOP/MOE设计
 docs/COLLABORATION.md        模块边界、接口和协作约定
+docs/interfaces/SIM_ALGO_INTERFACE.md 仿真系统-算法模块接口定义（阶段接口）
 docs/DEVELOPMENT_STATUS.md   当前完成项、局限与下一步
 docs/evidence/               已核验的报告、过程图和模型结构图（含 speed_esc、speed_rl_residual、风场系列子目录）
 AGENTS.md                    面向AI代理与协作者的工作守则（必读）
