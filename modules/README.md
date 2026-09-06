@@ -35,6 +35,8 @@ AI协助：Codex（模块盘点、分类和入口整理）
 | [`wind_model_library`](wind_model_library/) | 七种风场模型库+空速语义完成；⚠️参数未实测校准、加号约定待适配（适配参考实现见 `wind_semantics_correction`） | `START_HERE.m`、`run_task9_checks.m` | [`docs/evidence/wind_model_library/`](../docs/evidence/wind_model_library/) | 王健祺 |
 | [`wind_semantics_correction`](wind_semantics_correction/) | 风速语义修正参考实现（空速=地速−风、风不影响运动、空速曲线固定；本地编号1.11，原task10）；⚠️参数未实测校准 | `START_HERE.m`、`run_task10_checks.m` | [`docs/evidence/wind_semantics_correction/`](../docs/evidence/wind_semantics_correction/) | 王健祺 |
 | [`wind_inference_search`](wind_inference_search/) | 第二轮2.1：风速推断寻优（功率调制反演风矢量+闭式地速调度，零探针逼近known上限）；⚠️依赖曲线先验（2.2不直接适用）、变风受滑窗滞后限制 | `START_HERE.m`、`run_task21_checks.m` | [`docs/evidence/wind_inference_search/`](../docs/evidence/wind_inference_search/) | 王健祺 |
+| [`curve_unknown_search`](curve_unknown_search/) | 第三轮3.1：曲线未知在线寻优（全速度域双向快扫联合辨识曲线f与风w + 闭式调度 + 探针精化；RL仿真器预训练为对照）；⚠️依赖扫频信息、变风追踪滞后 | `START_HERE.m`、`run_task31_checks.m` | [`docs/evidence/curve_unknown_search/`](../docs/evidence/curve_unknown_search/) | 王健祺 |
+| [`reward_only_rl`](reward_only_rl/) | 第三轮3.2：纯奖励RL（无扫频/无模型/免标定学费，大幅值对偶探索+邻域共享核更新直接从奖励学每航向最优速度）；⚠️稳态精度低于标定法（二阶奖励+1%噪声的信息代价） | `START_HERE.m`、`run_task32_checks.m` | [`docs/evidence/reward_only_rl/`](../docs/evidence/reward_only_rl/) | 王健祺 |
 | [`unified_search`](unified_search/) | 任务1+2组合代理验收通过 | `START_HERE.m`、`run_unified_acceptance.m` | [`docs/evidence/unified_search/`](../docs/evidence/unified_search/) | 待项目组确认 |
 
 `wind_circle_search`、`sin_wind_search` 和 `ortho_wind_search` 使用风致功率曲线平移代理；`wind_field_sched` 是当前路线中空速矢量关系、解析调度和信息结构的物理代理实现（局部加号约定）；风速语义以 `wind_semantics_correction`（减号约定，接口字典0.3）为参考实现，其余加号约定模块接入统一线前须适配。两类结果不能直接混称。
