@@ -1,5 +1,13 @@
 # 曲线未知在线寻优模块：全速度域标定 + 风联合辨识 + RL对照（第三轮 3.1）
 
+> **2026-09-07 更新**：算法集精简为 sweepcal（主角）/rl（对照）/openloop/windinfer、est（oracle参照）/
+> known（删除 task1 遗留 tracker/esc/spsa/bayes/qnewton/gtrack——不建模“曲线未知”、
+> 谷底二阶信息+1%噪声下样本效率低）；demo 修复风场预设（切换风场自动载入推荐参数）；
+> turb 族湍流 σy 改用 windAmpY。精简后复跑 33/33 单测 + 8/8 门槛全绿（恒定风 sweepcal 1.91%、
+> 变风 rl 3.52% 不变）；横比明细与 3×3 表见 docs/evidence/curve_unknown_search/（2026-09-07 刷新）。
+> 全版本梳理见 [VERSION_REVIEW_20260907_wjq.md](../docs/VERSION_REVIEW_20260907_wjq.md)。
+
+
 本地编号：**3.1**（用户称"task3"，本地文件夹 `speed_esc_matlab/3.1_curve_unknown_search`，内部包 `+w31`）。
 对象物理与 wind_semantics_correction（1.11）/wind_inference_search（2.1）一致：空速=地速−风、
 风不影响运动、转圈、通信时延、加速度限幅；**核心改变：功率-速度曲线对控制器未知**

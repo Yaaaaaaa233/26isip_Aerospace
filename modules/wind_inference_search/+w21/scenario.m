@@ -30,17 +30,20 @@ scn=struct('kind',kind,'jumps',jumps,'ramps',ramps,...
 if any(strcmp(c.windKind,{'turb','composite'}))
     dt=0.1; Tmax=c.duration*c.tEval;
     scn.windT=0:dt:(Tmax+2*dt);
-    sg=c.turbStd;
-    if strcmp(c.windKind,'turb'), sg=c.windAmp; end   % turb族: A即湍流强度
+    sg=c.turbStd; sgY=c.turbStd;
+    if strcmp(c.windKind,'turb')       % turb族: A=σx, C=σy(湍流强度, 2026-09-07修正:
+        sg=c.windAmp; sgY=c.windAmpY;  %  此前y向被静默忽略, 恒用A)
+    end
     sState=rng; rng(c.seed+917);                       % 独立种子流, 不污染全局
     clean=onCleanup(@() rng(sState)); %#ok<NASGU>
-    th=c.turbTheta; sX=sg*sqrt(2*th*dt);               % 平稳std(ξ)=sg: σ²/(2θ)=sg²
+    th=c.turbTheta; sX=sg*sqrt(2*th*dt);               % 平稳std(ξ)=σ: σ²/(2θ)=σ²
+    sY=sgY*sqrt(2*th*dt);
     Nx=numel(scn.windT);
     tx=zeros(1,Nx); ty=zeros(1,Nx);
     zx=randn(1,Nx-1); zy=randn(1,Nx-1);
     for i=1:Nx-1
         tx(i+1)=tx(i)-th*tx(i)*dt+sX*zx(i);
-        ty(i+1)=ty(i)-th*ty(i)*dt+sX*zy(i);
+        ty(i+1)=ty(i)-th*ty(i)*dt+sY*zy(i);
     end
     scn.windTurbX=tx; scn.windTurbY=ty;
 end

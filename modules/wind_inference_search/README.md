@@ -1,5 +1,13 @@
 # 风速推断寻优模块：u\* 固定已知，风未知由功率反推（第二轮 2.x 起点）
 
+> **2026-09-07 更新**：算法集精简为 windinfer（主角）/openloop/est/known（删除 task1 遗留
+> 直接搜索器 tracker/esc/spsa/bayes/qnewton/gtrack——不建模风、与 2.1 主题无关、样本效率低）；
+> demo 修复风场预设（切换风场自动载入推荐参数，此前幅值默认0导致五种风场退化平线）；
+> turb 族湍流 σy 改用 windAmpY。精简后复跑 27/27 单测 + 8/8 门槛全绿；
+> 横比明细与 3×3 表见 docs/evidence/wind_inference_search/（2026-09-07 刷新）。
+> 全版本梳理见 [VERSION_REVIEW_20260907_wjq.md](../docs/VERSION_REVIEW_20260907_wjq.md)。
+
+
 本地编号：**2.1**（第二轮第一个任务，本地文件夹 `speed_esc_matlab/2.1_wind_inference`，内部包 `+w21`）。
 对象物理与 wind_semantics_correction（1.11）一致：空速 = 地速 − 风、风不影响运动、
 实际约束动力学（物理转弯半径/通信时延/加速度限幅）。

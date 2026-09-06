@@ -4,7 +4,7 @@
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
-本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）；王健祺（2026-09-03 新增 realistic_constraints_search / curve_case_calibration / wind_model_library 三模块登记与进度补充；2026-09-05 新增 wind_semantics_correction / wind_inference_search 两模块登记、MOE口径变更（纯能耗）与本地任务线 1.x/2.x/3.x 重命名；2026-09-06 新增 curve_unknown_search / reward_only_rl 两模块登记并对接 SIM_ALGO_INTERFACE）；Codex（X8PHYS/P0--P4 审核、验收收口与结论边界，2026-09-03）
+本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）；王健祺（2026-09-03 新增 realistic_constraints_search / curve_case_calibration / wind_model_library 三模块登记与进度补充；2026-09-05 新增 wind_semantics_correction / wind_inference_search 两模块登记、MOE口径变更（纯能耗）与本地任务线 1.x/2.x/3.x 重命名；2026-09-06 新增 curve_unknown_search / reward_only_rl 两模块登记并对接 SIM_ALGO_INTERFACE；2026-09-07 三模块算法集精简（删除 task1 遗留直接搜索器，见 worklog 2026-09-07）+ demo 风场预设修复 + turb σy 修正，回归全绿并刷新证据，新增 docs/VERSION_REVIEW_20260907_wjq.md 全版本梳理）；Codex（X8PHYS/P0--P4 审核、验收收口与结论边界，2026-09-03）
 审核：待项目组审核
 AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮独立验收结果回填；2026-09-03问题与接口修订；2026-09-04 按叶安要求回填 M3 第二轮独立验收，纠正提前关闭表述）；ZCode（2026-09-05 按接口研讨会登记两阶段验收口径与接口/路线文档）
 

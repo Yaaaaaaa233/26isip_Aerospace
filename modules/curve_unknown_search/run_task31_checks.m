@@ -10,10 +10,11 @@ windKinds={ % 名称, cfg(无风/恒定风3.5@40°/变风composite)
  'vary',  {'windKind','composite','windBias',2.5,'windAmp',1.5,'windOmega',0.08,...
            'windBiasY',0.0,'windAmpY',0.0,'turbStd',0.3};
 };
-policies={'openloop','qnewton','sweepcal','rl','known'};
+% 2026-09-07精简: 移除任务1遗留搜索器(tracker/esc/spsa/bayes/qnewton/gtrack)。
+policies={'openloop','sweepcal','rl','known'};
 % ---- A: 七种风场 × 六策略 短程冒烟矩阵(250步, 2种子) ----
 kinds={'const','sin','square','triangle','turb','composite','sector'};
-allPol=[policies(1:4),{'est'}];
+allPol=[policies,{'est','windinfer'}];
 rows=cell(0,7); smokeOK=true;
 for kk=1:numel(kinds)
     for name=allPol
@@ -32,7 +33,7 @@ end
 smoke=cell2table(rows,'VariableNames',{'WindKind','Policy','ExcessMean',...
     'ExcessMax','MaxAccelUsed','Steps','EnergyOn'});
 writetable(smoke,fullfile(folder,'wind_kinds_smoke.csv'),'Encoding','UTF-8');
-% ---- B: 主口径横比 无风/恒定/变风 × 5策略 × 2种子(全程800步) ----
+% ---- B: 主口径横比 无风/恒定/变风 × 4策略 × 2种子(全程800步) ----
 rows=cell(0,8);
 for iw=1:size(windKinds,1)
     for name=policies
@@ -96,7 +97,7 @@ fprintf(fid,['## 任务设定(用户口径)\n\n速度-功率曲线未知: 控制
     '经ctrl_view白名单剔除全部曲线/最优点u*/噪声真值; 风同样未知。主策略sweepcal按用户建议在首飞架次', ...
     '做全速度域快速采样(3→12 m/s双向扫, 约150步), 联合辨识曲线f(四次多项式)与风矢量w, 在线闭式调度', ...
     '+探针牛顿精化。RL(单步策略梯度REINFORCE, 分航向桶基线)为对照。MOE=纯能耗Emin/Eactual(2026-09-04口径)。\n\n']);
-fprintf(fid,'## 主口径横比(无风/恒定/变风 × 5策略, 2种子均值, 800步)\n\n');
+fprintf(fid,'## 主口径横比(无风/恒定/变风 × 4策略, 2种子均值, 800步)\n\n');
 fprintf(fid,'| 风况 | 策略 | 能耗超额%% | 稳态尾段超额%% | MOE(纯能耗) | û*误差 |\n|---|---|---:|---:|---:|---:|\n');
 for iw=1:size(windKinds,1)
     for ii=1:numel(policies)

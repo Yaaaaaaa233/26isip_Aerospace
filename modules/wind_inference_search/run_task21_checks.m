@@ -4,16 +4,17 @@ root=fileparts(mfilename('fullpath')); addpath(root);
 folder=fullfile(root,'results'); if ~exist(folder,'dir'), mkdir(folder); end
 unit=runtests(fullfile(root,'tests_task21.m'));
 fprintf('单元测试：%d/%d 通过\n',sum([unit.Passed]),numel(unit));
-policies={'openloop','est','qnewton','windinfer','known'};
+% 2026-09-07精简: 移除任务1遗留搜索器(tracker/esc/spsa/bayes/qnewton/gtrack)。
+policies={'openloop','est','windinfer','known'};
 windKinds={ % 名称, cfg(无风/恒定风3.5@40°/变风composite)
  'zero',  {'windKind','const','windBias',0.0,'windBiasY',0.0,'windAmp',0.0,'windAmpY',0.0};
  'const', {'windKind','const','windBias',3.5,'windBiasY',0.0,'windAmp',0.0,'windAmpY',0.0,'windDirDeg',40};
  'vary',  {'windKind','composite','windBias',2.5,'windAmp',1.5,'windOmega',0.08,...
            'windBiasY',0.0,'windAmpY',0.0,'turbStd',0.3};
 };
-% ---- A: 七种风场 × 十策略 短程冒烟矩阵(80步, 2种子) ----
+% ---- A: 七种风场 × 四策略 短程冒烟矩阵(80步, 2种子) ----
 kinds={'const','sin','square','triangle','turb','composite','sector'};
-allPol=[policies,{'tracker','esc','spsa','bayes','gtrack'}];
+allPol=policies;
 rows=cell(0,7); smokeOK=true;
 for kk=1:numel(kinds)
     for name=allPol
@@ -32,7 +33,7 @@ end
 smoke=cell2table(rows,'VariableNames',{'WindKind','Policy','ExcessMean',...
     'ExcessMax','MaxAccelUsed','Steps','EnergyOn'});
 writetable(smoke,fullfile(folder,'wind_kinds_smoke.csv'),'Encoding','UTF-8');
-% ---- B: 任务2.1主口径横比 无风/恒定/变风 × 5策略 × 2种子(全程600步) ----
+% ---- B: 任务2.1主口径横比 无风/恒定/变风 × 4策略 × 2种子(全程600步) ----
 rows=cell(0,7);
 for iw=1:size(windKinds,1)
     for name=policies
@@ -96,7 +97,7 @@ fprintf(fid,['## 任务设定(用户口径)\n\n空速最优点u*固定且已知(
     '不一致→变风。windinfer 在滑动窗内二维最小二乘反演 w=(wx,wy)(多起点Gauss-Newton), '...
     '窗长自适应(半窗解一致加窗/分歧缩窗), 输出风况判定, 并按闭式 v*=q+√(q²+u*²−|w|²) '...
     '调度地速。全程无探针dither——激励来自转圈本身的航向扫描。\n\n']);
-fprintf(fid,'## 主口径横比(无风/恒定/变风 × 5策略, 2种子均值)\n\n');
+fprintf(fid,'## 主口径横比(无风/恒定/变风 × 4策略, 2种子均值)\n\n');
 fprintf(fid,'| 风况 | 策略 | 能耗超额%% | MOE(纯能耗) | 风估计误差(m/s) |\n|---|---|---:|---:|---:|\n');
 for iw=1:size(windKinds,1)
     for ii=1:numel(policies)

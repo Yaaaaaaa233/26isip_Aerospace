@@ -222,7 +222,8 @@ tc.verifyEqual(mean(rel),0,'AbsTol',0.005);
 end
 
 function test_accel_and_budget_all_policies(tc)
-policies={'openloop','tracker','esc','spsa','bayes','qnewton','gtrack','est','known','windinfer'};
+% 2026-09-07精简: 移除任务1遗留搜索器(tracker/esc/spsa/bayes/qnewton/gtrack)。
+policies={'openloop','est','windinfer','known'};
 for name=policies
     c=w21.config('seed',11);
     [log,~]=w21.run_algorithm(name{1},w21.scenario('static',c),c);
@@ -234,7 +235,7 @@ end
 
 function test_all_kinds_policies_smoke(tc)
 kinds={'const','sin','square','triangle','turb','composite','sector'};
-policies={'openloop','qnewton','known','windinfer'};
+policies={'openloop','est','known','windinfer'};
 for kk=1:numel(kinds)
     for pp=1:numel(policies)
         c=w21.config('seed',11,'duration',80,'tailSteps',5,'windKind',kinds{kk},...
@@ -285,7 +286,7 @@ function test_ustar_fixed_pmin_constant(tc)
 % 地速最优v*仍随风变化(这正是需要寻优的原因)。
 wind={'windKind','sin','windAmp',2,'windBias',3,'windAmpY',1.5,'windOmegaY',0.13,'windBiasY',1};
 c=w21.config('seed',7,'duration',300,'tailSteps',60,wind{:});
-[log,~]=w21.run_algorithm('qnewton',w21.scenario('static',c),c);
+[log,~]=w21.run_algorithm('openloop',w21.scenario('static',c),c);
 tc.verifyEqual(std(log.minPowerTrue),0,'AbsTol',1e-12,'Pmin应恒定(u*固定)');
 tc.verifyEqual(mean(log.minPowerTrue),c.curveCase,'AbsTol',1e-9,'Pmin应=curveCase');
 tc.verifyGreaterThan(std(log.optimumTrue),0.1,'变风下地速最优v*应随时间变化');

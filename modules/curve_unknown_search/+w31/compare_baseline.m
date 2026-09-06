@@ -7,7 +7,7 @@ function out = compare_baseline(name, scn, c)
 %   out.liftPercent                相对能耗下降 = 100(E_base−E_algo)/E_base
 %   out.excessAlgo / out.excessBase    全程能耗超额%
 % 开环基线与算法经历完全相同的对象(风场/半径/时延/限幅)与随机种子。
-if ~any(strcmp(name,{'tracker','esc','spsa','bayes','qnewton','gtrack','est'}))
+if ~any(strcmp(name,{'est','windinfer','sweepcal','rl','purerl'}))  % 2026-09-07精简后口径(各任务按需含purerl/sweepcal/rl)
     error('w31:CompareBaseline','Baseline comparison needs an adaptive algorithm, got %s.',name);
 end
 cB=c; cB.seed=c.seed;

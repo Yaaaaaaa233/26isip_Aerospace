@@ -10,7 +10,7 @@ drop = {'curveCoef','curveCase','pHover','p20', ...     % 曲线标定
     'optimum0', ...                                     % 空速最优点(核心未知量)
     'noiseSigma','impulse','impulseRate','impulseSize', ...      % 测量真值
     'energyAccounting','eps','tailSteps','T','wiSweepMin','wiEwma'};
-% 注: tol/maxSearchEval/gridResolution 是算法自身参数(非对象真值), 保留在白名单。
+% (2026-09-07精简后 config 已不含任务1搜索器参数 tol/maxSearchEval/gridResolution)
 p = c;
 for k = 1:numel(drop)
     if isfield(p, drop{k}), p = rmfield(p, drop{k}); end

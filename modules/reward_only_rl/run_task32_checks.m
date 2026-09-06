@@ -13,7 +13,8 @@ windKinds={ % 名称, cfg(无风/恒定风3.5@40°/变风composite)
 policies={'openloop','sweepcal','rl','purerl','known'};
 % ---- A: 七种风场 × 策略 短程冒烟矩阵(250步, 2种子) ----
 kinds={'const','sin','square','triangle','turb','composite','sector'};
-allPol={'openloop','qnewton','sweepcal','rl','purerl','est'};
+% 2026-09-07精简: 移除任务1遗留搜索器(tracker/esc/spsa/bayes/qnewton/gtrack)。
+allPol={'openloop','sweepcal','rl','purerl','est','windinfer'};
 rows=cell(0,7); smokeOK=true;
 for kk=1:numel(kinds)
     for ii=1:numel(allPol)

@@ -34,10 +34,8 @@ g=uigridlayout(form,[27 2]); g.ColumnWidth={150,'1x'};
 g.RowHeight=[repmat({30},1,24),{26,30,30}];
 g.Padding=[0 0 8 0]; g.RowSpacing=7; g.Scrollable='on';
 algorithm=choice(g,'控制策略',1,{'windinfer风矢量推断(2.1主角)','openloop开环固定基线',...
-    'tracker平移跟踪','esc连续ESC','spsa随机扰动寻优','bayes贝叶斯代理寻优',...
-    'qnewton牛顿拟合寻优','gtrack小行程梯度跟踪','est风EKF估计跟踪(对照)',...
-    'known已知风oracle参照'},...
-    {'windinfer','openloop','tracker','esc','spsa','bayes','qnewton','gtrack','est','known'},'windinfer');
+    'est风EKF估计跟踪(对照)','known已知风oracle参照'},...
+    {'windinfer','openloop','est','known'},'windinfer');
 scenarioC=choice(g,'平移场景',2,{'static圆周运动','jumpUp上跳','jumpDown下跳',...
     'offset纯上移','ramp慢漂'},{'static','jumpUp','jumpDown','offset','ramp'},'static');
 turnR=number(g,'转弯半径 / m',3,100,[50 150]);
@@ -52,10 +50,10 @@ ripL2=number(g,'崎岖波长λ2 / m',11,2.0,[1 6]);
 shiftTime=number(g,'平移时刻 / 步',12,120,[30 350]);
 shiftDx=number(g,'跳变幅值dx / m/s',13,2.7,[-6 6]);
 seed=number(g,'随机种子',14,11,[1 100]);
-windAmp=number(g,'风幅值A / m·s⁻¹',15,0.0,[0 10]);
+windAmp=number(g,'风幅值A / m·s⁻¹ (turb=σx)',15,0.0,[0 10]);
 windOmega=number(g,'风角频率ω1 / rad·s⁻¹',16,0.08,[0 2]);
 windBias=number(g,'风偏置B / m·s⁻¹',17,3.5,[0 10]);
-windC=number(g,'风幅值C / m·s⁻¹',18,0.0,[0 10]);
+windC=number(g,'风幅值C / m·s⁻¹ (turb=σy)',18,0.0,[0 10]);
 windOmega2=number(g,'风角频率ω2 / rad·s⁻¹',19,0.13,[0 2]);
 windD=number(g,'风偏置D / m·s⁻¹',20,0.0,[0 10]);
 windKind=choice(g,'风场模型(选中即预览)',21,{'const 恒定风','sin 双正交正弦风',...
@@ -197,7 +195,7 @@ for cn=ctrlList
 end
 curveC.ValueChangedFcn=@caseChanged;
 % 风场模型/参数即改即预览(运行前可见, 与case预览同一模式); 覆盖通用changed
-windKind.ValueChangedFcn=@windChanged;
+windKind.ValueChangedFcn=@windKindChanged;   % 切换风场时自动载入该模型推荐参数
 sqEdge.ValueChangedFcn=@windChanged;
 turbS.ValueChangedFcn=@windChanged;
 windAmp.ValueChangedFcn=@windChanged; windOmega.ValueChangedFcn=@windChanged;
@@ -540,6 +538,46 @@ prepare();
         drawCasePreview();
         status.Text=sprintf('case已切换: 谷底=%.0f%%×悬停103.7W, 曲线预览已更新; 按"重置/播放"生效',curveC.Value*100);
         logMsg(status.Text);
+    end
+
+    function windKindChanged(varargin)
+        % 2026-09-07修复: 此前A/C默认=0, 选中sin/square/triangle/sector/turb时
+        % 风场退化为恒定值(预览平线, 看似"无法加载")。现在切换风场即载入该模型
+        % 推荐参数(与1.10风场库/3×3表口径一致), 再即时预览; 用户仍可手改。
+        applyWindPreset(windKind.Value);
+        windChanged();
+        logMsg('已载入该风场模型的推荐参数(幅值/频率/偏置/湍流σ), 可在左侧继续修改, 即改即预览');
+    end
+
+    function applyWindPreset(k)
+        switch k
+            case 'const'    % 任务2.1/3.x主口径: 恒定风3.5 m/s
+                windAmp.Value=0.0; windOmega.Value=0.08; windBias.Value=3.5;
+                windC.Value=0.0; windOmega2.Value=0.13; windD.Value=0.0;
+                sqEdge.Value=4.0; turbS.Value=0.3;
+            case 'sin'      % 双正交正弦(1.10风场库口径)
+                windAmp.Value=2.0; windOmega.Value=0.08; windBias.Value=3.0;
+                windC.Value=1.5; windOmega2.Value=0.13; windD.Value=1.0;
+                sqEdge.Value=4.0; turbS.Value=0.3;
+            case 'square'   % 软边方波: 风区突变/阵风锋
+                windAmp.Value=2.0; windOmega.Value=0.08; windBias.Value=3.0;
+                windC.Value=1.5; windOmega2.Value=0.13; windD.Value=1.0;
+                sqEdge.Value=4.0; turbS.Value=0.3;
+            case 'triangle' % 三角波: 缓慢线性爬升/回落
+                windAmp.Value=2.0; windOmega.Value=0.08; windBias.Value=3.0;
+                windC.Value=1.5; windOmega2.Value=0.13; windD.Value=1.0;
+                sqEdge.Value=4.0; turbS.Value=0.3;
+            case 'turb'     % OU湍流: A=σx, C=σy(均值=B/D)
+                windAmp.Value=2.0; windBias.Value=3.0;
+                windC.Value=1.5; windD.Value=1.0;
+            case 'composite' % 复合(3×3表"变风"口径): 慢变正弦+湍流σ=0.3
+                windAmp.Value=1.5; windOmega.Value=0.08; windBias.Value=2.5;
+                windC.Value=0.0; windOmega2.Value=0.13; windD.Value=0.0;
+                turbS.Value=0.3;
+            case 'sector'   % 扇区(随航向): Wx=B−A·cos(ψ+φ), Wy=D+C·sin(ψ+φ)
+                windAmp.Value=2.0; windBias.Value=3.0;
+                windC.Value=1.5; windD.Value=1.0;
+        end
     end
 
     function windChanged(varargin)

@@ -1,5 +1,13 @@
 # 纯奖励强化学习模块：无扫频、无模型、免标定学费（第三轮 3.2）
 
+> **2026-09-07 更新**：算法集精简为 purerl（主角）/sweepcal、rl（对照，需150步）/openloop/
+> windinfer、est（oracle参照）/known（删除 task1 遗留 tracker/esc/spsa/bayes/qnewton/gtrack）；
+> demo 修复风场预设（切换风场自动载入推荐参数，此前幅值默认0导致五种风场退化平线）；
+> turb 族湍流 σy 改用 windAmpY。精简后复跑 37/37 单测 + 9/9 门槛全绿（恒定风 purerl 3.63%、
+> 变风 3.51% 不变）；横比明细与 3×3 表见 docs/evidence/reward_only_rl/（2026-09-07 刷新）。
+> 全版本梳理见 [VERSION_REVIEW_20260907_wjq.md](../docs/VERSION_REVIEW_20260907_wjq.md)。
+
+
 本地编号：**3.2**（本地文件夹 `speed_esc_matlab/3.2_reward_only_rl`，内部包 `+w32`）。
 对象物理与 3.1 完全一致（曲线未知、风未知、空速=地速−风、转圈、时延、限幅），
 **核心改变：不做 3.1 的 150 步全速域扫频标定**——控制器只靠"调速度→仪表盘功率→奖励"
