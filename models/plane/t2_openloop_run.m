@@ -132,19 +132,19 @@ for k = 1:N
         'controller_mode', 'fixed');
     [s, o] = plane.step(s, windS, pathC, cmd, dt, c);
     windS.time_s = tk + dt; pathC.time_s = tk + dt;
-    pbuf = [pbuf(2:end), o.power_w]; %#ok<AGROW>
+    pval = bbuf(1) && ~(fHas('invalid') && tk >= inj.invalid(1) && tk < inj.invalid(2));
+    anomNow = fHas('anomaly') && tk >= inj.anomaly(1) && tk < inj.anomaly(2);
+    % 入队侧打 ×1.3 标签（测量链语义：FIFO 延迟作用于被测信号；真值 Pe 不动）
+    pbuf = [pbuf(2:end), o.power_w*(1 + 0.3*anomNow)]; %#ok<AGROW>
     vbuf = [vbuf(2:end), o.voltage_v]; %#ok<AGROW>
     ibuf = [ibuf(2:end), o.current_a]; %#ok<AGROW>
     bbuf = [bbuf(2:end), o.power_valid]; %#ok<AGROW>
-    pval = bbuf(1) && ~(fHas('invalid') && tk >= inj.invalid(1) && tk < inj.invalid(2));
-    anom = fHas('anomaly') && tk >= inj.anomaly(1) && tk < inj.anomaly(2);
     Pe = o.power_w;
     E = E + Pe*dt;
     mile = mile + o.tangential_ground_speed_mps*dt;
     pm = pbuf(1);
     if pval
         pm = pm*(1 + 0.012*randn);    % 评价不可见：仅测量链噪声口径
-        if anom, pm = pm*1.3; end
     else
         pm = NaN;
     end
@@ -152,7 +152,7 @@ for k = 1:N
     Vq = round(vbuf(1)*10)/10;
     f8 = zeros(1, 8, 'uint8');
     if clampLatch, f8(1) = 1; end     % bit0 夹断
-    if anom, f8(3) = 1; end           % bit2
+    if anomNow, f8(3) = 1; end        % bit2（注入窗当拍）
     if o.constraint_flags.power_anomaly || s.cutoff, f8(3) = 1; end
     if o.constraint_flags.rpm_saturation, f8(5) = 1; end  % bit4 rpm/PWM 饱和
     if ~pval, f8(7) = 1; end          % bit6
