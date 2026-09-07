@@ -46,7 +46,8 @@ if strcmp(mode, 'plan')
     t = (0:N-1)*dt;
     vg = zeros(1, N); phi = zeros(1, N);
     phiPrev = zeros(1, N);
-    for iter = 1:4
+    EpPrev = Inf;
+    for iter = 1:16
         vv = 0; theta = 0; sArc = 0; vcmd = 0;
         for k = 1:N
             tk = (k-1)*dt;
@@ -67,16 +68,18 @@ if strcmp(mode, 'plan')
             vg(k) = vv; phi(k) = sArc/opts.R;
         end
         phiPrev = phi;
-    end
-    wtArr = -W*sin(phi(1:N));
-    vAir = vg - wtArr;
-    Pe = zeros(1, N);
-    for k = 1:N
-        Pe(k) = local_pmap(c, vAir(k));
+        wtArr = -W*sin(phi(1:N));
+        vAir = vg - wtArr;
+        Pe = local_pmap(c, vAir);
+        Epred = sum(Pe)*dt;
+        % Picard 收敛判据（PREREG v1.1：圆周中性相位方向收敛慢，固定 4 次
+        % 不够——2026-09-08 首跑发现 E_pred 高 2.2%，改收敛驱动）
+        if abs(EpPrev - Epred)/Epred < 1e-3, break; end
+        EpPrev = Epred;
     end
     out = struct('mode', 'plan', 'W', W, 'vStar', vStar, 't', t, ...
         'vPlan', vg, 'phiPlan', phi, 'wtPlan', wtArr, ...
-        'Epred', sum(Pe)*dt, 'PePlan', Pe);
+        'Epred', Epred, 'PePlan', Pe, 'iters', iter);
     return
 end
 
@@ -158,13 +161,16 @@ for k = 1:N
     if s.cutoff, cutArmed = true; cutLatch = true; end
     L.t(k) = tk; L.vCmd(k) = vCmdRaw; L.vApp(k) = vApp;
     L.vg(k) = o.tangential_ground_speed_mps;
-    L.vair(k) = norm(o.air_velocity_ne_mps);
+    L.vair(k) = -o.air_velocity_ne_mps(1)*sin(s.phase_rad) ...
+        + o.air_velocity_ne_mps(2)*cos(s.phase_rad);   % 切向投影（B1 恒等式口径）
     L.wt(k) = -W*sin(s.phase_rad);
     L.Pe(k) = Pe; L.Pmeas(k) = pm; L.flags8(k) = ...
         f8(1)*1 + f8(2)*2 + f8(3)*4 + f8(4)*8 + f8(5)*16 + f8(6)*32 + f8(7)*64 + f8(8)*128;
     L.soc(k) = s.soc; L.Vb(k) = Vq; L.E(k) = E; L.pval(k) = pval;
     L.phi(k) = s.phase_rad;
-    if k > 1                           % 未回卷相位（里程恒等式用）
+    if k == 1
+        L.phiU(1) = L.phi(1);          % 首步相位增量（初始相位 0）
+    else                           % 未回卷相位（里程恒等式用）
         dphi = s.phase_rad - L.phi(k-1);
         if dphi > pi, dphi = dphi - 2*pi; end
         if dphi < -pi, dphi = dphi + 2*pi; end
@@ -190,20 +196,25 @@ vs = vv(i);
 end
 
 function P = local_pmap(c, vair)
-% P2 解析稳态名义图（满 OCV 电压口径；与 harness truth 同式）：
-%   废阻前馈稳态俯仰 -> T=m g/cosθ/8 -> 台架 T(n) 反解 -> P(n;Vfull)
+% P2 解析稳态名义图（满 OCV 电压口径；与 harness truth 同式；矢量化）：
+%   废阻前馈稳态俯仰 -> T=m g/cosθ/8 -> 台架 T(n) 解析反解 -> P(n;Vfull)
 %   -> H3 诱导节省 -> 共轴 δ -> + 废阻 + 辅助
-aD = 0.5*c.air_density_kgpm3*c.cda_m2*vair*abs(vair)/c.mass_kg;
+vair = abs(vair);
+aD = 0.5*c.air_density_kgpm3*c.cda_m2*vair.*vair/c.mass_kg;
 th = atan(aD/c.gravity_mps2);
-Tkgf = c.mass_kg/(8*cos(th));
+Tkgf = c.mass_kg./(8*cos(th));
 Vfull = c.battery_n_ser*interp1(c.battery_ocv_soc, c.battery_ocv_cell_V, 1);
-b = c.bench_T_coef_desc;
-r = roots([b(1), b(2), b(3) - Tkgf]); r = r(imag(r) < 1e-9 & real(r) > 0);
-n = min(real(r));
-Pc = local_p_coef(c, Vfull);
-pro = polyval(Pc, n) - local_ind_saving(c, Tkgf*c.gravity_mps2, vair);
+b = c.bench_T_coef_desc;                       % b1 n^2 + b2 n + (b3-T) = 0
+n = (-b(2) + sqrt(b(2)^2 - 4*b(1)*(b(3) - Tkgf)))/(2*b(1));
+i = find(c.bench_V_nom <= Vfull, 1, 'last'); j = min(i+1, numel(c.bench_V_nom));
+w = (Vfull - c.bench_V_nom(i))/(c.bench_V_nom(j) - c.bench_V_nom(i));
+Pc = (1-w)*c.bench_P_coef(i, :) + w*c.bench_P_coef(j, :);
+A = pi*(c.prop_diameter_m^2)/4; k = Tkgf*c.gravity_mps2/(2*c.air_density_kgpm3*A);
+vi0 = sqrt(k); vi = sqrt((vair/2).^2 + k) - vair/2;
+sav = max(0, c.h3_induced_gain*Tkgf*c.gravity_mps2.*(vi0 - min(vi, vi0)));
+pro = polyval(Pc, n) - sav;
 P = c.arm_count*(pro + pro*(1 + c.coaxial_delta_base)) ...
-    + 0.5*c.air_density_kgpm3*c.cda_m2*abs(vair)^3 + c.aux_power_W;
+    + 0.5*c.air_density_kgpm3*c.cda_m2*vair.^3 + c.aux_power_W;
 end
 
 function s = local_ind_saving(c, T_N, vair)
