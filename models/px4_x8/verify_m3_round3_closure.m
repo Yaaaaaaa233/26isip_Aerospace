@@ -852,6 +852,7 @@ for d = 1:numel(dirs)
     result.bindingExit.gitCommit = fp.head;
     result.binding.sha = bsha;
     result.bindingExit.sha = bsha;
+    result.archiveDir = string(dirs{d});   % done-vs-result StampArchive 三方一致
     cfgFile = fullfile(dirs{d}, 'effective_config.mat');
     if exist(cfgFile, 'file') == 2
         result.cfgSha = sha256file(cfgFile);
