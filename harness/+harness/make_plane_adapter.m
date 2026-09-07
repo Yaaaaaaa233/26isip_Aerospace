@@ -72,11 +72,28 @@ ac = struct('query', @query, 'gauges', @gauges, 'truth', @truth, ...
     end
 
     function out = truth()
-        % 评价侧真值: 与 plane.step 同一代理模型 (eta_actual=1, 静风):
-        % P = hover + speed_gain*(v-6)^2 + drag_gain*v^2 + aux
+        % 评价侧真值: P2 物理链稳态解析（eta_actual=1, 静风, 满 OCV 电压口径）:
+        %   aD = 0.5*rho*CdA*v^2/m -> theta = atan(aD/g)（废阻前馈的稳态俯仰）
+        %   T = m*g/cos(theta) -> 每桨 T/8 -> 台架 T(n) 反解 -> 分块 P(n;V)
+        %   P_total = 8*P_rotor*(delta 上桨不加/下桨加) + P_drag(v^3) + aux
+        % （与 plane.step 同式；V 取当前满电端电压，查询间滑移 <1%，G1 容差内）
         vv = linspace(pc.speed_bounds_mps(1), pc.speed_bounds_mps(2), 801);
-        J = pc.hover_power_W + pc.speed_power_gain_W_per_mps2*(vv-6).^2 ...
-            + pc.drag_power_gain_W_per_mps2*vv.^2 + pc.aux_power_W;
+        nSer = pc.battery_n_ser;
+        Vref = nSer * interp1(pc.battery_ocv_soc, pc.battery_ocv_cell_V, 1);
+        nce = pc.ceiling_kn_rpm_per_V * Vref;
+        Tce = polyval(pc.bench_T_coef_desc, nce / 1000);
+        J = zeros(size(vv));
+        for i = 1:numel(vv)
+            aD = 0.5 * pc.air_density_kgpm3 * pc.cda_m2 * vv(i)^2 / pc.mass_kg;
+            th = atan(aD / pc.gravity_mps2);
+            Trot = pc.mass_kg * pc.gravity_mps2 / (8 * cos(th) * pc.gravity_mps2); % kgf/桨
+            n = local_n_of_t(pc, min(Trot, Tce));
+            Pc = local_p_coef(pc, Vref);
+            pro = polyval(Pc, n);
+            Pmot = pc.arm_count * (pro + pro * (1 + pc.coaxial_delta_base)); % 每臂上下两桨，delta 只在下桨
+            Pdrag = 0.5 * pc.air_density_kgpm3 * pc.cda_m2 * vv(i)^3;
+            J(i) = Pmot + Pdrag + pc.aux_power_W;
+        end
         [Jmin, i] = min(J);
         out.curveV = vv; out.curveJ = J;
         out.vStar = vv(i); out.PminW = Jmin;
@@ -85,4 +102,17 @@ ac = struct('query', @query, 'gauges', @gauges, 'truth', @truth, ...
 
     function lg = schemaLog(), lg = log; end
     function st = state(), st = s; end
+end
+function n = local_n_of_t(pc, t)
+% 台架 T(n) 反解（正根），n 单位 kRPM；与 plane.step 内部同式
+b = pc.bench_T_coef_desc;
+r = roots([b(1), b(2), b(3) - t]);r = r(imag(r) < 1e-9 & real(r) > 0);n = min(real(r));
+if isempty(n) || ~isfinite(n), n = 0; end
+end
+function pc2 = local_p_coef(pc, V)
+V = min(max(V, pc.bench_V_nom(1)), pc.bench_V_nom(end));
+i = find(pc.bench_V_nom <= V, 1, 'last'); j = min(i + 1, numel(pc.bench_V_nom));
+if i == j, pc2 = pc.bench_P_coef(i, :); return; end
+w = (V - pc.bench_V_nom(i)) / (pc.bench_V_nom(j) - pc.bench_V_nom(i));
+pc2 = (1 - w) * pc.bench_P_coef(i, :) + w * pc.bench_P_coef(j, :);
 end

@@ -1,6 +1,10 @@
 function out = t1_openloop_run(mode, seed, plan, opts)
-%T1_OPENLOOP_RUN T1 开环单次运行（P1/WP1+WP3，平台线）。驱动统一 Plane 代理
-%   models/plane/+plane 按预登记场景直跑：
+%T1_OPENLOOP_RUN T1 开环单次运行（P1/WP1+WP3，平台线）。
+%   ⚠ T1 冻结口径提示（P2 起登记）：本运行器按 T1 冻结证据口径驱动"proxy 时代"
+%   的 plane（其 plan 模式复算的 E_pred 仍用 proxy 功率公式）。自 P2 提交起
+%   models/plane/+plane 内部实现已升级为物理链（06 v1.2），T1 验收证据固定于
+%   其冻结提交（bb5e232/d25cb03），本文件在 HEAD 仅作历史复现入口，禁止用于
+%   T2 验收（T2 用 t2/harness 入口，见 P2_T2_WORK_PLAN WP6）。
 %     mode='plan'    离线名义调度 rollout（不驱 Plant）：固定点迭代含跟踪器
 %                    暂态，返回 vPlan/E_pred/φPlan（两臂共用同一 E_pred 分母，
 %                    T1_ACCEPTANCE_CHECKLIST §4 冻结口径）。

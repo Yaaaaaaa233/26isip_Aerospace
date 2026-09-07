@@ -17,7 +17,8 @@
    29.4
   ],
   "charge_V": 29.4,
-  "r_int_ohm": 0.003
+  "r_int_ohm": 0.021,
+  "r_int_note": "erratum 2026-09-08: was 0.003 (0.012/4, missing series factor); correct 7S4P conversion = 7*0.012/4 = 0.021 ohm"
  },
  "ocv_table": {
   "soc": [

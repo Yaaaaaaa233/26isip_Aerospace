@@ -38,8 +38,9 @@ fprintf('G5  repeat query(8): %.4f vs %.4f W (diff %.4f%%)\n', ...
     pm1, pm2, 100 * abs(pm1 - pm2) / pm1);
 
 % ---- G2/G3 阶跃/钳位: 直接驱动 plane.step (平台内部闭环语义)
-% τ=1 s 只在小阶跃呈现 (大阶跃由 2 m/s^2 指令限幅主导, 见 06 v1.1 §2
-% 决策 4 的分层): 先把状态稳定在 8 m/s, 再测 8->9 的小阶跃
+% P2 俯仰内核 (06 v1.2 §2 决策 4/H6): 小信号主极点 ≈ 1/kp_speed = 2.86 s
+% (俯仰滞后 0.3 s 为次极点), t63 预期 ≈ 2.9 s; 正式 A3 门槛在 T2 跑批前按
+% rules §9.4 重新预登记 (T2_ACCEPTANCE_CHECKLIST §3/§5-5), 此处为构建期声明门
 pc = plane.config();
 s = plane.reset(pc);
 windSample = struct('time_s', 0, 'wind_truth_ne_mps', [0;0], ...
@@ -48,7 +49,7 @@ pathCommand = struct('time_s', 0, 'trajectory_type', 'straight', ...
     'circle_center_ne_m', [NaN;NaN], 'circle_radius_m', NaN, ...
     'path_phase_rad', 0, 'path_tangent_ne', [0;1], 'path_normal_ne', [-1;0], ...
     'path_valid', true);
-for k = 1:4000   % 预稳定到 8 m/s (大阶跃, 限幅主导)
+for k = 1:4000   % 预稳定到 8 m/s (大阶跃, 指令限幅主导)
     cmd = struct('v_ref_applied_mps', 8, 'eta_ref_applied', 1, ...
         'controller_mode', 'fixed');
     [s, ~] = plane.step(s, windSample, pathCommand, cmd, pc.sample_time_s, pc);
@@ -56,7 +57,7 @@ end
 assert(abs(s.v_ground_mps - 8) <= 0.01, 'harness:AdapterCheck', ...
     'G2 presettle failed (v=%.3f)', s.v_ground_mps);
 v0 = s.v_ground_mps; tt = []; vv = [];
-for k = 1:400   % 4 s @0.01 s, 小阶跃 8->9
+for k = 1:600   % 6 s @0.01 s, 小阶跃 8->9
     cmd = struct('v_ref_applied_mps', 9, 'eta_ref_applied', 1, ...
         'controller_mode', 'fixed');
     [s, out] = plane.step(s, windSample, pathCommand, cmd, pc.sample_time_s, pc);
@@ -64,8 +65,8 @@ for k = 1:400   % 4 s @0.01 s, 小阶跃 8->9
 end
 i63 = find(vv >= v0 + 0.63 * (9 - v0), 1);
 t63 = tt(i63) - tt(1) + pc.sample_time_s;
-assert(t63 >= 0.9 && t63 <= 1.1, 'harness:AdapterCheck', ...
-    'G2 t63=%.3f s outside [0.9,1.1]', t63);
+assert(t63 >= 2.4 && t63 <= 3.4, 'harness:AdapterCheck', ...
+    'G2 t63=%.3f s outside [2.4,3.4] (declared 1/kp=%.2f s)', t63, 1/pc.kp_speed);
 amax = max(abs(diff(vv)) / pc.sample_time_s);
 assert(amax <= pc.speed_rate_mps2 + 1e-9, 'harness:AdapterCheck', ...
     'G2 max|dv/dt|=%.4f > %.2f', amax, pc.speed_rate_mps2);
