@@ -3,13 +3,23 @@ function result = m3_aggregate_batch(segDirs, stagedDir)
 %   under the frozen manifest contract (round-1 M3-R1-F4 + round-2
 %   M3-R2-F4 hardening; rules v1.7 section 2 rules 4-8). A segment result
 %   alone can never again be presented as the batch verdict. This entry
-%     1. re-captures the LIVE source identity and requires a clean tree
-%        and the same commit as the manifest and every segment (entry AND
-%        exit bindings; no 'unknown', no mixing, no mid-run drift);
+%     1. re-captures the LIVE source identity and requires a clean tree,
+%        the SAME commit as the manifest and every segment (entry AND exit
+%        bindings; no 'unknown', no mixing, no mid-run drift, no
+%        cross-commit aggregation -- round-3 Codex report section 3.1:
+%        the previous live-HEAD relaxation and the sha.aggregate skip are
+%        revoked; rules section 2 rule 5), and byte-identical live
+%        fingerprints over the FULL declared set including the aggregator
+%        itself;
 %     2. validates the staged manifest against the SOURCE contract
 %        (m3_batch_contract via m3_batch_validate): attempt cap, arm-set
 %        exact cover, repro co-segmentation -- a manifest edited in the
 %        staged copy dies here whatever else was synced;
+%   2b. binds every segment's archived effective_config.mat into the
+%        completion evidence by SHA-256 (file vs result.cfgSha vs the
+%        done stamp's cfgSha, checked at the formal wrapper entry) --
+%        round-3 section 3.3: the aggregate now READS the config the
+%        trials archived instead of ignoring it;
 %     3. checks the SEGMENT and ROW verdict layers BOTH: every segment's
 %        result.pass AND every arm's runs.ok must be PASS (a FAIL row can
 %        never aggregate into a batch PASS);
@@ -28,7 +38,13 @@ function result = m3_aggregate_batch(segDirs, stagedDir)
 %        re-checks the sample-exact reproducibility difference;
 %     7. recomputes the paired gates from the archived arms (dual-track
 %        energy with coverage, v tracking on all four same-v0 pairs, eta
-%        convergence on the replayed centers) and fails on any breach.
+%        convergence on the replayed centers) and fails on any breach;
+%     8. RE-DERIVES every arm's verdict through the ONE production path
+%        (m3_eval_arm) from its archived logs AND its archived per-arm
+%        config, and requires exact agreement with the archived summary
+%        (round-3 section 3.3: a legal summary row over a failed/tampered
+%        arm archive or a swapped config gain cannot aggregate; the
+%        replay fidelity gate inside m3_eval_arm ties config to logs).
 %   segDirs: cell array of segment archive dirs (each holds result.mat).
 %   stagedDir: the batch's staged directory (manifest.mat + markers).
 c = m3_batch_contract();
@@ -47,45 +63,31 @@ assert(~live.dirty, 'air:M3Agg:DirtyTree', ...
 % authority: cap, exact cover, repro co-segmentation)
 S = load(fullfile(stagedDir, 'manifest.mat'), 'manifest');
 [segs, info] = m3_batch_validate(S.manifest);
-% The batch identity is the MANIFEST's commit: every segment must have run
-% at exactly that commit (checked per segment below). The LIVE tree may be
-% a later commit (e.g. documentation after the batch) as long as every
-% fingerprinted source file is byte-identical to what the manifest
-% recorded -- the sha block below is live-recomputed, so a changed source
-% still dies there. Requiring HEAD == batch commit would wrongly void
-% batch evidence after any later docs-only commit.
-% live recompute of every fingerprint the manifest declares (rule 5:
-% never trust a copied hash)
-here = fileparts(mfilename('fullpath'));
-liveSha = struct( ...
-    'aggregate', sha256file(fullfile(here, 'm3_aggregate_batch.m')), ...
-    'trials', sha256file(fullfile(here, 'run_air_m3_trials.m')), ...
-    'contract', sha256file(fullfile(here, 'm3_batch_contract.m')), ...
-    'evalArm', sha256file(fullfile(here, 'm3_eval_arm.m')), ...
-    'model', sha256file(fullfile(here, 'air_spare.slx')), ...
-    'm0c', sha256file(fullfile(here, 'm0c_vref_esc.m')), ...
-    'm2', sha256file(fullfile(here, 'm2_eta_esc.m')));
-% The fingerprinted set splits in two: EVIDENCE PRODUCERS (trials,
-% contract, evalArm, model, adapters -- the files that generated the
-% batch) must be byte-identical to the live files; the AGGREGATOR is the
-% verifying tool, not an evidence producer, so its own evolution after
-% the batch is recorded as provenance instead of voiding the evidence
-% (the tamper class "swap the verifier" is covered by the verifier being
-% the thing that runs -- its checks are whatever the committed source
-% says, and this aggregate records its own live hash below).
+% Round-3 Codex report section 3.1 closure (rules section 2 rule 5): the
+% LIVE HEAD must be EXACTLY the batch commit -- aggregating across
+% commits/versions is rejected here. A re-analysis mode for batches from
+% older commits is a rules/ADR upgrade with its own negative proofs, not
+% an option of this entry; a docs-only commit voiding an older batch is
+% the registered rule-5 semantics (re-run the batch at the frozen
+% commit).
+assert(strcmp(live.gitCommit, info.gitCommit), 'air:M3Agg:CrossCommit', ...
+    ['live HEAD %s is not the batch commit %s -- cross-commit/cross-' ...
+    'version aggregation is rejected (rules section 2 rule 5); a batch ' ...
+    'from an older commit needs a rules/ADR re-analysis upgrade'], ...
+    live.gitCommit, info.gitCommit);
+% live recompute of EVERY fingerprint the manifest declares, including the
+% aggregator itself -- the previous skip + drift-only reporting let a
+% swapped m3_aggregate_batch aggregate a batch it was never the verifier
+% of (rule 5: never trust a copied hash)
+liveSha = m3_live_fingerprints().sha;
 fnS = fieldnames(liveSha);
 for j = 1:numel(fnS)
-    if strcmp(fnS{j}, 'aggregate')
-        continue
-    end
     assert(isfield(S.manifest.sha, fnS{j}) && ...
         strcmp(S.manifest.sha.(fnS{j}), liveSha.(fnS{j})), ...
         'air:M3Agg:ContractMismatch', ...
         'manifest sha.%s differs from the live file -- the staged manifest does not describe this source', ...
         fnS{j});
 end
-aggShaDrift = ~isfield(S.manifest.sha, 'aggregate') || ...
-    ~strcmp(S.manifest.sha.aggregate, liveSha.aggregate);
 
 % ---- 3/4/5. per-segment: binding, verdicts, fingerprints, attempts.
 % Every given dir must map to a UNIQUE manifest segment; every manifest
@@ -183,6 +185,22 @@ for d = 1:numel(segDirs)
     assert(r.attempts == mk, 'air:M3Agg:BadAttempts', ...
         'segment %s result.attempts (%s) is inconsistent with the persistent marker (%s)', ...
         r.segName, num2str(r.attempts), num2str(mk));
+    % round-3 section 3.3: the archived effective config is completion
+    % evidence -- the archived FILE must still hash to result.cfgSha
+    % (done-vs-result cfgSha equality is the formal wrapper's check, so
+    % the three-way chain file<->result<->stamp is complete). Below, the
+    % production recheck re-derives every verdict THROUGH this config, so
+    % a silently swapped gain cannot wash.
+    cfgFile = fullfile(segDirs{d}, 'effective_config.mat');
+    assert(exist(cfgFile, 'file') == 2, 'air:M3Agg:ConfigMissing', ...
+        'segment %s archives no effective_config.mat', r.segName);
+    assert(isfield(r, 'cfgSha'), 'air:M3Agg:ConfigMismatch', ...
+        'segment %s result carries no cfgSha -- pre-binding archive, cannot aggregate', ...
+        r.segName);
+    cfgHash = sha256file(cfgFile);
+    assert(strcmp(r.cfgSha, cfgHash), 'air:M3Agg:ConfigMismatch', ...
+        'segment %s effective_config.mat does not hash to result.cfgSha -- config tampered or swapped after the run', ...
+        r.segName);
     segRec(hit).runs = r.runs;
     segRec(hit).dir = segDirs{d};
     segRec(hit).binding = r.binding;
@@ -266,6 +284,41 @@ assert(max(dv, dv2) < 1e-9, 'air:M3Agg:ReproDiff', ...
 fprintf('repro: M3-R1 vs M3-N5 same session %s: max|d eta| %.3g, max|d v| %.3g\n', ...
     segs(n5s).binding.runId, dv, dv2);
 
+% ---- 6b. production recheck (round-3 section 3.3): every arm's verdict
+% is re-DERIVED through the ONE production path from its archived logs
+% AND its archived per-arm config, and must agree with the archived
+% summary exactly. A summary row over a failed/tampered arm archive dies
+% on the field compare; a config edit dies inside m3_eval_arm's replay
+% fidelity gate (the gain shapes the replayed candidate). Runs AFTER the
+% repro block so the repro-grid rejections keep their own ids.
+fprintf('production recheck: re-deriving all %d arms through m3_eval_arm\n', ...
+    numel(c.arms));
+for j = 1:numel(c.arms)
+    id = c.arms{j};
+    [segIdx, fieldName] = locateArm(segs, id);
+    summary = segs(segIdx).runs.(fieldName);
+    C = load(fullfile(segs(segIdx).dir, 'effective_config.mat'), 'cfgAll');
+    cfg = C.cfgAll.(fieldName);
+    row = cfg.row{1};   % {id, nominal, modeV, modeEta, v0, eta0, stopT}
+    A = load(fullfile(segs(segIdx).dir, [id '.mat']), 'r');
+    re = m3_eval_arm(id, row{2} == 1, row{3}, row{4}, row{5}, row{6}, ...
+        cfg.arb, cfg.pv, cfg.pe, struct(), A.r.logs, ...
+        c.gateWin, [192.0, 240.0], [20.0, 30.0], row{7});
+    assert(isequaln(re.ok, summary.ok), 'air:M3Agg:ArmRecheck', ...
+        ['%s re-derived ok=%d over archive+config, summary says ok=%d ' ...
+        '-- the completion evidence is not bound to its arm archive'], ...
+        id, re.ok, summary.ok);
+    assert(isequaln(re.etaCenter, summary.etaCenter) && ...
+        isequaln(re.etaConv, summary.etaConv) && ...
+        isequaln(re.attLimitMax, summary.attLimitMax) && ...
+        isequaln(re.vTrk, summary.vTrk) && ...
+        isequaln(re.etaReplayDiff, summary.etaReplayDiff), ...
+        'air:M3Agg:ArmRecheck', ...
+        '%s re-derived verdict fields differ from the archived summary', id);
+    fprintf('  recheck %-7s center %.5f ok %d replayDiff %.3g\n', ...
+        id, re.etaCenter, re.ok, re.etaReplayDiff);
+end
+
 % ---- 7. recompute the paired gates from the archived arms
 pair = struct();
 B0N = getArm('B0-N');
@@ -341,7 +394,7 @@ end
 result = struct('pass', true, 'batchId', info.batchId, ...
     'segments', {segTable}, 'liveBinding', live, ...
     'manifestCommit', info.gitCommit, 'pair', pair, ...
-    'aggregateShaDrift', aggShaDrift, ...
+    'aggregateSha', liveSha.aggregate, ...
     'archiveDir', string(outDir));
 save(fullfile(outDir, 'aggregate.mat'), 'result');
 fprintf(['M3 AGGREGATE BATCH PASS (batchId %s, %d segments, %d arms, ' ...

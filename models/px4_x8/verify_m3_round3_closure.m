@@ -29,8 +29,20 @@ function ok = verify_m3_round3_closure(stage, stagedDir)
 %                     class/repro session+time-grid+length), a positive
 %                     control, and an ALTERNATIVE 3-segment layout that
 %                     must aggregate PASS (the segmentation is
-%                     parameterized, not hardcoded to five);
-%     'vreport'    -- prints the closure checklist mapping.
+%                     parameterized, not hardcoded to five); PLUS the
+%                     round-3 Codex report section 7.2 formal-entry
+%                     suite: the 11 fake-green probes (done.attempts six
+%                     classes, aggregator-hash two classes, config
+%                     shallow+deep, arm-file) through the FORMAL wrapper
+%                     m3_batch_aggregate, and the verifier over-cap probe
+%                     through this verifier's own entry (contract gate
+%                     first, no stamp, no attempt consumed);
+%     'vreport'    -- prints the closure checklist mapping and audits the
+%                     verifier's own bookkeeping: every prior stage's
+%                     done stamp must exist, carry attempts within the
+%                     frozen contract cap, belong to this batch, and be
+%                     stamped by the verifier source that is still live
+%                     (round-3 section 3.4).
 %   stagedDir: the batch's staged directory (manifest + done stamps +
 %   markers). Required by vnegative/vaggregate (they read the real batch);
 %   when given, every stage bumps its persistent attempt counter and
@@ -59,9 +71,23 @@ verSaved = snapshotGlobals();
 verCleanup = onCleanup(@() m3v_restore(verSaved)); %#ok<NASGU>
 
 attempts = [];
+minfo = [];
+verBinding = [];
 if ~isempty(stagedDir)
+    % round-3 Codex report section 3.4 closure: the source-contract gate
+    % runs BEFORE the budget is touched -- a staged manifest edited
+    % against m3_batch_contract (raised cap, dropped/duplicated segments)
+    % dies here in EVERY stage, including vreport, and can no longer
+    % consume a verifier attempt or stamp an over-budget done marker
+    % (the round-3 probe: manifest.maxAttempts=4 flowed straight into the
+    % counting function and vreport stamped done.attempts=4).
     S = load(fullfile(stagedDir, 'manifest.mat'), 'manifest');
-    attempts = m3_stage_attempt(stagedDir, stage, S.manifest.maxAttempts);
+    [~, minfo] = m3_batch_validate(S.manifest);
+    % the verifier's own live source binding: stamps must be attributable
+    % to the verifier version that ran (section 3.4: "盖章和最终检查验证
+    % 真实版本/attempt 记录")
+    verBinding = m3_source_binding([mfilename('fullpath') '.m']);
+    attempts = m3_stage_attempt(stagedDir, stage, minfo.maxAttempts);
 end
 switch stage
     case 'vunit'
@@ -72,10 +98,13 @@ switch stage
         ok = runAggregate(stagedDir, wsRoot);
     case 'vreport'
         printReport();
+        auditVerifierBookkeeping(stagedDir, minfo, verBinding);
         ok = true;
 end
 if ~isempty(stagedDir)
-    m3_stage_done(stagedDir, stage, struct('attempts', attempts));
+    m3_stage_done(stagedDir, stage, struct('attempts', attempts, ...
+        'batchId', minfo.batchId, 'binding', verBinding, ...
+        'bindingExit', m3_source_binding([mfilename('fullpath') '.m'])));
 end
 fprintf('STAGE %s %s\n', stage, ternaryStr(ok, 'PASS', 'FAIL'));
 end
@@ -599,12 +628,163 @@ for j = 1:size(cases, 1)
 end
 fprintf('aggregate negatives: %d/%d rejected with exact ids + 2 positives\n', ...
     size(cases, 1), size(cases, 1));
+
+% ---- round-3 Codex report section 7.2: the 11 fake-green probes RE-RUN
+% from the FORMAL entries -- the aggregate ones through the wrapper
+% m3_batch_aggregate (which owns the done-stamp contract), the verifier
+% over-cap probe through the verifier entry itself. The six done.attempts
+% classes die at the wrapper (air:M3BatchAgg:StampAttempts); the
+% aggregator-hash, config and arm-file classes die inside the hardened
+% aggregate at their named layers.
+[dirsW, stagedW] = copyBatch(negRoot, 'poswrap', segDirs, stagedDir, {});
+resW = m3_batch_aggregate(stagedW);
+assert(resW.pass, 'wrapper positive control: restamped copies must aggregate PASS at the formal entry');
+fprintf('R3-AW  m3_batch_aggregate positive control (formal entry)  PASS\n');
+wrapCases = { ...
+    'DoneAttMissing', 'air:M3BatchAgg:StampAttempts', @() withEditedDone(negRoot, segDirs, stagedDir, 'doneA1', @(D) rmfield(D, 'attempts')); ...
+    'DoneAttZero',    'air:M3BatchAgg:StampAttempts', @() withEditedDone(negRoot, segDirs, stagedDir, 'doneA2', @(D) setfieldlocal(D, 'attempts', 0)); ...
+    'DoneAttNaN',     'air:M3BatchAgg:StampAttempts', @() withEditedDone(negRoot, segDirs, stagedDir, 'doneA3', @(D) setfieldlocal(D, 'attempts', NaN)); ...
+    'DoneAttFrac',    'air:M3BatchAgg:StampAttempts', @() withEditedDone(negRoot, segDirs, stagedDir, 'doneA4', @(D) setfieldlocal(D, 'attempts', 1.5)); ...
+    'DoneAttOver',    'air:M3BatchAgg:StampAttempts', @() withEditedDone(negRoot, segDirs, stagedDir, 'doneA5', @(D) setfieldlocal(D, 'attempts', 4)); ...
+    'DoneAttIncons',  'air:M3BatchAgg:StampAttempts', @() withEditedDone(negRoot, segDirs, stagedDir, 'doneA6', @(D) setfieldlocal(D, 'attempts', 2)); ...
+    'AggShaDelete',   'air:M3Agg:ContractMismatch',   @() cAggSha(negRoot, segDirs, stagedDir, 'aggsha1', true); ...
+    'AggShaZero',     'air:M3Agg:ContractMismatch',   @() cAggSha(negRoot, segDirs, stagedDir, 'aggsha2', false); ...
+    'ConfigTamper',   'air:M3Agg:ConfigMismatch',     @() cConfigTamper(negRoot, segDirs, stagedDir, 'cfgA1', false); ...
+    'ConfigTamperDeep', 'air:M3EvalArm:ReplayMismatch', @() cConfigTamper(negRoot, segDirs, stagedDir, 'cfgA2', true); ...
+    'ArmFileTamper',  'air:M3EvalArm:ReplayMismatch', @() cArmFileTamper(negRoot, segDirs, stagedDir)};
+for j = 1:size(wrapCases, 1)
+    stgW = wrapCases{j, 3}();
+    gotW = catchId(@() m3_batch_aggregate(stgW));
+    assert(strcmp(gotW, wrapCases{j, 2}), ...
+        'formal-entry negative %s: expected %s got %s', ...
+        wrapCases{j, 1}, wrapCases{j, 2}, gotW);
+    fprintf('R3-AW  m3_batch_aggregate %-15s tamper -> rejected (%s)\n', ...
+        wrapCases{j, 1}, wrapCases{j, 2});
+end
+% verifier over-cap probe (round-3 section 3.4): the raised manifest cap
+% must die at the contract gate in the VERIFIER entry too, and the probe
+% must NOT stamp vreport done or bump any counter
+stgV = cVerCapRaise(negRoot, segDirs, stagedDir);
+gotV = catchId(@() verify_m3_round3_closure('vreport', stgV));
+assert(strcmp(gotV, 'air:M3Batch:ContractMismatch'), ...
+    'verifier over-cap probe: expected air:M3Batch:ContractMismatch got %s', ...
+    gotV);
+assert(~exist(fullfile(stgV, 'vreport.done.mat'), 'file'), ...
+    'verifier over-cap probe: vreport stamped a done marker over a raised cap');
+assert(~exist(fullfile(stgV, 'vreport.attempts'), 'file'), ...
+    'verifier over-cap probe: the contract gate must not consume an attempt');
+fprintf('R3-AW  verify entry       %-15s tamper -> rejected, no stamp, no attempt consumed\n', ...
+    'VerCapRaise');
+fprintf('formal-entry negatives: %d/%d rejected with exact ids + 1 wrapper positive\n', ...
+    size(wrapCases, 1) + 1, size(wrapCases, 1) + 1);
+end
+
+function stg = withEditedDone(negRoot, segDirs, stagedDir, tag, editFn)
+%WITHEDITEDDONE fixture + one edit applied to the s2 done stamp (the
+%   round-3 section 3.2 probe surface): the six done.attempts classes and
+%   any stamp inconsistency must die at the FORMAL wrapper entry.
+[~, stg] = copyBatch(negRoot, tag, segDirs, stagedDir, {});
+f = fullfile(stg, 's2.done.mat');
+S = load(f, 'done');
+done = editFn(S.done);
+save(f, 'done');
+end
+
+function stg = cAggSha(negRoot, segDirs, stagedDir, tag, deleteField)
+%CAGGSHA the round-3 section 3.1 probe pair: remove manifest.sha.aggregate
+%   or zero it -- the aggregate must ASSERT the aggregator fingerprint
+%   instead of reporting drift.
+[~, stg] = copyBatch(negRoot, tag, segDirs, stagedDir, {});
+mf = fullfile(stg, 'manifest.mat');
+M = load(mf, 'manifest');
+manifest = M.manifest;
+if deleteField
+    manifest.sha = rmfield(manifest.sha, 'aggregate');
+else
+    manifest.sha.aggregate = repmat('0', 1, 64);
+end
+save(mf, 'manifest');
+end
+
+function stg = cConfigTamper(negRoot, segDirs, stagedDir, tag, deep)
+%CCONFIGTAMPER the round-3 section 3.3 probe: M3-N1's archived eta gain
+%   2e-4 -> 1. Shallow: the cfgSha three-way chain dies. Deep: the hashes
+%   are re-stamped too, so the rejection must come from the production
+%   recheck's replay fidelity gate (the swapped gain shapes the replayed
+%   candidate away from the logged one).
+seg = segNameOfArm(stagedDir, 'M3-N1');
+[~, stg] = copyBatch(negRoot, tag, segDirs, stagedDir, ...
+    {seg, 'effective_config.mat'});
+d = findSegByArm(dirsOf(stg), 'M3-N1');
+cf = fullfile(d, 'effective_config.mat');
+C = load(cf, 'cfgAll');
+cfgAll = C.cfgAll;
+cfgAll.M3_N1.pe.gain = 1;
+save(cf, 'cfgAll');
+if deep
+    h = sha256file(cf);
+    rf = fullfile(d, 'result.mat');
+    S = load(rf, 'result');
+    result = S.result;
+    result.cfgSha = h;
+    save(rf, 'result');
+    df = fullfile(stg, [seg '.done.mat']);
+    D = load(df, 'done');
+    done = D.done;
+    done.cfgSha = h;
+    save(df, 'done');
+end
+end
+
+function stg = cArmFileTamper(negRoot, segDirs, stagedDir)
+%CARMFILETAMPER the round-3 section 3.3 isolation probe: summary stays
+%   ok=true, but the arm archive says failed (attLimitMax=1) and the
+%   attitude log carries a bit-3 event in [210,214) -- the production
+%   recheck must not let the legal summary aggregate over the tampered
+%   archive (the replay fidelity gate dies on the log edit).
+seg = segNameOfArm(stagedDir, 'M3-N1');
+[~, stg] = copyBatch(negRoot, 'armfile', segDirs, stagedDir, ...
+    {seg, 'M3-N1.mat'});
+d = findSegByArm(dirsOf(stg), 'M3-N1');
+f = fullfile(d, 'M3-N1.mat');
+S = load(f, 'r');
+r = S.r;
+r.ok = false;
+r.attLimitMax = 1;
+r.logs.A(r.logs.ta >= 210 & r.logs.ta < 214, 29) = 1;
+save(f, 'r');
+end
+
+function stg = cVerCapRaise(negRoot, segDirs, stagedDir)
+%CVERCAPRAISE the round-3 section 3.4 probe: manifest.maxAttempts 3->4 on
+%   an isolated staged copy; the verifier entry must reject at the
+%   contract gate without consuming attempts or stamping vreport.
+[~, stg] = copyBatch(negRoot, 'vercap', segDirs, stagedDir, {});
+mf = fullfile(stg, 'manifest.mat');
+M = load(mf, 'manifest');
+manifest = M.manifest;
+manifest.maxAttempts = 4;
+save(mf, 'manifest');
+end
+
+function ds = dirsOf(stg)
+%DIRSOF the fixture segment dirs of a staged dir (restamped done stamps).
+S = load(fullfile(stg, 'manifest.mat'), 'manifest');
+ds = cell(1, numel(S.manifest.segments));
+for k = 1:numel(S.manifest.segments)
+    D = load(fullfile(stg, [S.manifest.segments(k).name '.done.mat']), 'done');
+    ds{k} = char(D.done.archiveDir);
+end
 end
 
 function [dirs, stg] = copyBatch(negRoot, tag, segDirs, stagedDir, modifySegs)
-%COPYBATCH isolated fixture: copies result.mat + markers + manifest,
-%   HARDLINKS the per-arm archives (read-only for the aggregate) except
-%   files listed in modifySegs {segName, fileName} which are real copies.
+%COPYBATCH isolated fixture: copies result.mat + markers + done stamps +
+%   manifest, HARDLINKS the per-arm archives (read-only for the
+%   aggregate) except files listed in modifySegs {segName, fileName}
+%   which are real copies. The copy carries a SYNTHETIC live identity
+%   (restampFixture): the real batch predates the strict-binding
+%   aggregate, so an untouched copy would die on the cross-commit gate
+%   before reaching the layer a case tests.
 fx = fullfile(negRoot, tag);
 mkdir(fx);
 stg = fullfile(fx, 'staged');
@@ -616,6 +796,10 @@ for k = 1:numel(S.manifest.segments)
     mk = fullfile(stagedDir, [nm '.attempts']);
     if exist(mk, 'file')
         copyfile(mk, fullfile(stg, [nm '.attempts']));
+    end
+    dk = fullfile(stagedDir, [nm '.done.mat']);
+    if exist(dk, 'file')
+        copyfile(dk, fullfile(stg, [nm '.done.mat']));
     end
 end
 dirs = {};
@@ -639,6 +823,51 @@ for d = 1:numel(segDirs)
         end
     end
     dirs{end + 1} = dst; %#ok<AGROW>
+end
+restampFixture(stg, dirs);
+end
+
+function restampFixture(stg, dirs)
+%RESTAMPFIXTURE stamp a fixture copy "as-if produced at this commit":
+%   manifest commit + full sha block (incl. the now-asserted aggregate
+%   fingerprint), segment binding commits and fingerprints, cfgSha over
+%   the archived effective config, and the done stamps' commit/archive/
+%   cfgSha. Identity-layer cases apply their tamper ON TOP of this
+%   restamp, so rejections stay attributable to the edited field rather
+%   than to the batch's age.
+fp = m3_live_fingerprints();
+mf = fullfile(stg, 'manifest.mat');
+M = load(mf, 'manifest');
+manifest = M.manifest;
+manifest.gitCommit = fp.head;
+manifest.sha = fp.sha;
+save(mf, 'manifest');
+bsha = struct('entry', fp.sha.trials, 'model', fp.sha.model, ...
+    'm0c', fp.sha.m0c, 'm2', fp.sha.m2);
+for d = 1:numel(dirs)
+    f = fullfile(dirs{d}, 'result.mat');
+    S = load(f, 'result');
+    result = S.result;
+    result.binding.gitCommit = fp.head;
+    result.bindingExit.gitCommit = fp.head;
+    result.binding.sha = bsha;
+    result.bindingExit.sha = bsha;
+    cfgFile = fullfile(dirs{d}, 'effective_config.mat');
+    if exist(cfgFile, 'file') == 2
+        result.cfgSha = sha256file(cfgFile);
+    end
+    save(f, 'result');
+    df = fullfile(stg, [result.segName '.done.mat']);
+    if exist(df, 'file') == 2
+        D = load(df, 'done');
+        done = D.done;
+        done.gitCommit = fp.head;
+        done.archiveDir = string(dirs{d});
+        if isfield(result, 'cfgSha')
+            done.cfgSha = result.cfgSha;
+        end
+        save(df, 'done');
+    end
 end
 end
 
@@ -926,6 +1155,7 @@ for g = 1:numel(groups)
     dirs{end + 1} = dst; %#ok<AGROW>
 end
 save(fullfile(stg, 'manifest.mat'), 'manifest');
+restampFixture(stg, dirs);
 end
 
 function nm = segNameOfArm(stagedDir, arm)
@@ -977,18 +1207,73 @@ rec = S.r;
 end
 
 % ---------------------------------------------------------------------------
+function auditVerifierBookkeeping(stagedDir, minfo, verBinding)
+%AUDITVERIFIERBOOKKEEPING round-3 section 3.4 closing check: the
+%   verifier's own bookkeeping is evidence -- every prior stage's done
+%   stamp must exist, carry a valid attempts value within the FROZEN
+%   contract cap (never a manifest-supplied one), belong to this batch,
+%   and bind the verifier source this process is still running (entry
+%   fingerprint equal to the live file -- a verifier swapped mid-batch is
+%   reported, not silently accepted).
+if isempty(stagedDir)
+    return;
+end
+c = m3_batch_contract();
+live = m3_source_binding([mfilename('fullpath') '.m']);
+for k = 1:numel(c.verifierStages)
+    st = c.verifierStages{k};
+    if strcmp(st, 'vreport')
+        continue;   % this stage's own stamp is written after the audit
+    end
+    f = fullfile(stagedDir, [st '.done.mat']);
+    assert(exist(f, 'file'), 'air:M3Verify:Bookkeeping', ...
+        'stage %s has no done stamp -- the verifier chain is incomplete', st);
+    D = load(f, 'done');
+    d = D.done;
+    assert(isfield(d, 'attempts') && isscalar(d.attempts) && ...
+        isfinite(d.attempts) && d.attempts > 0 && ...
+        d.attempts == floor(d.attempts) && d.attempts <= c.maxAttempts, ...
+        'air:M3Verify:Bookkeeping', ...
+        'stage %s stamp attempts field is missing/0/NaN/non-integer/over-cap', ...
+        st);
+    assert(isfield(d, 'batchId') && strcmp(d.batchId, minfo.batchId), ...
+        'air:M3Verify:Bookkeeping', ...
+        'stage %s stamp carries a foreign batchId', st);
+    assert(isfield(d, 'binding') && isfield(d.binding, 'sha') && ...
+        isfield(d.binding.sha, 'entry') && ...
+        strcmp(d.binding.sha.entry, live.sha.entry), ...
+        'air:M3Verify:Bookkeeping', ...
+        'stage %s was stamped by a DIFFERENT verifier source than the live one', ...
+        st);
+    fprintf('bookkeeping: stage %s attempts %d/%d, verifier commit %s, stamped by this source\n', ...
+        st, d.attempts, c.maxAttempts, d.binding.gitCommit(1:7));
+end
+assert(~isempty(verBinding) && strcmp(verBinding.sha.entry, live.sha.entry), ...
+    'air:M3Verify:Bookkeeping', ...
+    'this vreport call is not bound to the live verifier source');
+end
+
+% ---------------------------------------------------------------------------
 function printReport()
 fprintf(['closure mapping: F2 verifiable center via kernel replay + ' ...
     'unified [192,240) (R3-P0 real arms, R3-C1/N1/N2 kernel-driven ' ...
     'phase fixtures, R3-N3 fidelity gate, unit B8);\n' ...
     'F3 attitude gate on every arm (R3-N7 + zero hard bits on the ' ...
     'real 14-arm batch);\n' ...
-    'F4 batch governance: batchId manifest + sha/dirty/segment-verdict/' ...
-    'attempt/contract negatives (R3-A 25 + altLayout positive), ' ...
-    'in-repo bounded-retry driver + driver tests, full-cartesian ' ...
-    'restore matrix (R3-M 28 rows);\n' ...
+    'F4 batch governance (round-3 Codex report sections 3.1-3.4 ' ...
+    'closure): strict live binding incl. the aggregator fingerprint + ' ...
+    'cross-commit rejection, done/result/marker three-way bookkeeping ' ...
+    'at the FORMAL entry (done.attempts six classes + identity + ' ...
+    'cfgSha), archived-config binding + full 14-arm production recheck ' ...
+    'in the aggregate, verifier contract gate before budget + own ' ...
+    'stamped binding + bookkeeping audit;\n' ...
+    'negatives: R3-A inner 25 + altLayout positive, R3-AW formal-entry ' ...
+    '11 fake-green probes (done six classes, aggregator hash two ' ...
+    'classes, config shallow+deep, arm file, verifier over-cap) + ' ...
+    'wrapper positive;\n' ...
     'F6 errata + honest counting in the round-3 evidence report.\n' ...
-    'batch verdict = m3_aggregate_batch over the staged segments\n']);
+    'batch verdict = m3_batch_aggregate (formal entry) over the staged ' ...
+    'segments\n']);
 end
 
 % ---------------------------------------------------------------------------
@@ -1005,6 +1290,17 @@ end
 function s = stripBindingSha(s)
 %STRIPBINDINGSHA remove the sha block from a segment's entry binding.
 s.binding = rmfield(s.binding, 'sha');
+end
+
+function h = sha256file(fname)
+%SHA256FILE lowercase hex SHA-256 of a file (m3_source_binding pattern).
+fid = fopen(fname, 'rb');
+assert(fid > 0, 'air:M3Verify:Internal', 'cannot open %s', fname);
+data = fread(fid, '*uint8')';
+fclose(fid);
+md = java.security.MessageDigest.getInstance('SHA-256');
+d = md.digest(data);
+h = lower(sprintf('%02x', typecast(int8(d), 'uint8')));
 end
 
 function s = setfieldlocal(s, name, value)

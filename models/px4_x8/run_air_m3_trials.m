@@ -198,6 +198,11 @@ if strcmp(injectError, 'cfgmismatch')
 end
 save(fullfile(outDir, 'effective_config.mat'), 'cfgAll');
 assertFrozenConfig(cfgAll, strcmp(scenarioSet, 'full'));
+% round-3 Codex report section 3.3: the effective config is completion
+% evidence -- bind its SHA-256 into the result AND the done stamp, so the
+% aggregate checks file<->result<->stamp three ways before re-deriving
+% every arm verdict THROUGH this config
+cfgSha = sha256file(fullfile(outDir, 'effective_config.mat'));
 
 R = struct();
 ok = true;
@@ -437,6 +442,7 @@ bindingExit = m3_source_binding([mfilename('fullpath') '.m']);
 result = struct('pass', ok, 'archiveDir', string(outDir), 'runs', runsLite, ...
     'pair', pair, 'binding', binding, 'bindingExit', bindingExit, ...
     'batchId', batchId, 'segName', segName, 'attempts', attempts, ...
+    'cfgSha', cfgSha, ...
     'isFullBatch', strcmp(scenarioSet, 'full'), 'scenarioSet', {scenarioSet});
 save(fullfile(outDir, 'result.mat'), 'result');
 if ~isempty(stagedDir)
@@ -448,6 +454,7 @@ if ~isempty(stagedDir)
         % applies (deterministic failures abort the batch, honestly)
         m3_stage_done(stagedDir, segName, struct('runId', binding.runId, ...
             'batchId', batchId, 'attempts', attempts, ...
+            'cfgSha', cfgSha, ...
             'archiveDir', string(outDir), 'gitCommit', binding.gitCommit));
     else
         error('air:M3Trials:SegmentFailed', ...
@@ -671,4 +678,16 @@ if cond
 else
     out = b;
 end
+end
+
+function h = sha256file(fname)
+%SHA256FILE lowercase hex SHA-256 of a file (m3_source_binding pattern);
+%   binds the archived effective config into result/done (round-3 3.3).
+fid = fopen(fname, 'rb');
+assert(fid > 0, 'air:M3Trials:ConfigDrift', 'cannot open %s', fname);
+data = fread(fid, '*uint8')';
+fclose(fid);
+md = java.security.MessageDigest.getInstance('SHA-256');
+d = md.digest(data);
+h = lower(sprintf('%02x', typecast(int8(d), 'uint8')));
 end

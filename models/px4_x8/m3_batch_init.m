@@ -18,13 +18,13 @@ if ~isfolder(stagedDir)
 end
 c = m3_batch_contract();
 here = fileparts(mfilename('fullpath'));
-
-% live identity: fresh capture, dirty tree is a hard failure
 repoRoot = fileparts(fileparts(here));
-[st, out] = system(sprintf('git -C "%s" rev-parse HEAD', repoRoot));
-assert(st == 0, 'air:M3Batch:InitBinding', ...
-    'git rev-parse HEAD failed (exit %d) -- evidence cannot be bound', st);
-gitCommit = strtrim(out);
+
+% live identity: fresh capture via the shared fingerprint source (the
+% manifest's sha block and the aggregate's re-asserted set must never
+% drift apart), dirty tree is a hard failure
+fp = m3_live_fingerprints();
+gitCommit = fp.head;
 [st2, out2] = system(sprintf('git -C "%s" status --porcelain', repoRoot));
 assert(st2 == 0, 'air:M3Batch:InitBinding', ...
     'git status failed (exit %d) -- cannot establish dirty state', st2);
@@ -34,14 +34,7 @@ assert(isempty(dirtyLines), 'air:M3Batch:DirtyTree', ...
     ['batch init requires a clean working tree; uncommitted changes:\n%s'], ...
     strjoin(dirtyLines, newline));
 
-shaFiles = struct( ...
-    'aggregate', sha256file(fullfile(here, 'm3_aggregate_batch.m')), ...
-    'trials', sha256file(fullfile(here, 'run_air_m3_trials.m')), ...
-    'contract', sha256file(fullfile(here, 'm3_batch_contract.m')), ...
-    'evalArm', sha256file(fullfile(here, 'm3_eval_arm.m')), ...
-    'model', sha256file(fullfile(here, 'air_spare.slx')), ...
-    'm0c', sha256file(fullfile(here, 'm0c_vref_esc.m')), ...
-    'm2', sha256file(fullfile(here, 'm2_eta_esc.m')));
+shaFiles = fp.sha;
 
 manifest = struct();
 manifest.batchId = char(java.util.UUID.randomUUID());
@@ -64,15 +57,4 @@ movefile(tmp, f);
 fprintf('batch init: batchId %s, commit %s, %d segments, maxAttempts %d\n', ...
     manifest.batchId, gitCommit(1:7), numel(manifest.segments), ...
     manifest.maxAttempts);
-end
-
-function h = sha256file(fname)
-%SHA256FILE lowercase hex SHA-256 of a file (m3_source_binding pattern).
-fid = fopen(fname, 'rb');
-assert(fid > 0, 'air:M3Batch:InitBinding', 'cannot open %s', fname);
-data = fread(fid, '*uint8')';
-fclose(fid);
-md = java.security.MessageDigest.getInstance('SHA-256');
-d = md.digest(data);
-h = lower(sprintf('%02x', typecast(int8(d), 'uint8')));
 end
