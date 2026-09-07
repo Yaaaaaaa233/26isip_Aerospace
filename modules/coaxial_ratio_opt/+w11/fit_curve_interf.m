@@ -6,7 +6,7 @@ function [coefs,th,fitRms,rLo,rHi,rKept] = fit_curve_interf(psSet,rrSet,PmSet,p,
 %   故标定/重拟合采用规范 θ(1)=a0 ≡ 0: f̂ 的 argmin 直接给出表观谷底(可辨识),
 %   均匀漂移由重拟合链跟踪; 谐波分量 θ(2:3)=[a1,b1] 有航向调制这一独立信息通道
 %   (sector/姿态不对称类干扰), 由岭正则+GN辨识, 无调制时被压向0。
-%   相对冻结模型的增量漂移(可辨识)由 interf_corr 承担(hybrid/sweepcal 在线段)。
+%   相对冻结模型的增量漂移(可辨识)由探针斜率承担(hybrid在线段; 见 hybrid_run.m)。
 % 内层(固定θ) f 线性最小二乘(岭1e-8); 外层(对 a1,b1) 多起点 Gauss-Newton(限步)。
 % 返回: 归一化基系数(基 x=(u-1)/0.25, u=r−δ̂), θ(规范 a0=0), 拟合RMS,
 %       样本覆盖的 u 范围, rKept=参与拟合的样本 u 集合(供支撑谷底选择)。
