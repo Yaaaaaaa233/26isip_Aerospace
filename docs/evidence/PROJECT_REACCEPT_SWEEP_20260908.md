@@ -23,6 +23,8 @@
 
 未跑（登记说明）：`speed_rl_pytorch`（Python/torch 训练评估线，非 MATLAB 入口，owner 线）；`realistic_constraints_search`（任务 7 验收入口脚本未入库——状态页既有登记）；M2 52 行链（见 §2.4）；M0/M1 Simulink 套件（冻结证据制，其模型链在 M3 正式批次的 14×240 s 仿真中被实际行使）。
 
+补扫（2026-09-08 晚，rebase 后 HEAD `3bcdd6e`）：扫描期间王健祺上库两个新模块（`8b04df7`：unified_four_algos 3.4 / curve_calib_windinfer 3.3），其验收入口在整合后补跑——**curve_calib_windinfer 11/11 门槛、unified_four_algos 13/13 门槛全过**；治理复检 PASS（登记模块 21）。
+
 ## 2 发现与处置
 
 ### 2.1 【开放 P1】P2 合成功率无 U 形左支（H3 未接入）——G-U 门 FAIL
@@ -44,9 +46,9 @@
 
 M2 第十轮证据绑定 `71acd56`；其后 M3 开发（`e5d5745`/`93b1b68`）修改了共享文件 `m2_eta_esc.m`（M3 仲裁模式扩展）。改动路径已被 M3 全套件（含本扫描 §1 #11 正式批次）覆盖，但 **M2 数值门槛（S1/S2/S3）在 HEAD 无重跑证据**。是否触发 M2 52 行复跑由项目组决定（属 M2 独立验收制度，本扫描不代跑）。
 
-### 2.5 【登记】算法线 sweep 副作用：两个验收入口重存 .slx
+### 2.5 【登记】算法线 sweep 副作用：两个验收入口重存 .slx，另有一个入口写 modules/results
 
-`ratio_esc`/`speed_esc` 的 `run_acceptance`/`run_speed_acceptance` 运行后把各自 `models/*_closed_loop.slx` 重存（tracked 二进制变更）。本次已恢复原状（`git checkout`）；请模块 owner 关注入口的非幂等性（建议入口不落盘或落 gitignored 路径）。
+`ratio_esc`/`speed_esc` 的 `run_acceptance`/`run_speed_acceptance` 运行后把各自 `models/*_closed_loop.slx` 重存（tracked 二进制变更）。本次已恢复原状（`git checkout`）；请模块 owner 关注入口的非幂等性（建议入口不落盘或落 gitignored 路径）。另 `speed_rugged_search` 入口在 `modules/results/` 留下相对路径输出（触发治理检查未注册模块 FAIL，已清理再生性产物后恢复 PASS）——同属入口工作目录副作用。
 
 ## 3 结论
 
