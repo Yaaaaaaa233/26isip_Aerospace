@@ -1,12 +1,12 @@
 # 开发状态与下一步
 
-更新时间：2026-09-05（本次更新：登记 2026-09-05 接口研讨会两阶段验收口径；M3 第三轮独立验收回填：F2/F3 关闭，F4 仍 OPEN/P1，未整体放行）
+更新时间：2026-09-07（本次更新：平台线并线登记与[动力-环境模型方案](architecture/06_platform_power_environment_model.md)拍板入库；上一更新 2026-09-05 接口研讨会两阶段验收口径 + M3 第三轮独立验收回填：F2/F3 关闭，F4 仍 OPEN/P1）
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
-本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）；王健祺（2026-09-03 新增 realistic_constraints_search / curve_case_calibration / wind_model_library 三模块登记与进度补充；2026-09-05 新增 wind_semantics_correction / wind_inference_search 两模块登记、MOE口径变更（纯能耗）与本地任务线 1.x/2.x/3.x 重命名；2026-09-06 新增 curve_unknown_search / reward_only_rl 两模块登记并对接 SIM_ALGO_INTERFACE；2026-09-07 三模块算法集精简（删除 task1 遗留直接搜索器，见 worklog 2026-09-07）+ demo 风场预设修复 + turb σy 修正，回归全绿并刷新证据，新增 docs/VERSION_REVIEW_20260907_wjq.md 全版本梳理）；Codex（X8PHYS/P0--P4 审核、验收收口与结论边界，2026-09-03）
+本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）；王健祺（2026-09-03 新增 realistic_constraints_search / curve_case_calibration / wind_model_library 三模块登记与进度补充；2026-09-05 新增 wind_semantics_correction / wind_inference_search 两模块登记、MOE口径变更（纯能耗）与本地任务线 1.x/2.x/3.x 重命名；2026-09-06 新增 curve_unknown_search / reward_only_rl 两模块登记并对接 SIM_ALGO_INTERFACE；2026-09-07 三模块算法集精简（删除 task1 遗留直接搜索器，见 worklog 2026-09-07）+ demo 风场预设修复 + turb σy 修正，回归全绿并刷新证据，新增 docs/VERSION_REVIEW_20260907_wjq.md 全版本梳理）；Codex（X8PHYS/P0--P4 审核、验收收口与结论边界，2026-09-03）；叶安（2026-09-07 拍板：Plane 线并入平台线、ENV 维持王健祺口径、整机 10 kg/电池 7S4P、缺省假设着重标注登记、eta 接口保留恒 1、每阶段前置可视化样张规则、暂只停留在模拟层面）
 审核：待项目组审核
-AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮独立验收结果回填；2026-09-03问题与接口修订；2026-09-04 按叶安要求回填 M3 第二轮独立验收，纠正提前关闭表述；2026-09-05 第三轮独立验收回填，区分机制修复、证据链缺口与环境崩溃）；ZCode（2026-09-05 按接口研讨会登记两阶段验收口径与接口/路线文档）
+AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮独立验收结果回填；2026-09-03问题与接口修订；2026-09-04 按叶安要求回填 M3 第二轮独立验收，纠正提前关闭表述；2026-09-05 第三轮独立验收回填，区分机制修复、证据链缺口与环境崩溃）；ZCode（2026-09-05 按接口研讨会登记两阶段验收口径与接口/路线文档；2026-09-07 并线登记、仓库整合与平台动力-环境模型方案成文）
 
 ## 9月3日进度快照
 
@@ -145,7 +145,7 @@ AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮�
 2026-09-05 接口研讨会新增对外验收口径：按 [`SIM_ACCEPTANCE_ROUTE.md`](SIM_ACCEPTANCE_ROUTE.md) 两阶段推进——Task 1 开环（基础功能验证，9/8–9/11）与 Task 2 闭环（基于上一圈历史数据优化，9/12–9/18），核心指标 Percent = 100×(E_actual−E_pred)/E_pred，接口标准见 [`interfaces/SIM_ALGO_INTERFACE.md`](interfaces/SIM_ALGO_INTERFACE.md)，9/19 学术表达准备；顶层入口见新版 [`AGENTS.md`](../AGENTS.md)。下列 1–8 项为其工作载体。
 
 1. **R0概念确认**：由周航正组织组内和老师确认ADR-001/ADR-004，冻结主任务、`v_ref`地速语义、名义功率图和在线可见信息；接口字典0.3仍待冻结为1.0。
-2. **并行Plane线**：建议霍奕茗负责（待确认）。`models/plane` P0--P4 契约测试已通过（`run_plane_acceptance` 全绿，E0/E1 代理等级）；下一步是经 P4 适配器把 `plane.step` 接入 harness，替换 aircraft 代理对象（执行路线 §6 第 2 条），不直接改主 `.slx`。
+2. **Plane线（2026-09-07 起并入叶安平台线，霍奕茗 P0--P4 实现署名保留）**：`models/plane` P0--P4 契约测试已通过（`run_plane_acceptance` 全绿，E0/E1 代理等级）。并线后平台线归口动力模型+环境模型，建模范围、标定方案与 9/7 拍板（整机 10 kg、电池 7S4P、缺省假设登记 H1--H8、eta 接口保留恒 1、每阶段前置可视化样张）冻结于 [平台动力-环境模型方案](architecture/06_platform_power_environment_model.md) v1.0。下一步仍是经 P4 适配器把 `plane.step` 接入 harness，替换 aircraft 代理对象（执行路线 §6 第 2 条），不直接改主 `.slx`。ENV 线维持王健祺口径（T1.1 三面统一），平台只调用/接入。
 3. **并行Environment线**：王健祺已有场景资产，建议继续统一PathCommand、NE风真值、风测量退化和训练/未见场景清单；首先关闭 `wind_field_sched` 的局部加号约定适配；补齐任务7入口脚本（`START_HERE.m`/`run_task7_acceptance.m` 未入库）。
 4. **并行算法/Control线**：叶安按 [M3 v0.2](interfaces/M3_V_ETA_COORDINATION.md) 与[第三轮独立报告 §7](evidence/M3_REACCEPT_ROUND3_CODEX_20260905.md) 推进。F2/F3 已在问题范围关闭；先修 F4 的身份/完成标记/配置与档案绑定/verifier 预算，在无开放 P1 后重跑单一干净版本正式批次和声明矩阵。M3 代理阶段尚未收口，统一 Plane/R4 不预支；M2 第十轮放行不因本次基础设施漏检重开。
 5. **统一Harness汇合**：周航正负责接口与总装，使用同一场景、随机种子、隐藏对象和约束比较固定、名义调度、ESC及Oracle上界；Oracle结果不得写成在线策略结果。汇合即执行路线 §0.6 的 V1 级（桌面模型仿真）主战场。
