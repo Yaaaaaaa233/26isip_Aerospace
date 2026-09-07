@@ -1,0 +1,19 @@
+function out = compare_baseline(name, scn, c)
+%COMPARE_BASELINE 算法 vs 开环基线(固定 r=1)的同对象、同预算、同种子横比。
+% 输出: 双方 MOE_energy / 能耗超额 / 相对能耗下降与提升绝对量; 完整日志与指标。
+if ~any(strcmp(name,{'est','interfinfer','sweepcal','rl','purerl','hybrid'}))
+    error('w11:CompareBaseline','Baseline comparison needs an adaptive algorithm, got %s.',name);
+end
+cB=c; cB.seed=c.seed;
+[logA,~]=w11.run_algorithm(name,scn,c);
+mA=w11.mop_moe(logA,c);
+[logB,~]=w11.run_algorithm('openloop',scn,cB);
+mB=w11.mop_moe(logB,cB);
+out=struct('name',name,'scenario',scn.kind,'seed',c.seed,...
+    'moeAlgo',mA.MOE_energy,'moeBase',mB.MOE_energy,...
+    'overallAlgo',mA.MOE.overall,'overallBase',mB.MOE.overall,...
+    'liftAbsolute',mA.MOE_energy-mB.MOE_energy,...
+    'liftPercent',100*(mB.EactualNorm-mA.EactualNorm)/mB.EactualNorm,...
+    'excessAlgo',mA.energyExcessPercent,'excessBase',mB.energyExcessPercent,...
+    'logAlgo',logA,'logBase',logB,'mAlgo',mA,'mBase',mB);
+end
