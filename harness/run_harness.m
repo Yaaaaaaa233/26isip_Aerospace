@@ -3,7 +3,8 @@ function run_harness(varargin)
 % 用法:
 %   run_harness('demo')     三模块 1 小时窗 MOP/MOE 横比(results/mop_moe/)
 %   run_harness('tests')    harness 单元测试(4项)
-%   run_harness             两者都跑
+%   run_harness('adapter')  T1.2 Plane 适配器对接验收(P1/WP1, 平台线)
+%   run_harness             前两者都跑
 % 依赖: ../task2_rugged 的 +task2 包(对象/搜索器复用), 自动加入路径。
 root=fileparts(mfilename('fullpath')); addpath(root);
 addpath(fullfile(root,'..','modules','speed_rugged_search'));
@@ -12,6 +13,9 @@ if doAll || any(strcmp(varargin,'tests'))
     r=runtests(fullfile(root,'tests_harness.m'));
     assertSuccess(r);
     fprintf('harness 单元测试 %d/%d 通过\n',sum([r.Passed]),numel(r));
+end
+if any(strcmp(varargin,'adapter'))
+    run_plane_adapter_check();
 end
 if doAll || any(strcmp(varargin,'demo'))
     run_mop_moe_demo();
