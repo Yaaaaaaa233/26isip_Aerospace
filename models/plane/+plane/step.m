@@ -35,8 +35,15 @@ vRef=min(c.speed_bounds_mps(2),max(c.speed_bounds_mps(1),double(command.v_ref_ap
 v0=s.v_ground_mps;eta0=s.eta_actual;etaTarget=etaRef;
 detaLag=(etaTarget-eta0)*(1-exp(-dt/c.eta_tau_s));
 deta=max(-c.eta_rate_s*dt,min(c.eta_rate_s*dt,detaLag));
-% ---- 空速与废阻前馈（上一拍状态；风只经 v_air 进入，决策 3） ----
-groundPrev=tangent*v0;airPrev=groundPrev-wind;airSpeedPrev=norm(airPrev);
+% ---- 空速与废阻前馈（上一拍状态；风只经切向空速进入功率——06 §2 决策 3：
+%      法向分量进空速矢量恒等式（输出）但无动力学/功率后果，声明式丢弃。
+%      圆周上切向取当前相位切向（PathCommand 传的是静态参考切向）） ----
+if strcmpi(traj,'circle')
+    tangentPre=turnSign*[-sin(s.phase_rad);cos(s.phase_rad)];
+else
+    tangentPre=tangent;
+end
+groundPrev=tangentPre*v0;airPrev=groundPrev-wind;airSpeedPrev=abs(dot(airPrev,tangentPre));
 aDragFf=0.5*c.air_density_kgpm3*c.cda_m2*airSpeedPrev*abs(airSpeedPrev)/c.mass_kg; % 带符号二次废阻
 % ---- 俯仰内核（H6：指令级限幅是转写对象） ----
 aFb=min(c.speed_rate_mps2,max(-c.speed_rate_mps2,c.kp_speed*(vRef-v0)));   % 反馈段受 2 m/s^2 指令限幅
@@ -75,7 +82,7 @@ if s.cutoff,aKin=-1.0;end                           % 截止：旋翼停转，�
  end
  s.time_s=s.time_s+dt;s.last_command=command;
 end
-ground=tangent*s.v_ground_mps;air=ground-wind;airSpeed=norm(air);radialErr=0;if strcmpi(traj,'circle'),radialErr=norm(s.position_ne_m-circleCenter)-circleRadius;end
+ground=tangent*s.v_ground_mps;air=ground-wind;airSpeed=abs(dot(air,tangent));radialErr=0;if strcmpi(traj,'circle'),radialErr=norm(s.position_ne_m-circleCenter)-circleRadius;end
 % ---- 每电机功率合成（WP2）：已分配推力 -> T(n) 反解 -> 分块 P(n;V) -> 共轴 delta ----
 sUp=sUpPre;
 deltaLo=c.coaxial_delta_base+c.coaxial_delta_split_gain*max(0,sUp-0.5);

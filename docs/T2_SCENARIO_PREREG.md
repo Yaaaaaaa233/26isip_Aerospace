@@ -1,7 +1,8 @@
 # T2 场景预登记（正式跑批前冻结）
 
-版本：v1.0（冻结版）
+版本：v1.1
 日期：2026-09-08
+v1.1 变更（§9.4 留痕，2026-09-08 首次正式跑后）：**E_pred 求解器收敛化**——原"4-迭代固定点 rollout"在圆周中性相位方向收敛慢（首跑实测 4 次迭代 E_pred 偏高 2.2%，收敛值 144.7 kJ vs 4 次 147.9 kJ @seed1），改为收敛驱动（相邻迭代 |ΔE_pred|/E_pred < 1e-3，上限 16 次，实测 7 次收敛）。**口径不变**：名义图公式、满 OCV 电压、场景参数、全部门槛数值均不动；S1 首跑本已 PASS（2.93%），本修正是数值正确性收紧而非门槛调整。首跑证据（24/27，A2/B1/C3 三缺陷与 E_pred 收敛问题）如实保留于 evidence，第二次正式跑以本版为准。
 状态：**冻结**——按 [`ACCEPTANCE_AUTOMATION_RULES.md`](ACCEPTANCE_AUTOMATION_RULES.md) §9.4 与 [T2 验收标准清单](T2_ACCEPTANCE_CHECKLIST.md) v1.2 §3（A3/A4 重预登记）冻结于 T2 正式跑批之前；跑批后不得修改，改动即升版重跑。
 依据模型：P2 物理链（`models/plane/+plane` @ 提交 `f55c458` 系：俯仰内核 H6 / 台架合成 / H3 动量理论修正 / H9 上限 k_n=38.8 / bit4 / battery_model_v1）。被测入口 `models/plane/t2_openloop_run.m` / `t2_acceptance_run.m`（本登记的头注与本文件一致性由 v\* 断言保证）。
 

@@ -51,7 +51,7 @@ for k = 1:N1
     [s, o] = plane.step(s, w0, pathC, cmd, 0.01, c1);
     eInt = eInt + o.power_w * 0.01; eMax = max(eMax, abs(o.energy_electrical_J - eInt));
     stack = sum(o.motor_power_w);
-    va = norm(o.air_velocity_ne_mps);
+    va = abs(o.tangential_ground_speed_mps);   % 切向空速（本场景 W=0：=切向地速）
     drag = 0.5 * c1.air_density_kgpm3 * c1.cda_m2 * va * va * abs(va);
     ident = max(ident, abs(stack + max(drag, 0) + c1.aux_power_W - o.power_demand_w) / max(o.power_demand_w, 1));
     d7a = max(d7a, abs(o.thrust_total_actual_n - o.thrust_total_demand_n));
@@ -162,6 +162,24 @@ for gg = [0.7, 1.3]
     ok('G-U', sprintf('H3 敏感性报告：gain=%.1f 的 v* 与降幅', gg), true, ...
         sprintf('v*=%g m/s, 降幅=%.1f%%', vg(ig), 100 * (1 - Pg(ig) / Pg(1))));
 end
+
+% ---------- G-B1n 法向风无功率后果（06 §2 决策 3 的机器门，2026-09-08 首跑发现
+%           w_n 泄漏进功率（2D 模长）后增设） ----------
+pathS = struct('time_s', 0, 'trajectory_type', 'straight', ...
+    'circle_center_ne_m', [NaN; NaN], 'circle_radius_m', NaN, ...
+    'path_phase_rad', 0, 'path_tangent_ne', [0; 1], ...
+    'path_normal_ne', [-1; 0], 'path_valid', true);
+sA = plane.reset(c);
+sB = plane.reset(c);
+wA0 = struct('time_s', 0, 'wind_truth_ne_mps', [0; 0], 'wind_measured_ne_mps', [0; 0], 'wind_valid', true);
+wB0 = wA0; wB0.wind_truth_ne_mps = [3; 0];  % 纯法向（切向 [0;1] 的法向 = 东）
+cmdB = struct('v_ref_applied_mps', 8, 'eta_ref_applied', 1, 'controller_mode', 'fixed');
+for k = 1:3000
+    [sA, oAn] = plane.step(sA, wA0, pathS, cmdB, 0.01, c);
+    [sB, oBn] = plane.step(sB, wB0, pathS, cmdB, 0.01, c);
+end
+dPn = abs(oAn.power_w - oBn.power_w) / max(oAn.power_w, 1);
+ok('G-B1n', '纯法向风功率后果 = 0（决策 3，≤1e-12 相对）', dPn <= 1e-12, sprintf('%.1e', dPn));
 
 % ---------- 分块插值合理性 ----------
 c3 = c; pc21 = local_p_coef_at(c3, 21); pc27 = local_p_coef_at(c3, 27); pc24 = local_p_coef_at(c3, 24);
