@@ -26,6 +26,12 @@ c.az_cmd_mps2=0.0;          % 高度保持的垂直加速度需求（平台场�
 % ---- P2 机体与废阻（H4 缺省，敏感性必做） ----
 c.air_density_kgpm3=1.225;
 c.cda_m2=0.30;              % 废阻面积缺省（H4，literature/model 等级）
+% ---- P2 H3 前进比修正（动量理论诱导功率，2026-09-08 叶安拍板） ----
+% 台架为静推数据（v_air=0）；前飞时桨盘诱导速度按动量理论下降：
+%   vi(v)=sqrt((v/2)^2+T/(2*rho*A))-v/2, vi0=sqrt(T/(2*rho*A))
+%   每桨节省 s=T*(vi0-vi(v))，从静态台架电功率中扣除（v=0 时 s=0，悬停不变）
+c.prop_diameter_m=1.016;    % PAW 40X13.1R 桨径（40 寸），桨盘面积 pi*D^2/4
+c.h3_induced_gain=1.0;      % 修正强度（敏感性旋钮：0.7/1.3 报告带，0=关闭）
 % ---- P2 分配与每电机合成 ----
 c.motor_count=8;c.arm_count=4;
 c.eta_split_gain=0.3;       % s_up = 0.5 + gain*(1-eta)（eta 分配映射，登记口径）

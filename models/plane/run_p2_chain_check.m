@@ -142,12 +142,41 @@ ok('G-ETA', 'eta≠1 总功率上升（凸性代价方向）', oB.power_demand_w
     sprintf('%.1f W vs %.1f W', oB.power_demand_w, oA.power_demand_w));
 
 % ---------- G-U U 形存在性（H3 前进比修正是否接入的机器门） ----------
-% T2 清单 §2 D6"谷底形态合理"的机器化：稳态 P(v) 扫描，谷底必须内点且
-% 相对悬停有可测降幅。2026-09-08 全项目重验收时新增——此前 20 门未覆盖
-% 此性质，H3 缺口（静态台架功率无左支）漏过即为该盲区后果。
-% 构建期门槛（正式登记随 H3 修复以清单 v1.1 升版）：v* 严格内点 且
-% P(v*) <= 0.97*P(0)。
-vGrid = [0 2 4 6 8 10 12 14];
+% T2 清单 §2 D6"谷底形态合理"的机器化：稳态 P(v) 扫描（1 m/s 分辨率），
+% 谷底必须严格内点且相对悬停降幅 >=3%。2026-09-08 全项目重验收时新增
+% （此前 20 门未覆盖此性质，H3 缺口漏过即为该盲区后果）；2026-09-08
+% 叶安拍板动量理论修复后本门转绿，正式门槛随 T2 清单 v1.1 登记。
+vGrid = 0:1:14;
+Pq = local_pcurve(c, vGrid, w0, pathC);
+[Pmin, iMin] = min(Pq);
+uShapeOK = (iMin > 1 && iMin < numel(vGrid)) && Pmin <= 0.97 * Pq(1);
+ok('G-U', 'U 形存在性：v* 严格内点且 P(v*)<=0.97*P(0)', uShapeOK, ...
+    sprintf('v*=%g m/s, Pmin=%.1f W, P(0)=%.1f W, 降幅=%.1f%%', ...
+    vGrid(iMin), Pmin, Pq(1), 100 * (1 - Pmin / Pq(1))));
+% H3 敏感性（报告值，不设门——缺省+敏感性等级，06 §3.1 H3 义务）
+for gg = [0.7, 1.3]
+    cg = c; cg.h3_induced_gain = gg;
+    vg = 0:2:14;
+    Pg = local_pcurve(cg, vg, w0, pathC);
+    [~, ig] = min(Pg);
+    ok('G-U', sprintf('H3 敏感性报告：gain=%.1f 的 v* 与降幅', gg), true, ...
+        sprintf('v*=%g m/s, 降幅=%.1f%%', vg(ig), 100 * (1 - Pg(ig) / Pg(1))));
+end
+
+% ---------- 分块插值合理性 ----------
+c3 = c; pc21 = local_p_coef_at(c3, 21); pc27 = local_p_coef_at(c3, 27); pc24 = local_p_coef_at(c3, 24);
+p21 = polyval(pc21, 0.8); p27 = polyval(pc27, 0.8); p24 = polyval(pc24, 0.8);
+ok('G-D6', 'P(n;V) 块间插值单调合理', p24 > min(p21, p27) && p24 < max(p21, p27), ...
+    sprintf('P(0.8krpm): %.1f/%.1f/%.1f W @21/24/27V', p21, p24, p27));
+
+res.rows = rows; res.pass = pass;
+end
+
+function m = local_mark(ok)
+if ok, m = '[PASS]'; else, m = '[FAIL]'; end
+end
+function Pq = local_pcurve(c, vGrid, w0, pathC)
+% 稳态 P(v) 扫描：每点 settle（|v-v_ref|<=0.05 连续 4 s）后取 0.5 s 静默窗均值
 Pq = zeros(size(vGrid));
 for gi = 1:numel(vGrid)
     sU = plane.reset(c);
@@ -165,22 +194,6 @@ for gi = 1:numel(vGrid)
     end
     Pq(gi) = mean(pbuf(end-49:end));
 end
-[Pmin, iMin] = min(Pq);
-uShapeOK = (iMin > 1 && iMin < numel(vGrid)) && Pmin <= 0.97 * Pq(1);
-ok('G-U', 'U 形存在性：v* 严格内点且 P(v*)<=0.97*P(0)', uShapeOK, ...
-    sprintf('v*=%g m/s, Pmin=%.1f W, P(0)=%.1f W', vGrid(iMin), Pmin, Pq(1)));
-
-% ---------- 分块插值合理性 ----------
-c3 = c; pc21 = local_p_coef_at(c3, 21); pc27 = local_p_coef_at(c3, 27); pc24 = local_p_coef_at(c3, 24);
-p21 = polyval(pc21, 0.8); p27 = polyval(pc27, 0.8); p24 = polyval(pc24, 0.8);
-ok('G-D6', 'P(n;V) 块间插值单调合理', p24 > min(p21, p27) && p24 < max(p21, p27), ...
-    sprintf('P(0.8krpm): %.1f/%.1f/%.1f W @21/24/27V', p21, p24, p27));
-
-res.rows = rows; res.pass = pass;
-end
-
-function m = local_mark(ok)
-if ok, m = '[PASS]'; else, m = '[FAIL]'; end
 end
 function pc = local_p_coef_at(c, V)
 V = min(max(V, c.bench_V_nom(1)), c.bench_V_nom(end));
