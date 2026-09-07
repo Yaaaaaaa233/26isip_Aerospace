@@ -1,12 +1,12 @@
 # 开发状态与下一步
 
-更新时间：2026-09-07（本次更新：平台线并线登记与[动力-环境模型方案](architecture/06_platform_power_environment_model.md)拍板入库；上一更新 2026-09-05 接口研讨会两阶段验收口径 + M3 第三轮独立验收回填：F2/F3 关闭，F4 仍 OPEN/P1）
+更新时间：2026-09-08（本次更新：T1 开环阶段前置样张与[验收标准清单](T1_ACCEPTANCE_CHECKLIST.md)/[P1 方案](P1_T1_WORK_PLAN.md)经叶安确认入库，T1 验收启动；上一更新 2026-09-07 平台线并线登记与[动力-环境模型方案](architecture/06_platform_power_environment_model.md) v1.1）
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
-本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）；王健祺（2026-09-03 新增 realistic_constraints_search / curve_case_calibration / wind_model_library 三模块登记与进度补充；2026-09-05 新增 wind_semantics_correction / wind_inference_search 两模块登记、MOE口径变更（纯能耗）与本地任务线 1.x/2.x/3.x 重命名；2026-09-06 新增 curve_unknown_search / reward_only_rl 两模块登记并对接 SIM_ALGO_INTERFACE；2026-09-07 三模块算法集精简（删除 task1 遗留直接搜索器，见 worklog 2026-09-07）+ demo 风场预设修复 + turb σy 修正，回归全绿并刷新证据，新增 docs/VERSION_REVIEW_20260907_wjq.md 全版本梳理）；Codex（X8PHYS/P0--P4 审核、验收收口与结论边界，2026-09-03）；叶安（2026-09-07 拍板：Plane 线并入平台线、ENV 维持王健祺口径、整机 10 kg/电池 7S4P、缺省假设着重标注登记、eta 接口保留恒 1、每阶段前置可视化样张规则、暂只停留在模拟层面）
+本次修订：周航正（提出名义功率图、在线寻优、接口草图与RL位置澄清需求）；王健祺（2026-09-03 新增 realistic_constraints_search / curve_case_calibration / wind_model_library 三模块登记与进度补充；2026-09-05 新增 wind_semantics_correction / wind_inference_search 两模块登记、MOE口径变更（纯能耗）与本地任务线 1.x/2.x/3.x 重命名；2026-09-06 新增 curve_unknown_search / reward_only_rl 两模块登记并对接 SIM_ALGO_INTERFACE；2026-09-07 三模块算法集精简（删除 task1 遗留直接搜索器，见 worklog 2026-09-07）+ demo 风场预设修复 + turb σy 修正，回归全绿并刷新证据，新增 docs/VERSION_REVIEW_20260907_wjq.md 全版本梳理）；Codex（X8PHYS/P0--P4 审核、验收收口与结论边界，2026-09-03）；叶安（2026-09-07 拍板：Plane 线并入平台线、ENV 维持王健祺口径、整机 10 kg/电池 7S4P、缺省假设着重标注登记、eta 接口保留恒 1、每阶段前置可视化样张规则、暂只停留在模拟层面；2026-09-08 拍板：P2 推力回馈与限幅分层（06 v1.1）、电芯报告人工取数单硬规则、确认 [T1 验收标准清单](T1_ACCEPTANCE_CHECKLIST.md)含 E_pred 共用分母口径）
 审核：待项目组审核
-AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮独立验收结果回填；2026-09-03问题与接口修订；2026-09-04 按叶安要求回填 M3 第二轮独立验收，纠正提前关闭表述；2026-09-05 第三轮独立验收回填，区分机制修复、证据链缺口与环境崩溃）；ZCode（2026-09-05 按接口研讨会登记两阶段验收口径与接口/路线文档；2026-09-07 并线登记、仓库整合与平台动力-环境模型方案成文）
+AI协助：Codex（路线与状态整理；M2 第六轮、第九轮与第十轮独立验收结果回填；2026-09-03问题与接口修订；2026-09-04 按叶安要求回填 M3 第二轮独立验收，纠正提前关闭表述；2026-09-05 第三轮独立验收回填，区分机制修复、证据链缺口与环境崩溃）；ZCode（2026-09-05 按接口研讨会登记两阶段验收口径与接口/路线文档；2026-09-07 并线登记、仓库整合与平台动力-环境模型方案成文；2026-09-08 T1 前置样张生成与 21 项指标核验、验收清单与 P1 方案成文入库）
 
 ## 9月3日进度快照
 
