@@ -89,8 +89,8 @@ ac = struct('query', @query, 'gauges', @gauges, 'truth', @truth, ...
             Trot = pc.mass_kg * pc.gravity_mps2 / (8 * cos(th) * pc.gravity_mps2); % kgf/桨
             n = local_n_of_t(pc, min(Trot, Tce));
             Pc = local_p_coef(pc, Vref);
-            pro = polyval(Pc, n);
-            Pmot = pc.arm_count * (pro + pro * (1 + pc.coaxial_delta_base)); % 每臂上下两桨，delta 只在下桨
+            pro = polyval(Pc, n) - local_ind_saving(pc, Trot * pc.gravity_mps2, vv(i)); % H3 诱导节省
+            Pmot = pc.arm_count * (pro + pro * (1 + pc.coaxial_delta_base));
             Pdrag = 0.5 * pc.air_density_kgpm3 * pc.cda_m2 * vv(i)^3;
             J(i) = Pmot + Pdrag + pc.aux_power_W;
         end
@@ -108,6 +108,13 @@ function n = local_n_of_t(pc, t)
 b = pc.bench_T_coef_desc;
 r = roots([b(1), b(2), b(3) - t]);r = r(imag(r) < 1e-9 & real(r) > 0);n = min(real(r));
 if isempty(n) || ~isfinite(n), n = 0; end
+end
+function s = local_ind_saving(pc, T_N, vair)
+% H3 动量理论诱导节省（与 plane.step 内部同式）
+if T_N <= 0 || vair <= 0, s = 0; return; end
+A = pi * (pc.prop_diameter_m^2) / 4;k = T_N / (2 * pc.air_density_kgpm3 * A);
+vi0 = sqrt(k);vi = sqrt((vair / 2)^2 + k) - vair / 2;
+s = max(0, pc.h3_induced_gain * T_N * (vi0 - vi));
 end
 function pc2 = local_p_coef(pc, V)
 V = min(max(V, pc.bench_V_nom(1)), pc.bench_V_nom(end));

@@ -82,7 +82,9 @@ deltaLo=c.coaxial_delta_base+c.coaxial_delta_split_gain*max(0,sUp-0.5);
 nUp=max(0,local_n_of_t(c,TupKgf));
 nLo=max(0,local_n_of_t(c,TloKgf));
 Pc=local_p_coef(c,Vprev);                           % 按 V 插值块系数（降序）
-PupW=polyval(Pc,nUp);PloW=polyval(Pc,nLo)*(1+deltaLo);   % nUp/nLo 已是 kRPM
+savUp=local_ind_saving(c,TupKgf*c.gravity_mps2,airSpeed);   % H3 诱导节省 W/桨
+savLo=local_ind_saving(c,TloKgf*c.gravity_mps2,airSpeed);
+PupW=max(0,polyval(Pc,nUp)-savUp);PloW=max(0,(polyval(Pc,nLo)-savLo)*(1+deltaLo));
 PmotW=c.arm_count*(PupW+PloW);
 PdragW=0.5*c.air_density_kgpm3*c.cda_m2*airSpeed*airSpeed*abs(airSpeed); % H4，带符号
 powerDemand=PmotW+max(PdragW,0)+c.aux_power_W;power=powerDemand;
@@ -120,6 +122,15 @@ function n=local_n_of_t(c,t)
 b=c.bench_T_coef_desc; % b1*n^2+b2*n+b3 = t
 r=roots([b(1),b(2),b(3)-t]);r=r(imag(r)<1e-9&real(r)>0);n=min(real(r));
 if isempty(n)||~isfinite(n),n=0;end
+end
+function s=local_ind_saving(c,T_N,vair)
+% H3 动量理论诱导功率节省 [W/桨]（2026-09-08 叶安拍板，缺省+敏感性等级）：
+%   vi0=sqrt(T/(2*rho*A)); vi(v)=sqrt((v/2)^2+T/(2*rho*A))-v/2; s=T*(vi0-vi)
+% v=0 时 s=0（悬停严格保持台架值）；共轴下桨的节省同样乘 (1+delta) 惩罚（调用处）
+if T_N<=0||vair<=0,s=0;return;end
+A=pi*(c.prop_diameter_m^2)/4;k=T_N/(2*c.air_density_kgpm3*A);
+vi0=sqrt(k);vi=sqrt((vair/2)^2+k)-vair/2;
+s=max(0,c.h3_induced_gain*T_N*(vi0-vi));
 end
 function pc=local_p_coef(c,V)
 % 分块 P(n;V)：按电压在相邻块间线性插值（不外推到台架电压域外）
