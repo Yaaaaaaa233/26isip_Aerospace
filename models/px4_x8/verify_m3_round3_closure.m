@@ -1134,18 +1134,26 @@ for g = 1:numel(groups)
     S = load(fullfile(srcDir, 'result.mat'), 'result');
     result = S.result;
     runs = struct();
+    cfgAll = struct();
     for a = 1:numel(groups{g})
         arm = groups{g}{a};
         fn = strrep(arm, '-', '_');
         armDir = findSegByArm(segDirs, arm);
         Sa = load(fullfile(armDir, 'result.mat'), 'result');
         runs.(fn) = Sa.result.runs.(fn);
+        % round-3 section 3.3: the aggregate binds every arm verdict
+        % THROUGH the segment's archived effective config -- a rebuilt
+        % layout segment must carry a MERGED config covering exactly its
+        % arms, or the per-segment cfgSha chain has nothing to bind
+        Cc = load(fullfile(armDir, 'effective_config.mat'), 'cfgAll');
+        cfgAll.(fn) = Cc.cfgAll.(fn);
         hardlinkOrCopy(fullfile(armDir, [arm '.mat']), fullfile(dst, [arm '.mat']));
     end
     result.runs = runs;
     result.segName = nm;
     result.scenarioSet = groups{g};
     save(fullfile(dst, 'result.mat'), 'result');
+    save(fullfile(dst, 'effective_config.mat'), 'cfgAll');
     % the marker mirrors the source segment's REAL attempt count (a
     % heap-crash retry makes it 2 -- the accounting must stay consistent)
     fid = fopen(fullfile(stg, [nm '.attempts']), 'w');
