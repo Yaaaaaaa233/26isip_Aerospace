@@ -299,7 +299,9 @@ for j = 1:numel(c.arms)
     summary = segs(segIdx).runs.(fieldName);
     C = load(fullfile(segs(segIdx).dir, 'effective_config.mat'), 'cfgAll');
     cfg = C.cfgAll.(fieldName);
-    row = cfg.row{1};   % {id, nominal, modeV, modeEta, v0, eta0, stopT}
+    row = cfg.row;      % the archived 1x7 plan row: {id, nominal, modeV,
+                        % modeEta, v0, eta0, stopT} (struct() stored the
+                        % wrapped cell content directly)
     A = load(fullfile(segs(segIdx).dir, [id '.mat']), 'r');
     re = m3_eval_arm(id, row{2} == 1, row{3}, row{4}, row{5}, row{6}, ...
         cfg.arb, cfg.pv, cfg.pe, struct(), A.r.logs, ...
