@@ -49,6 +49,7 @@ $attempt = 0
 $invoke = { param($logPath)
     $script:attempt++
     ("mock s1 attempt " + $script:attempt) | Out-File -FilePath $logPath -Encoding utf8
+    Start-Sleep -Milliseconds 15   # timing guard: keep marker LastWriteTime clear of the t0 clock tick (race found in 2026-09-08 reacceptance sweep)
     if ($script:attempt -eq 1) { return 1 }
     Start-Sleep -Milliseconds 20   # tick spacing: marker must be strictly newer than t0
     Set-Content -Path $done -Value 'done'
@@ -66,6 +67,7 @@ $attempt = 0
 $invoke = { param($logPath)
     $script:attempt++
     ("mock s2 attempt " + $script:attempt) | Out-File -FilePath $logPath -Encoding utf8
+    Start-Sleep -Milliseconds 15   # timing guard: keep marker LastWriteTime clear of the t0 clock tick (race found in 2026-09-08 reacceptance sweep)
     Start-Sleep -Milliseconds 20   # tick spacing: marker must be strictly newer than t0
     Set-Content -Path $done -Value 'done'
     return 1
@@ -81,6 +83,7 @@ $attempt = 0
 $invoke = { param($logPath)
     $script:attempt++
     ("mock s3 attempt " + $script:attempt) | Out-File -FilePath $logPath -Encoding utf8
+    Start-Sleep -Milliseconds 15   # timing guard: keep marker LastWriteTime clear of the t0 clock tick (race found in 2026-09-08 reacceptance sweep)
     return 1
 }.GetNewClosure()
 $threw = $false; $msg = ''
@@ -99,6 +102,7 @@ $attempt = 0
 $invoke = { param($logPath)
     $script:attempt++
     ("mock s4 attempt " + $script:attempt) | Out-File -FilePath $logPath -Encoding utf8
+    Start-Sleep -Milliseconds 15   # timing guard: keep marker LastWriteTime clear of the t0 clock tick (race found in 2026-09-08 reacceptance sweep)
     if ($script:attempt -eq 1) { return 1 }
     return 0
 }.GetNewClosure()
@@ -114,6 +118,7 @@ $attempt = 0
 $invoke = { param($logPath)
     $script:attempt++
     ("mock s5 attempt " + $script:attempt) | Out-File -FilePath $logPath -Encoding utf8
+    Start-Sleep -Milliseconds 15   # timing guard: keep marker LastWriteTime clear of the t0 clock tick (race found in 2026-09-08 reacceptance sweep)
     if ($script:attempt -eq 1) { return 1 }   # crash; done marker untouched (stale)
     Start-Sleep -Milliseconds 20   # tick spacing: marker must be strictly newer than t0
     Set-Content -Path $done -Value 'done'
@@ -150,6 +155,7 @@ $attempt = 0
 $invoke = { param($logPath)
     $script:attempt++
     ("mock s7 attempt " + $script:attempt) | Out-File -FilePath $logPath -Encoding utf8
+    Start-Sleep -Milliseconds 15   # timing guard: keep marker LastWriteTime clear of the t0 clock tick (race found in 2026-09-08 reacceptance sweep)
     if ($script:attempt -eq 1) { return 1 }   # crash before any archive
     Start-Sleep -Milliseconds 20   # tick spacing: marker must be strictly newer than t0
     $d = Join-Path $archRoot ('batch_' + $script:attempt)
@@ -160,6 +166,7 @@ $n = Invoke-StageWithRetry -Name 's7' -Invoke $invoke -DoneFile $null -DoneDir $
 Assert-True ($n -eq 2) 'S7 new archive directory accepted as fresh evidence on attempt 2'
 $invoke2 = { param($logPath)
     'mock s7b crash AFTER archiving' | Out-File -FilePath $logPath -Encoding utf8
+    Start-Sleep -Milliseconds 15   # timing guard: keep marker LastWriteTime clear of the t0 clock tick (race found in 2026-09-08 reacceptance sweep)
     Start-Sleep -Milliseconds 20   # tick spacing: marker must be strictly newer than t0
     $d = Join-Path $archRoot 'batch_late'
     New-Item -ItemType Directory -Force -Path $d | Out-Null

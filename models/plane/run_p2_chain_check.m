@@ -141,6 +141,35 @@ ok('G-ETA', 'eta<1 上下桨转速差动出现且方向正确（上快）', diff
 ok('G-ETA', 'eta≠1 总功率上升（凸性代价方向）', oB.power_demand_w > oA.power_demand_w, ...
     sprintf('%.1f W vs %.1f W', oB.power_demand_w, oA.power_demand_w));
 
+% ---------- G-U U 形存在性（H3 前进比修正是否接入的机器门） ----------
+% T2 清单 §2 D6"谷底形态合理"的机器化：稳态 P(v) 扫描，谷底必须内点且
+% 相对悬停有可测降幅。2026-09-08 全项目重验收时新增——此前 20 门未覆盖
+% 此性质，H3 缺口（静态台架功率无左支）漏过即为该盲区后果。
+% 构建期门槛（正式登记随 H3 修复以清单 v1.1 升版）：v* 严格内点 且
+% P(v*) <= 0.97*P(0)。
+vGrid = [0 2 4 6 8 10 12 14];
+Pq = zeros(size(vGrid));
+for gi = 1:numel(vGrid)
+    sU = plane.reset(c);
+    cmdU = struct('v_ref_applied_mps', vGrid(gi), 'eta_ref_applied', 1, 'controller_mode', 'fixed');
+    holdCnt = 0; pbuf = [];
+    for k = 1:15000
+        [sU, oU] = plane.step(sU, w0, pathC, cmdU, 0.01, c);
+        pbuf(end+1) = oU.power_w; %#ok<AGROW>
+        if abs(sU.v_ground_mps - vGrid(gi)) <= 0.05
+            holdCnt = holdCnt + 1;
+            if holdCnt >= 400, break; end
+        else
+            holdCnt = 0;
+        end
+    end
+    Pq(gi) = mean(pbuf(end-49:end));
+end
+[Pmin, iMin] = min(Pq);
+uShapeOK = (iMin > 1 && iMin < numel(vGrid)) && Pmin <= 0.97 * Pq(1);
+ok('G-U', 'U 形存在性：v* 严格内点且 P(v*)<=0.97*P(0)', uShapeOK, ...
+    sprintf('v*=%g m/s, Pmin=%.1f W, P(0)=%.1f W', vGrid(iMin), Pmin, Pq(1)));
+
 % ---------- 分块插值合理性 ----------
 c3 = c; pc21 = local_p_coef_at(c3, 21); pc27 = local_p_coef_at(c3, 27); pc24 = local_p_coef_at(c3, 24);
 p21 = polyval(pc21, 0.8); p27 = polyval(pc27, 0.8); p24 = polyval(pc24, 0.8);
