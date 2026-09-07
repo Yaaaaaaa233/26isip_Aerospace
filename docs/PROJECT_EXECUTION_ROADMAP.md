@@ -9,7 +9,7 @@
 技术贡献：Codex（M0-B 复核口径 4.1 统一、Wind-Plane-Control 架构衔接、Plane 工作包及修正版研究路线整理，2026-09-01～09-03）
 本次修订：周航正（提出 Plane 物理建模任务和名义功率图/在线寻优/接口草图澄清需求，2026-09-02～09-03）；Codex（静推/电芯数据接入与 P0--P4 验收路径，2026-09-03）；周航正（2026-09-04 提出"Agent 产出如何人工验证、飞机/控制/环境三线如何集成、models 最新任务如何做出演示展示"需求）；ZCode（§0.6 四步递进验证流程、§0.7 演示与展示层工作包与 §4/§6 状态同步代拟，2026-09-04）
 审核：待项目组审核、待指导教师确认
-AI协助：ZCode（本基线的持续维护代理）、Codex（路线与状态整理；2026-09-04 按叶安要求回填 M3 第二轮独立验收，不改变冻结门槛）；重大条目均待负责人确认后生效
+AI协助：ZCode（本基线的持续维护代理）、Codex（路线与状态整理；2026-09-04 按叶安要求回填 M3 第二轮独立验收，不改变冻结门槛）；重大条目均待负责人确认后生效；Codex（2026-09-05 第三轮独立判定同步，不改数值门槛）
 
 文档关系：任务目标与范围由 [`architecture/01_problem_definition.md`](architecture/01_problem_definition.md) 定义，公共字段语义由 [`architecture/04_interface_dictionary.md`](architecture/04_interface_dictionary.md) 定义，本文件只管理执行阶段、汇合点和验收放行；具体阶段接线在 `interfaces/M*.md` 中展开。发生冲突时先修正对应的上游权威文档，再同步下游实现说明。
 
@@ -32,7 +32,7 @@ P_meas   = delayed_noisy_measurement(P_hidden)
 |---|---|---|---|
 | ALG-A 接口适配 | 将固定值、名义调度、速度ESC统一为 `reset/step(MeasuredContext)->ControlCommand` | `speed_esc`、`wind_field_sched` | 模块各自可运行，统一适配未完成 |
 | ALG-B 因果风场决策 | `known`真风策略只作Oracle；正式策略只能用当前/历史风测量或功率反馈 | `wind_field_sched`在线/盲策略、风场搜索模块 | 有代理证据，尚未接统一接口 |
-| ALG-C 速度与转速比协同 | 先交替坐标下降：一次只更新 `v_ref` 或 `eta_ref`，共用稳定窗和安全门控 | `speed_esc`、`ratio_esc`、平台M2 | 代理对象已有机制证据；M3 第二轮独立验收 F2/F3/F4 已由第三轮修复关闭（修复方复验，见 §5），待独立复验；Plane 复跑（R4）待就绪 |
+| ALG-C 速度与转速比协同 | 先交替坐标下降：一次只更新 `v_ref` 或 `eta_ref`，共用稳定窗和安全门控 | `speed_esc`、`ratio_esc`、平台M2 | 代理机制证据保留；M3 第三轮独立验收 F2/F3 关闭、F4 OPEN/P1，见 §5；Plane/R4 待就绪 |
 | ALG-D 模型不匹配评价 | 在多个未见 `P_hidden` 参数集上比较固定、名义调度和ESC，不按单一曲线调答案 | 多峰/平移/自适应模块；`realistic_constraints_search`、`curve_case_calibration`、`wind_model_library` | 任务7–9已补充真实约束、文献曲线case和风模型库；其中因果策略在部分真实约束代理中不敌开环，曲线参数仍未校准，需先统一Plane与信息边界后再形成主结论 |
 | ALG-E 残差RL | 仅在强基线仍有可重复缺口时，用 `v_ref=guard(v_base+delta_v_RL)` 学习残差 | 两个RL预研模块 | 保留预研，暂不进入平台主线 |
 
@@ -213,7 +213,7 @@ Plane：执行动态 / 风与空地速 / X8 动力学 / 联合功率对象
 - **M0-C 验收通过（2026-09-01）**：`ratio_esc` 内核经 `m0c_vref_esc` 仅输出 `v_ref`，四组 fixed/ESC 配对和一组确定性复现通过；快照 `air_m0c.slx`。当前功率面近平坦，不支持节能结论。
 - **M1 验收通过（2026-09-01）**：2% 功率噪声（5 种子）、0.5 s 反馈时延、基线正弦扰动及三种子组合共 27 场景，安全链零误触发，11 组 fixed/ESC 配对 regret 最大 |0.000133%|（≤3% 门槛），DL 确定性差 0，噪声背景故障回归 4/4；全程内存注入零 `.slx` 变更。regret 门槛满足属平坦功率面结果，不构成节能证据。
 
-未完成：统一 Wind-Plane-Control Harness 接线（harness 的 aircraft 代理尚未替换为 `models/plane` 统一对象）、ENV 线 PathCommand/WindTruth/WindMeasurement 统一、M3 项目组独立复验（第二轮 F2/F3/F4/F6 已由第三轮修复关闭、修复方复验）与同一 Plane 复跑（R4）、整机 S/P 与动态参数校准、SITL/HIL（V2）与平台侧 RL 接入、任务7 入口脚本补齐（`START_HERE.m`/`run_task7_acceptance.m` 未入库，见 worklog 2026-09-04）、演示展示层 UI-A--D。Plane P0 拟合门槛与 P1--P4 MATLAB 代理契约已交付，尚未接入同一 PX4 `.slx`。
+未完成：统一 Wind-Plane-Control Harness 接线（harness 的 aircraft 代理尚未替换为 `models/plane` 统一对象）、ENV 线 PathCommand/WindTruth/WindMeasurement 统一、M3 第三轮独立验收后的 F4 证据治理修复与正式批次收口（F2/F3 已关闭，见 §5 M3 判定记录）、同一 Plane 复跑（R4，代理机制已有证据但未整体放行）、整机 S/P 与动态参数校准、SITL/HIL（V2）与平台侧 RL 接入、任务7 入口脚本补齐（`START_HERE.m`/`run_task7_acceptance.m` 未入库，见 worklog 2026-09-04）、演示展示层 UI-A--D。Plane P0 拟合门槛与 P1--P4 MATLAB 代理契约已交付，尚未接入同一 PX4 `.slx`。
 
 ## 5. 分阶段实施清单
 
@@ -346,6 +346,8 @@ Plane：执行动态 / 风与空地速 / X8 动力学 / 联合功率对象
 **2026-09-04 第二轮独立验收：M3 暂不整体放行，已测代理机制与历史数值证据保留。** [第一轮独立报告](evidence/M3_REACCEPT_CODEX_20260904.md) 之后，实施方提交了 [第二轮修复记录](evidence/M3_REACCEPT_ROUND2_FIX_20260904.md)。本次 [第二轮独立报告](evidence/M3_REACCEPT_ROUND2_CODEX_20260904.md) 在 `f949b9c` 确认：配置漂移 F1 和能量口径 F5 在问题范围内关闭；F2 候选参考代替中心、F3 扰动姿态漏判、F4 分段证据绑定与恢复/attempt 治理仍为开放 P1。功能 PARTIAL、基础设施 NOT VALIDATED、环境 OPEN LIMITATION、文档 PARTIAL。三套单测、11 行针对性恢复、M0-A/M0-B/边界通过；历史 14 臂及五名义臂真实中心重算通过，但聚合器独立夹具仍有 6 类假通过。本轮未新跑完整正式批次，也未修改 `.slx` 或 ESC 内核。先按独立报告 §6 关闭剩余问题，再按原冻结门槛复跑；统一 Plane/R4 终验继续后置。
 
 **2026-09-04 第三轮修复（修复方复验）：F2/F3/F4/F6 已按独立报告 §6 关闭并在治理链上重跑 14 臂批次。** [第三轮修复报告](evidence/M3_REACCEPT_ROUND3_FIX_20260904.md)：收敛评价以内核重放的可核验搜索中心为输入（保真门拒收一切非自洽证据）并统一 [192,240)；位 3 姿态门全臂硬判；批次治理（manifest/batchId/attempt/入库有界重试驱动）按规则 v1.7 §2.4–2.9 落地，25/25 篡改负向+备选三段布局正控；恢复矩阵补齐为全笛卡尔 28 行。批次（batchId `9b7a6980`，提交 `ec171b5`）经入库驱动执行，五段 attempt 2/1/2/1/2（堆崩溃如实入账），聚合 PASS，数值与第二轮逐位一致。修复方复验不替代独立验收；项目组复验通过后 M3 代理阶段收口，Plane 接入后执行 R4。
+
+**2026-09-05 第三轮独立验收：F2/F3 在问题范围内关闭，F4 仍 OPEN/P1，代理 M3 暂不整体放行。** [第三轮独立报告](evidence/M3_REACCEPT_ROUND3_CODEX_20260905.md) 在 `cb47cb5`（主库 `8fe3e38` 同平台代码）确认中心重放、窗口与扰动姿态门修复；历史 14 臂逐臂重算与既有 25 聚合负向、驱动测试通过。但 done.attempts 六类、聚合器指纹、配置/臂文件一致性、verifier 段入口预算仍可假绿。有限态恢复前 4 行通过，第 3 次新仿真原生堆崩溃，成功出口未完成；未新跑完整 14 臂和 28 行矩阵。按报告 §7 先关闭 F4，再完成冻结批次；不能以修复方自验、旧档重分析或合成聚合 PASS 代替独立放行。治理语义若变须按 v1.7 §9.4 先升版；数值门槛、M2 放行和 Plane/R4 后置边界不变。
 
 ### M4：统一 Wind-Plane-Control Harness 与 SITL/日志回放
 
