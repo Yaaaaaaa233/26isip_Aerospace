@@ -1,6 +1,6 @@
 # 开发状态与下一步
 
-更新时间：2026-09-08（第二次更新：T1 执行日——WP6 M3 F4 修复自验全绿[正式批次复跑待做，M3 仍不放行]、WP1 harness↔Plane 适配器验收 5 门全过、WP4 电机台架清洗+初版拟合入库、[电芯取数单](CELL_EXTRACTION_SHEET_20260908.md)待叶安确认；上一次更新 2026-09-08 T1 开环阶段前置样张与[验收标准清单](T1_ACCEPTANCE_CHECKLIST.md)/[P1 方案](P1_T1_WORK_PLAN.md)经叶安确认入库，T1 验收启动；更早 2026-09-07 平台线并线登记与[动力-环境模型方案](architecture/06_platform_power_environment_model.md) v1.1）
+更新时间：2026-09-08（第三次更新：**T1 开环验收 21/21 机器门槛 PASS**——两臂批量驱动 + Percent 两臂 ×20 种子 + 图集 v1（[证据](evidence/T1_OPENLOOP_20260908/README.md)），余 B2 风三角人工核对；同日早些时候：M3 F4 修复自验全绿（正式批次复跑待做，M3 仍不放行）、WP1 harness↔Plane 适配器 5 门全过、WP4 电机台架清洗+初版拟合入库、[电芯取数单](CELL_EXTRACTION_SHEET_20260908.md)经叶安确认后电池模型 v1 入库）
 
 项目组：周航正、霍奕茗、于跃、叶安、王健祺
 文件负责人：叶安
