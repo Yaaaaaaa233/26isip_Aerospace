@@ -1,0 +1,32 @@
+truth u*=6.300  wind: B=3.5 D=0 A=0 C=0 turbStd=0.3 (composite)
+
+== instrumented sweepcal: 23 refit/fit events ==
+k= 75 keep[n= 75 p50= 6.7 p90= 9.8 p99=10.5 max=10.5] argmin= 3.00 acc=1 sseNew/Old=NaN
+k=150 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 5.94 acc=1 sseNew/Old=NaN
+k=180 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 5.94 acc=0 sseNew/Old=0.9999
+k=200 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.00 acc=1 sseNew/Old=0.9366
+k=220 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.04 acc=1 sseNew/Old=0.9757
+k=240 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.07 acc=1 sseNew/Old=0.9856
+k=260 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.10 acc=1 sseNew/Old=0.9953
+k=280 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.14 acc=1 sseNew/Old=0.9977
+k=300 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.16 acc=1 sseNew/Old=0.9976
+k=320 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.19 acc=1 sseNew/Old=0.9983
+k=340 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.22 acc=1 sseNew/Old=0.9983
+k=360 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.25 acc=1 sseNew/Old=0.9984
+k=380 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.22 acc=1 sseNew/Old=0.9972
+k=400 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.14 acc=1 sseNew/Old=0.9955
+k=420 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.14 acc=0 sseNew/Old=0.9994
+k=440 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.10 acc=1 sseNew/Old=0.9983
+k=460 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.10 acc=0 sseNew/Old=0.9997
+k=480 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.08 acc=1 sseNew/Old=0.9956
+k=500 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.08 acc=0 sseNew/Old=0.9999
+k=520 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.07 acc=1 sseNew/Old=0.9980
+k=540 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.07 acc=1 sseNew/Old=0.9959
+k=560 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.07 acc=0 sseNew/Old=0.9993
+k=580 keep[n=150 p50= 7.5 p90=11.1 p99=12.0 max=12.0] argmin= 6.04 acc=1 sseNew/Old=0.9948
+uHat jumps(|du|>0.9): 2 at steps [74  149]
+uHat max=7.50  final=NaN
+curve@calib f(u) u=3:0.5:13: 1.0 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 0.9 1.0 1.0 1.0 1.0 1.0 1.0 1.0 1.0 0.9 
+[sweepcal] uStar=6.04 uHat:max=7.50(min@1) jumps>0.9:2 | MOE=0.9718 regret=1.38% fitRms=0.0142 uLo=2.13 uHi=12.00
+[rl] uStar=5.94 uHat:max=5.94(min@1) jumps>0.9:0 | MOE=0.9708 regret=2.17% fitRms=0.0139 uLo=3.00 uHi=12.00
+[hybrid] uStar=5.94 uHat:max=7.50(min@1) jumps>0.9:2 | MOE=0.9697 regret=1.41% fitRms=0.0139 uLo=3.00 uHi=12.00

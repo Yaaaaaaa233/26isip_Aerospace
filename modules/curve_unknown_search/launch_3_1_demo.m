@@ -13,6 +13,14 @@ function fig = launch_3_1_demo(visible)
 %   4) 七种可选风场模型(下拉选中即预览)与曲线case标定全部保留。
 if nargin<1, visible='on'; end
 root=fileparts(mfilename('fullpath')); addpath(root);
+% —— 自愈暂存(2026-09-08): 部分MATLAB实例对历史会话新建的包文件存在目录缓存滞后,
+% 启动后报"无法解析名称 w31.fit_curve_wind"。这里检测解析失败就把+w31完整复制到
+% 全新临时目录并前置到路径, 强制重新解析(新目录无陈旧缓存)。任何入口均自愈。
+if exist('w31.fit_curve_wind','file')~=2
+    stg=fullfile(tempdir,['w31stage_' datestr(now,'yyyymmddHHMMSS') '_' num2str(randi(8999)+1000)]);
+    copyfile(fullfile(root,'+w31'),fullfile(stg,'+w31'));
+    addpath(stg); clear functions; rehash;
+end
 fig=uifigure('Name','任务3.1风速推断寻优：空速=地速−风速(顺风右移/逆风左移) × 风不影响运动 × 七种风场(动态演示)',...
     'Position',[40 30 1500 960],'Color',[.96 .97 .98],'Visible',visible,...
     'AutoResizeChildren','off');
@@ -51,10 +59,10 @@ ripL2=number(g,'崎岖波长λ2 / m',11,2.0,[1 6]);
 shiftTime=number(g,'平移时刻 / 步',12,120,[30 350]);
 shiftDx=number(g,'跳变幅值dx / m/s',13,2.7,[-6 6]);
 seed=number(g,'随机种子',14,11,[1 100]);
-windAmp=number(g,'风幅值A / m·s⁻¹ (turb=σx)',15,0.0,[0 10]);
+windAmp=number(g,'风幅值A / m·s⁻¹',15,0.0,[0 10]);
 windOmega=number(g,'风角频率ω1 / rad·s⁻¹',16,0.08,[0 2]);
 windBias=number(g,'风偏置B / m·s⁻¹',17,3.5,[0 10]);
-windC=number(g,'风幅值C / m·s⁻¹ (turb=σy)',18,0.0,[0 10]);
+windC=number(g,'风幅值C / m·s⁻¹',18,0.0,[0 10]);
 windOmega2=number(g,'风角频率ω2 / rad·s⁻¹',19,0.13,[0 2]);
 windD=number(g,'风偏置D / m·s⁻¹',20,0.0,[0 10]);
 windKind=choice(g,'风场模型(选中即预览)',21,{'const 恒定风','sin 双正交正弦风',...
@@ -196,7 +204,7 @@ for cn=ctrlList
 end
 curveC.ValueChangedFcn=@caseChanged;
 % 风场模型/参数即改即预览(运行前可见, 与case预览同一模式); 覆盖通用changed
-windKind.ValueChangedFcn=@windKindChanged;   % 切换风场时自动载入该模型推荐参数
+windKind.ValueChangedFcn=@windChanged;
 sqEdge.ValueChangedFcn=@windChanged;
 turbS.ValueChangedFcn=@windChanged;
 windAmp.ValueChangedFcn=@windChanged; windOmega.ValueChangedFcn=@windChanged;
@@ -217,6 +225,7 @@ fig.CloseRequestFcn=@closeApp; fig.SizeChangedFcn=@resizeLayout;
 setupPanels(); resizeLayout(); highlightButtons();
 logMsg('任务3.1风场模型库程序就绪 | 七种风场: 恒定/双正弦/方波(软边)/三角/湍流(OU)/复合(推荐)/扇区(随航向) | 下拉选中即预览');
 logMsg('速度语义: 空速=地速−风速(例: 地速6向右+顺风3向右→空速3); 功率由空速查曲线 → 空速曲线(蓝点划)固定, 地速曲线(黑)顺风右移/逆风左移; 仪表盘=地速');
+logMsg('左上图读法(2026-09-08): 采样点/绿拟合线/蓝空速曲线都在空速域, 采样应落在绿线上; 黑线+红色v*星是当前航向的地速快照, 其谷底与绿线谷底的水平差=风的顺逆分量, 不是拟合误差');
 logMsg('风不影响运动: 航迹由指令地速决定(飞机不会被风吹跑), 风只通过空速影响功率; known为oracle参照(非因果)');
 if exist(fullfile(root,'results','report.md'),'file')
     loadReport();
@@ -531,10 +540,10 @@ prepare();
         h.fitCurve=line(ax(1),nan,nan,'Color',[.0 .55 .25],'LineWidth',2.0,...
             'DisplayName','拟合曲线f̂(算法自己学的)');
         h.est=line(ax(1),nan,nan,'Color',[.0 .55 .25],'Marker','o','LineStyle','none',...
-            'MarkerSize',5,'DisplayName','当前指令');
+            'MarkerSize',5,'DisplayName','当前工作点(空速)');
         xlabel(ax(1),'速度 / m/s'); ylabel(ax(1),'功率 / W');
         drawCasePreview(); windPreview();
-        title(ax(1),'功率-速度: 蓝点划=空速曲线(固定) 黑=地速曲线(顺风右移/逆风左移)');
+        title(ax(1),'功率-速度: 空速域(绿拟合/蓝空速真值/采样点) | 当前航向地速快照(黑+红星v*, 顺风右移/逆风左移)');
         legend(ax(1),'Location','northwest','NumColumns',2,'FontSize',7);
         h.speed=line(ax(2),nan,nan,'Color',[.2 .4 .8],'LineWidth',.6,'DisplayName','实际地速');
         h.airspd=line(ax(2),nan,nan,'Color',[.85 .45 .1],'LineWidth',.8,'LineStyle',':','DisplayName','空速');
@@ -543,7 +552,7 @@ prepare();
         h.optimum=line(ax(2),nan,nan,'Color',[.85 .18 .18],'LineStyle','--','LineWidth',1.3,'DisplayName','v*(t) 真值');
         h.uhatT=line(ax(2),nan,nan,'Color',[.62 .16 .86],'LineStyle','-.','LineWidth',1.8,'DisplayName','û*(t) 空速最优在线估计(紫)');
         xlabel(ax(2),'评估步'); ylabel(ax(2),'速度 / m/s');
-        title(ax(2),'速度演化：指令/实际 vs 真值'); legend(ax(2),'Location','northwest','FontSize',7);
+        title(ax(2),'速度演化：指令/实际 vs 真值'); legend(ax(2),'Location','northeast','NumColumns',2,'FontSize',7);
         h.pTrue=line(ax(3),nan,nan,'Color',[.2 .3 .4],'LineWidth',.9,'DisplayName','真实功率');
         h.pMin=line(ax(3),nan,nan,'Color',[.85 .18 .18],'LineStyle','--','LineWidth',1.1,'DisplayName','Pmin(t) 理论最低');
         h.pMeas=line(ax(3),nan,nan,'Color',[.55 .3 .7],'Marker','.','LineStyle','none',...
@@ -559,46 +568,6 @@ prepare();
         drawCasePreview();
         status.Text=sprintf('case已切换: 谷底=%.0f%%×悬停103.7W, 曲线预览已更新; 按"重置/播放"生效',curveC.Value*100);
         logMsg(status.Text);
-    end
-
-    function windKindChanged(varargin)
-        % 2026-09-07修复: 此前A/C默认=0, 选中sin/square/triangle/sector/turb时
-        % 风场退化为恒定值(预览平线, 看似"无法加载")。现在切换风场即载入该模型
-        % 推荐参数(与1.10风场库/3×3表口径一致), 再即时预览; 用户仍可手改。
-        applyWindPreset(windKind.Value);
-        windChanged();
-        logMsg('已载入该风场模型的推荐参数(幅值/频率/偏置/湍流σ), 可在左侧继续修改, 即改即预览');
-    end
-
-    function applyWindPreset(k)
-        switch k
-            case 'const'    % 任务3.x主口径: 恒定风3.5 m/s
-                windAmp.Value=0.0; windOmega.Value=0.08; windBias.Value=3.5;
-                windC.Value=0.0; windOmega2.Value=0.13; windD.Value=0.0;
-                sqEdge.Value=4.0; turbS.Value=0.3;
-            case 'sin'      % 双正交正弦(1.10风场库口径)
-                windAmp.Value=2.0; windOmega.Value=0.08; windBias.Value=3.0;
-                windC.Value=1.5; windOmega2.Value=0.13; windD.Value=1.0;
-                sqEdge.Value=4.0; turbS.Value=0.3;
-            case 'square'   % 软边方波: 风区突变/阵风锋
-                windAmp.Value=2.0; windOmega.Value=0.08; windBias.Value=3.0;
-                windC.Value=1.5; windOmega2.Value=0.13; windD.Value=1.0;
-                sqEdge.Value=4.0; turbS.Value=0.3;
-            case 'triangle' % 三角波: 缓慢线性爬升/回落
-                windAmp.Value=2.0; windOmega.Value=0.08; windBias.Value=3.0;
-                windC.Value=1.5; windOmega2.Value=0.13; windD.Value=1.0;
-                sqEdge.Value=4.0; turbS.Value=0.3;
-            case 'turb'     % OU湍流: A=σx, C=σy(均值=B/D)
-                windAmp.Value=2.0; windBias.Value=3.0;
-                windC.Value=1.5; windD.Value=1.0;
-            case 'composite' % 复合(3×3表"变风"口径): 慢变正弦+湍流σ=0.3
-                windAmp.Value=1.5; windOmega.Value=0.08; windBias.Value=2.5;
-                windC.Value=0.0; windOmega2.Value=0.13; windD.Value=0.0;
-                turbS.Value=0.3;
-            case 'sector'   % 扇区(随航向): Wx=B−A·cos(ψ+φ), Wy=D+C·sin(ψ+φ)
-                windAmp.Value=2.0; windBias.Value=3.0;
-                windC.Value=1.5; windD.Value=1.0;
-        end
     end
 
     function windChanged(varargin)
@@ -662,6 +631,8 @@ prepare();
         n=height(L); k=cursor;
         vis=truth.Value;
         tags=string(L.tag(1:k)); sp=L.speed(1:k); pm=L.powerMeas(1:k)*c.pHover;
+        au=L.airspeed(1:k);   % 2026-09-08修: 采样点横轴统一用空速(功率只由空速决定),
+                              % 与绿拟合线/蓝空速真值同域; 旧版用地速x属两域混画
         tNow=L.time(k);
         % 左上: 空速曲线(固定) + 当前时刻地速曲线=base_curve(|v·t̂−w|-dx)+dy(顺风右移/逆风左移)
         psiK=deg2rad(L.headingDeg(k));
@@ -677,15 +648,15 @@ prepare();
             h.curveAir.XData=nan; h.curveAir.YData=nan;
             h.vstar.XData=nan; h.vstar.YData=nan;
         end
-        setSlice(h.ptScan,sp,pm,tags,'scan');
-        setSlice(h.ptRefine,sp,pm,tags,'refine');
-        setSlice(h.ptHold,sp,pm,tags,'hold');
-        setSlice(h.ptSettle,sp,pm,tags,'settle');
-        setSlice(h.ptProbe,sp,pm,tags,'probe');
-        setSlice(h.ptSearch,sp,pm,tags,'search');
-        setSlice(h.ptTrack,sp,pm,tags,'track');
-        setSlice(h.ptEst,sp,pm,tags,'est');
-        setSlice(h.ptCalib,sp,pm,tags,'calib');
+        setSlice(h.ptScan,au,pm,tags,'scan');
+        setSlice(h.ptRefine,au,pm,tags,'refine');
+        setSlice(h.ptHold,au,pm,tags,'hold');
+        setSlice(h.ptSettle,au,pm,tags,'settle');
+        setSlice(h.ptProbe,au,pm,tags,'probe');
+        setSlice(h.ptSearch,au,pm,tags,'search');
+        setSlice(h.ptTrack,au,pm,tags,'track');
+        setSlice(h.ptEst,au,pm,tags,'est');
+        setSlice(h.ptCalib,au,pm,tags,'calib');
         if any(strcmp(algorithm.Value,{'sweepcal','rl'})) && isstruct(info) && isfield(info,'coefs') ...
                 && all(isfinite(info.coefs))
             uu=linspace(info.uLo,info.uHi,200); xg=(uu-7.5)/4.5; cf=info.coefs;
@@ -694,7 +665,7 @@ prepare();
         else
             h.fitCurve.XData=nan; h.fitCurve.YData=nan;
         end
-        h.est.XData=L.estimate(max(1,k-20):k); h.est.YData=pm(max(1,k-20):k);
+        h.est.XData=au(max(1,k-20):k); h.est.YData=pm(max(1,k-20):k);
         % 右上
         h.speed.XData=(1:k)'; h.speed.YData=sp;
         h.airspd.XData=(1:k)'; h.airspd.YData=L.airspeed(1:k);

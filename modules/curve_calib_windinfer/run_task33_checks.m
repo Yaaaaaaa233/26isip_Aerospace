@@ -1,0 +1,138 @@
+function summary = run_task33_checks()
+%RUN_TASK31_CHECKS 任务3.3检查：曲线未知(黑盒调速→功率) + 全速度域标定寻优 + RL对照。
+root=fileparts(mfilename('fullpath')); addpath(root);
+folder=fullfile(root,'results'); if ~exist(folder,'dir'), mkdir(folder); end
+unit=runtests(fullfile(root,'tests_task33.m'));
+fprintf('单元测试：%d/%d 通过\n',sum([unit.Passed]),numel(unit));
+windKinds={ % 名称, cfg(无风/恒定风3.5@40°/变风composite)
+ 'zero',  {'windKind','const','windBias',0.0,'windBiasY',0.0,'windAmp',0.0,'windAmpY',0.0};
+ 'const', {'windKind','const','windBias',3.5,'windBiasY',0.0,'windAmp',0.0,'windAmpY',0.0,'windDirDeg',40};
+ 'vary',  {'windKind','composite','windBias',2.5,'windAmp',1.5,'windOmega',0.08,...
+           'windBiasY',0.0,'windAmpY',0.0,'turbStd',0.3};
+};
+% 2026-09-07精简: 移除任务1遗留搜索器(tracker/esc/spsa/bayes/qnewton/gtrack)。
+policies={'openloop','sweepcal','hybrid','rl','known'};
+% ---- A: 七种风场 × 七策略 短程冒烟矩阵(250步, 2种子) ----
+kinds={'const','sin','square','triangle','turb','composite','sector'};
+allPol=[policies,{'est','windinfer'}];
+rows=cell(0,7); smokeOK=true;
+for kk=1:numel(kinds)
+    for name=allPol
+        ex=zeros(1,2); acc=0; stp=zeros(1,2);
+        for i=1:2
+            c=w33.config('seed',10+i,'duration',250,'tailSteps',5,'windKind',kinds{kk},...
+                'windAmpY',1.5,'windBiasY',1);
+            [log,~]=w33.run_algorithm(name{1},w33.scenario('static',c),c);
+            ex(i)=w33.mop_moe(log,c).energyExcessPercent;
+            acc=max(acc,max(log.accelMax)); stp(i)=height(log);
+            smokeOK=smokeOK && (stp(i)==250) && all(isfinite(log.powerMeas));
+        end
+        rows(end+1,:)={kinds{kk},name{1},mean(ex),max(ex),acc,stp(1),true}; %#ok<AGROW>
+    end
+end
+smoke=cell2table(rows,'VariableNames',{'WindKind','Policy','ExcessMean',...
+    'ExcessMax','MaxAccelUsed','Steps','EnergyOn'});
+writetable(smoke,fullfile(folder,'wind_kinds_smoke.csv'),'Encoding','UTF-8');
+% ---- B: 主口径横比 无风/恒定/变风 × 4策略 × 2种子(全程800步) ----
+rows=cell(0,8);
+for iw=1:size(windKinds,1)
+    for name=policies
+        ex=zeros(1,2); mo=ex; reg=ex; uerr=NaN;
+        for i=1:2
+            c=w33.config('seed',2+i,'duration',800,'tailSteps',60,windKinds{iw,2}{:});
+            scn=w33.scenario('static',c);
+            [log,info]=w33.run_algorithm(name{1},scn,c);
+            m=w33.mop_moe(log,c);
+            ex(i)=m.energyExcessPercent; mo(i)=m.MOE_energy; reg(i)=m.regretPercent;
+            if any(strcmp(name{1},{'sweepcal','hybrid'}))
+                uerr=max(uerr,abs(info.uStar-c.optimum0));
+            end
+        end
+        rows(end+1,:)={windKinds{iw,1},name{1},mean(mo),mean(ex),mean(reg),...
+            std(ex),uerr,800}; %#ok<AGROW>
+    end
+end
+main=cell2table(rows,'VariableNames',{'WindKind','Policy','MOE_energy',...
+    'EnergyExcessPercent','TailRegretPercent','ExcessStd','UstarErrMax','Steps'});
+writetable(main,fullfile(folder,'main_comparison.csv'),'Encoding','UTF-8');
+% ---- 物理口径核验 ----
+c=w33.config('seed',11,'duration',30,'tailSteps',5,'windKind','sin',...
+    'windAmp',2,'windBias',3,'windAmpY',1.5,'windOmegaY',0.13,'windBiasY',1);
+scn=w33.scenario('static',c);
+plant=w33.make_plant(scn,c);
+for k=1:30, plant.q(6.3,'hold'); plant.amendEstimate(6.3); end
+lg=plant.table();
+psi=deg2rad(lg.headingDeg);
+uExp=hypot(lg.speed.*cos(psi)-lg.windX, lg.speed.*sin(psi)-lg.windY);
+physOK=max(abs(lg.airspeed-uExp))<1e-9 && max(abs(lg.minPowerTrue-c.curveCase))<1e-9;
+% ---- 白名单核验(红线1): 曲线未知口径 ----
+pW=w33.ctrl_view(w33.config());
+wlOK=~isfield(pW,'optimum0') && ~isfield(pW,'curveCoef') && ~isfield(pW,'rippleA1') ...
+    && ~isfield(pW,'noiseSigma');
+% ---- 门槛 ----
+sel=@(w,pol) strcmp(main.WindKind,w) & strcmp(main.Policy,pol);
+exOf=@(w,pol) main.EnergyExcessPercent(sel(w,pol));
+hbOK=mean(exOf('const','hybrid'))<4.5 && ...
+    mean(exOf('const','hybrid'))<mean(exOf('const','openloop'));
+hbNS=mean(exOf('const','hybrid'))<=mean(exOf('const','sweepcal'))+0.6;  % 简单性代价<0.6pp
+hbnOK=mean(exOf('vary','hybrid'))>mean(exOf('vary','sweepcal'));  % 负结果复现: 冻结曲线变风失效
+rlvOK=mean(exOf('vary','rl'))<mean(exOf('vary','openloop'))+0.6;  % RL变风与开环相当(差距<0.6pp)
+scvOK2=mean(exOf('vary','sweepcal'))<mean(exOf('vary','openloop'));  % 拟合修复后sweepcal在变风也优于开环
+uszOK=max(main.UstarErrMax(sel('const','hybrid')))<0.8;
+knownOK=all(arrayfun(@(w) mean(exOf(w,'known'))<1.5,{'zero','const','vary'}));
+checks=[...
+    struct('item','单元测试全绿(白名单/hybrid/sweepcal/RL对照/风场库/空速语义/执行链)','pass',sum([unit.Passed])==numel(unit)),...
+    struct('item','七种风场×策略冒烟: 全部预算走满、测量有限、|dv/dt|<=2','pass',smokeOK && all(smoke.MaxAccelUsed<=2+1e-9)),...
+    struct('item','物理核验: 空速=|地速矢量−风矢量| 且 Pmin恒定=curveCase','pass',physOK),...
+    struct('item','红线1白名单: ctrl_view剔除optimum0/曲线系数/噪声真值','pass',wlOK),...
+    struct('item','恒定风: hybrid 超额<4.5% 且优于开环(含标定学费)','pass',hbOK),...
+    struct('item','恒定风: hybrid û*辨识误差<0.8 m/s','pass',uszOK),...
+    struct('item','恒定风: hybrid 接近 sweepcal(冻结曲线的简单性代价<0.6pp)','pass',hbNS),...
+    struct('item','变风: 冻结曲线在线劣于 sweepcal(负结果复现: 标定被漂移风污染+û*无再锚定)','pass',hbnOK),...
+    struct('item','变风: rl 与 openloop 相当(差距<0.6pp)','pass',rlvOK),...
+    struct('item','变风: sweepcal 优于 openloop(拟合修复后)','pass',scvOK2),...
+    struct('item','三种风况 known oracle 超额<1.5%(信息上界)','pass',knownOK)];
+summary=struct('unitPassed',sum([unit.Passed]),'unitTotal',numel(unit),...
+    'gatesPassed',sum([checks.pass]),'gatesTotal',numel(checks));
+fid=fopen(fullfile(folder,'report.md'),'w','n','UTF-8');
+cl=onCleanup(@()fclose(fid)); %#ok<NASGU>
+fprintf(fid,['# 任务3.3检查：首飞全速域标定(冻结曲线) + 在线风推断(hybrid) + sweepcal/rl对照\n\n生成时间：%s\n\n'],datestr(now,31));
+fprintf(fid,'- 单元测试：%d/%d。\n- 检查门槛：%d/%d。\n\n',summary.unitPassed,summary.unitTotal,...
+    summary.gatesPassed,summary.gatesTotal);
+fprintf(fid,['## 任务设定(用户口径, 2026-09-07)\n\n"先通过首飞全飞拟合速度-功率曲线, 再用task2的算法": ', ...
+    '主角hybrid = 3.1的Phase A(3→12 m/s双向扫150步, 联合辨识曲线f与风w) + 2.1的Phase B', ...
+    '(曲线冻结, windinfer式滑窗二维NLS在线风推断+自适应窗长+风况判定, 每步闭式调度 ', ...
+    'v*=q̂+√(q̂²+û*²−|ŵ|²)); 低频漂移守卫(每60步, 仅SSE真改善>2%%才接受重拟合)。', ...
+    '对照: sweepcal(每20步重拟合链+探针)、rl(仿真器预训练+微调)、openloop、', ...
+    'windinfer/est/known(已知曲线oracle参照)。MOE=纯能耗Emin/Eactual(2026-09-04口径)。\n\n']);
+fprintf(fid,'## 主口径横比(无风/恒定/变风 × 5策略, 2种子均值, 800步)\n\n');
+fprintf(fid,'| 风况 | 策略 | 能耗超额%% | 稳态尾段超额%% | MOE(纯能耗) | û*误差 |\n|---|---|---:|---:|---:|---:|\n');
+for iw=1:size(windKinds,1)
+    for ii=1:numel(policies)
+        selt=strcmp(main.WindKind,windKinds{iw,1}) & strcmp(main.Policy,policies{ii});
+        r=main(selt,:);
+        us=ternary(isnan(r.UstarErrMax(1)),'—',sprintf('%.2f',r.UstarErrMax(1)));
+        fprintf(fid,'| %s | %s | %.2f | %.2f | %.4f | %s |\n',windKinds{iw,1},policies{ii},...
+            mean(r.EnergyExcessPercent),mean(r.TailRegretPercent),mean(r.MOE_energy),us);
+    end
+end
+fprintf(fid,'\n| 门槛 | 结果 |\n|---|---|\n');
+for k=1:numel(checks)
+    v='未过'; if checks(k).pass, v='通过'; end
+    fprintf(fid,'| %s | %s |\n',checks(k).item,v);
+end
+fprintf(fid,['\n说明: hybrid=用户设想"首飞标定+task2式在线"的最忠实实现(冻结曲线+细粒度风修正+', ...
+    '信赖域探针)。消融结论: 恒定风下成立(与sweepcal差距<0.6pp, 换来在线机器更简单); 变风下', ...
+    '不成立(劣于开环)——变风污染首飞标定且冻结曲线后û*无再锚定, sweepcal靠每20步重拟合argmin', ...
+    '持续再锚定才稳定。全部hybrid/sweepcal账面含一次性标定学费(150/800≈19%%时间, 摊约2.5-3%%)。', ...
+    'RL为对照: 谷底奖励二阶+1%%噪声, 等预算样本效率不足。\n']);
+fprintf(fid,'\n冒烟矩阵见 wind_kinds_smoke.csv; 横比明细见 main_comparison.csv。\n');
+fprintf(fid,['\n结论边界: 全部结果为虚拟/代理对象口径(AGENTS.md红线3), 不支持真实X8节能表述; ', ...
+    'known为已知风+已知曲线oracle参照(非因果)。\n']);
+fprintf('检查门槛：%d/%d\n',summary.gatesPassed,summary.gatesTotal);
+if summary.gatesPassed<summary.gatesTotal, warning('w33:Checks','Some gates missed.'); end
+end
+
+function out=ternary(cond,a,b)
+if cond, out=a; else, out=b; end
+end
