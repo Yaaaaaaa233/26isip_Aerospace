@@ -1,6 +1,6 @@
 # T2 闭环物理化验收证据（2026-09-08）
 
-状态：**27/27 机器门 PASS（第四次正式跑，`20260908_040935_t2`）**；余 2 项人工核对（B2 风三角方向、D5 转速/功率量级——图 B/图 D5）待叶安核对。T2 判定以 [T2_ACCEPTANCE_CHECKLIST](../../T2_ACCEPTANCE_CHECKLIST.md) v1.2 + [T2_SCENARIO_PREREG](../../T2_SCENARIO_PREREG.md) v1.1（跑批前冻结）为准。
+状态：**T2 验收关闭**——27/27 机器门 PASS（第四次正式跑，`20260908_040935_t2`）+ 2/2 人工核对通过（B2 风三角、D5 转速/功率量级，叶安 2026-09-08 确认，含 D5 风补偿平线语义质询与答复）。T2 判定以 [T2_ACCEPTANCE_CHECKLIST](../../T2_ACCEPTANCE_CHECKLIST.md) v1.2 + [T2_SCENARIO_PREREG](../../T2_SCENARIO_PREREG.md) v1.1（跑批前冻结）为准。
 
 ## 1 正式结果（run #4，本目录图集与指标表）
 
