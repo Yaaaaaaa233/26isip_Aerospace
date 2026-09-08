@@ -85,12 +85,17 @@ end
 ground=tangent*s.v_ground_mps;air=ground-wind;airSpeed=abs(dot(air,tangent));radialErr=0;if strcmpi(traj,'circle'),radialErr=norm(s.position_ne_m-circleCenter)-circleRadius;end
 % ---- 每电机功率合成（WP2）：已分配推力 -> T(n) 反解 -> 分块 P(n;V) -> 共轴 delta ----
 sUp=sUpPre;
-deltaLo=c.coaxial_delta_base+c.coaxial_delta_split_gain*max(0,sUp-0.5);
 nUp=max(0,local_n_of_t(c,TupKgf));
 nLo=max(0,local_n_of_t(c,TloKgf));
 Pc=local_p_coef(c,Vprev);                           % 按 V 插值块系数（降序）
 savUp=local_ind_saving(c,TupKgf*c.gravity_mps2,airSpeed);   % H3 诱导节省 W/桨
 savLo=local_ind_saving(c,TloKgf*c.gravity_mps2,airSpeed);
+% H5 v1.1（T24 方案 D3）：delta(v_air)=delta0*(vi/vi0)^kappa 复用 H3 vi 形状
+% （前飞尾迹偏斜、下桨逃出上桨尾迹 -> 干扰衰减）；v=0 时严格=delta0（悬停
+% 与 v1.0 口径逐位一致），v1.0 回中项已删除，谷底位置 eta*(v) 为模型输出
+[viLo,vi0Lo]=local_vi(c,TloKgf*c.gravity_mps2,airSpeed);
+deltaLo=c.coaxial_delta_base;
+if vi0Lo>0,deltaLo=deltaLo*(viLo/vi0Lo)^c.coaxial_decay_kappa;end
 PupW=max(0,polyval(Pc,nUp)-savUp);PloW=max(0,(polyval(Pc,nLo)-savLo)*(1+deltaLo));
 PmotW=c.arm_count*(PupW+PloW);
 PdragW=0.5*c.air_density_kgpm3*c.cda_m2*airSpeed*airSpeed*abs(airSpeed); % H4，带符号
@@ -130,13 +135,20 @@ b=c.bench_T_coef_desc; % b1*n^2+b2*n+b3 = t
 r=roots([b(1),b(2),b(3)-t]);r=r(imag(r)<1e-9&real(r)>0);n=min(real(r));
 if isempty(n)||~isfinite(n),n=0;end
 end
-function s=local_ind_saving(c,T_N,vair)
-% H3 动量理论诱导功率节省 [W/桨]（2026-09-08 叶安拍板，缺省+敏感性等级）：
-%   vi0=sqrt(T/(2*rho*A)); vi(v)=sqrt((v/2)^2+T/(2*rho*A))-v/2; s=T*(vi0-vi)
-% v=0 时 s=0（悬停严格保持台架值）；共轴下桨的节省同样乘 (1+delta) 惩罚（调用处）
-if T_N<=0||vair<=0,s=0;return;end
+function [vi,vi0]=local_vi(c,T_N,vair)
+% 动量理论诱导速度（H3 节省与 H5 v1.1 衰减的公用形状函数）：
+%   vi0=sqrt(T/(2*rho*A)); vi(v)=sqrt((v/2)^2+T/(2*rho*A))-v/2
+% T<=0 或 v<=0 时返回 [0,0]（悬停：节省=0、delta=delta0，两径一致）
+vi=0;vi0=0;
+if T_N<=0||vair<=0,return;end
 A=pi*(c.prop_diameter_m^2)/4;k=T_N/(2*c.air_density_kgpm3*A);
 vi0=sqrt(k);vi=sqrt((vair/2)^2+k)-vair/2;
+end
+function s=local_ind_saving(c,T_N,vair)
+% H3 动量理论诱导功率节省 [W/桨]（2026-09-08 叶安拍板，缺省+敏感性等级；
+% 形状见 local_vi；v=0 时 s=0，悬停严格保持台架值）
+% 共轴下桨的节省同样乘 (1+delta) 惩罚（调用处）
+[vi,vi0]=local_vi(c,T_N,vair);
 s=max(0,c.h3_induced_gain*T_N*(vi0-vi));
 end
 function pc=local_p_coef(c,V)

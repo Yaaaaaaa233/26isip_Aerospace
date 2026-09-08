@@ -138,8 +138,20 @@ diffA = max(oA.motor_rpm(1:2:end)) - min(oA.motor_rpm(2:2:end));
 ok('G-ETA', 'eta_ref=0.9 到位', dEta < 1e-6, sprintf('eta=%.6f', sB.eta_actual));
 ok('G-ETA', 'eta<1 上下桨转速差动出现且方向正确（上快）', diffB > 0 && diffA == 0, ...
     sprintf('Δrpm=%.0f（eta=1 时 %.0f）', diffB, diffA));
-ok('G-ETA', 'eta≠1 总功率上升（凸性代价方向）', oB.power_demand_w > oA.power_demand_w, ...
-    sprintf('%.1f W vs %.1f W', oB.power_demand_w, oA.power_demand_w));
+% E5 重锚（T24 方案 §4；v1.1 删除回中项后谷底成为模型输出）：悬停三点序
+% P(0.90)<P(1.00)<P(1.10) —— 左支右支方向 + 谷底低于 eta=1（文献锚 ~0.90）
+hEta = [0.90, 1.00, 1.10]; hP = zeros(size(hEta));
+for gi = 1:3
+    sH = plane.reset(cE1);
+    cmdH = struct('v_ref_applied_mps', 0, 'eta_ref_applied', hEta(gi), 'controller_mode', 'fixed');
+    for k = 1:500
+        [sH, oH] = plane.step(sH, w0, pathC, cmdH, 0.01, cE1);
+    end
+    hP(gi) = oH.power_demand_w;
+end
+ok('G-ETA', '悬停 P(0.90)<P(1.00)<P(1.10)（E5 重锚：谷底左移 ~0.90）', ...
+    hP(1) < hP(2) && hP(2) < hP(3), ...
+    sprintf('%.2f / %.2f / %.2f W', hP(1), hP(2), hP(3)));
 
 % ---------- G-U U 形存在性（H3 前进比修正是否接入的机器门） ----------
 % T2 清单 §2 D6"谷底形态合理"的机器化：稳态 P(v) 扫描（1 m/s 分辨率），

@@ -90,7 +90,8 @@ ac = struct('query', @query, 'gauges', @gauges, 'truth', @truth, ...
             n = local_n_of_t(pc, min(Trot, Tce));
             Pc = local_p_coef(pc, Vref);
             pro = polyval(Pc, n) - local_ind_saving(pc, Trot * pc.gravity_mps2, vv(i)); % H3 诱导节省
-            Pmot = pc.arm_count * (pro + pro * (1 + pc.coaxial_delta_base));
+            dLo = pc.coaxial_delta_base * local_vi_ratio(pc, Trot * pc.gravity_mps2, vv(i))^pc.coaxial_decay_kappa; % H5 v1.1 delta(v)（与 plane.step 同式）
+            Pmot = pc.arm_count * (pro + pro * (1 + dLo));
             Pdrag = 0.5 * pc.air_density_kgpm3 * pc.cda_m2 * vv(i)^3;
             J(i) = Pmot + Pdrag + pc.aux_power_W;
         end
@@ -115,6 +116,15 @@ if T_N <= 0 || vair <= 0, s = 0; return; end
 A = pi * (pc.prop_diameter_m^2) / 4;k = T_N / (2 * pc.air_density_kgpm3 * A);
 vi0 = sqrt(k);vi = sqrt((vair / 2)^2 + k) - vair / 2;
 s = max(0, pc.h3_induced_gain * T_N * (vi0 - vi));
+end
+function r = local_vi_ratio(pc, T_N, vair)
+% H5 v1.1 诱导速度比 vi/vi0（delta(v)=delta0*r^kappa；与 plane.step 同式，
+% v<=0 或 T<=0 时比值为 1 -> delta=delta0，悬停不衰减）
+r = 1;
+if T_N <= 0 || vair <= 0, return; end
+A = pi * (pc.prop_diameter_m^2) / 4;k = T_N / (2 * pc.air_density_kgpm3 * A);
+vi0 = sqrt(k);vi = sqrt((vair / 2)^2 + k) - vair / 2;
+r = vi / vi0;
 end
 function pc2 = local_p_coef(pc, V)
 V = min(max(V, pc.bench_V_nom(1)), pc.bench_V_nom(end));

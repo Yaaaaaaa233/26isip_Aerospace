@@ -32,11 +32,14 @@ c.cda_m2=0.30;              % 废阻面积缺省（H4，literature/model 等级�
 %   每桨节省 s=T*(vi0-vi(v))，从静态台架电功率中扣除（v=0 时 s=0，悬停不变）
 c.prop_diameter_m=1.016;    % PAW 40X13.1R 桨径（40 寸），桨盘面积 pi*D^2/4
 c.h3_induced_gain=1.0;      % 修正强度（敏感性旋钮：0.7/1.3 报告带，0=关闭）
-% ---- P2 分配与每电机合成 ----
+% ---- P2 分配与每电机合成（eta 路径 v1.1，T24 方案 D3） ----
 c.motor_count=8;c.arm_count=4;
-c.eta_split_gain=0.3;       % s_up = 0.5 + gain*(1-eta)（eta 分配映射，登记口径）
+c.eta_split_gain=0.55;       % s_up = 0.5 + gain*(1-eta)（v1.1: 0.3->0.55，谷底=模型输出）
 c.coaxial_delta_base=0.111; % H5 缺省：效率 0.90 -> 下桨功率惩罚 0.111
-c.coaxial_delta_split_gain=0.4;  % 分配偏移加成
+c.coaxial_decay_kappa=0.5;  % H5 v1.1: delta(v)=delta0*(vi(v)/vi0)^kappa 前飞衰减
+                             %      （敏感性带 0.3-1.0；悬停 v=0 严格=delta0）
+                             % v1.0 回中项 coaxial_delta_split_gain 已废弃删除（谷底
+                             % 不再人为钉在 eta=1，eta*(v) 成为模型预测输出）
 % ---- P2 涌现转速上限（H9：台架域顶 1140 RPM@29.4V 随电压线性缩放，全程落在
 %      已验证拟合域内、不外推；敏感性带上沿 42.2 RPM/V 即 1140@27V 口径） ----
 c.ceiling_kn_rpm_per_V=1140/29.4;
