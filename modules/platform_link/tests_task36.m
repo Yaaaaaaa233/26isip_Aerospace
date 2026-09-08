@@ -1,0 +1,696 @@
+function tests = tests_task36()
+%TESTS_TASK31 任务3.6单元测试: 曲线未知(黑盒调速→功率) + 全速度域快扫标定
+% (sweepcal: 联合辨识曲线f与风w + 在线精化) + RL对照 + 七种风场库 + 空速语义
+% (空速=地速−风) + 曲线标定锚点回归 + 执行链(时延/限幅/航向积分)回归。
+% 注: windinfer/est/known 在3.1中为已知曲线oracle参照(评价侧), 非因果策略。
+tests = functiontests(localfunctions);
+end
+
+%% ---------- 风场模型库 ----------
+function test_wind_models_values(tc)
+wind={'windAmp',2,'windOmega',0.4,'windBias',3,'windAmpY',1.5,'windOmegaY',0.7,...
+    'windBiasY',1,'windDirDeg',0,'duration',40,'tailSteps',5};
+t=[0 1.37 9.1 22.8];
+% const: 恒等于偏置
+c=w36.config(wind{:},'windKind','const'); scn=w36.scenario('static',c);
+[wx,wy]=w36.wind_field(scn,[0 12.3 40],0);
+tc.verifyEqual(wx,[3 3 3],'AbsTol',1e-12);
+tc.verifyEqual(wy,[1 1 1],'AbsTol',1e-12);
+% sin: 与闭式一致(任务4/5/8原口径)
+c=w36.config(wind{:},'windKind','sin'); scn=w36.scenario('static',c);
+[wx,wy]=w36.wind_field(scn,t,0);
+tc.verifyEqual(wx,2*sin(0.4*t)+3,'AbsTol',1e-12);
+tc.verifyEqual(wy,1.5*sin(0.7*t)+1,'AbsTol',1e-12);
+% square: 软边方波——峰值=B+A, 有界, 连续(边缘陡度有界)
+c=w36.config(wind{:},'windKind','square','squareEdge',4); scn=w36.scenario('static',c);
+tp=pi/2/0.4;
+[wx,~]=w36.wind_field(scn,tp,0);
+tc.verifyEqual(wx,5,'AbsTol',1e-9);
+tt=0:0.01:40;
+[wx,wy]=w36.wind_field(scn,tt,0);
+tc.verifyTrue(max(abs(wx-3))<=2+1e-9 && max(abs(wy-1))<=1.5+1e-9,'方波必须有界');
+dwx=abs(diff(wx)); bound=2*0.4*(4/tanh(4))*0.01+1e-12;
+tc.verifyTrue(max(dwx)<=bound,'软边方波应连续(边缘陡度有界)');
+% triangle: 峰值=B+A, 上升段斜率=A·ω·2/π
+c=w36.config(wind{:},'windKind','triangle'); scn=w36.scenario('static',c);
+[wx,~]=w36.wind_field(scn,tp,0);
+tc.verifyEqual(wx,5,'AbsTol',1e-9);
+t2=[0 tp/2 tp];
+[wx,~]=w36.wind_field(scn,t2,0);
+slope=(wx(2)-wx(1))/(t2(2)-t2(1));
+tc.verifyEqual(slope,2*0.4*2/pi,'AbsTol',1e-9);
+% turb: 确定性(同种子同序列)+平稳统计(std≈windAmp, 均值≈0)
+wA=2.0;
+c1=w36.config(wind{:},'windKind','turb','windAmp',wA,'turbTheta',0.2,'duration',4000);
+s1=w36.scenario('static',c1); s2=w36.scenario('static',c1);
+tc.verifyEqual(s1.windTurbX,s2.windTurbX);
+tc.verifyEqual(s1.windTurbY,s2.windTurbY);
+tc.verifyLessThan(abs(std(s1.windTurbX(10000:end))-wA),0.5,'OU平稳std应≈windAmp');
+tc.verifyLessThan(abs(mean(s1.windTurbX(10000:end))),0.3,'OU均值应≈0');
+% composite: turbStd=0 时退化为纯sin; turbStd>0 时叠加std≈turbStd的湍流
+c=w36.config(wind{:},'windKind','composite','turbStd',0); scn=w36.scenario('static',c);
+[wx,wy]=w36.wind_field(scn,t,0);
+tc.verifyEqual(wx,2*sin(0.4*t)+3,'AbsTol',1e-12);
+c=w36.config(wind{:},'windKind','composite','turbStd',0.3,'seed',5,'duration',400);
+scn=w36.scenario('static',c);
+tt2=0:0.01:400;
+[wx,~]=w36.wind_field(scn,tt2,0);
+resid=wx-(2*sin(0.4*tt2)+3);
+tc.verifyLessThan(abs(std(resid(10000:end))-0.3),0.05,'复合风湍流分量std应≈turbStd');
+% sector: 与时间无关、周期2π、绕偏置幅值=A
+c=w36.config(wind{:},'windKind','sector'); scn=w36.scenario('static',c);
+[wx1,wy1]=w36.wind_field(scn,0,0);
+[wx2,wy2]=w36.wind_field(scn,137.9,0);
+tc.verifyEqual(wx1,wx2); tc.verifyEqual(wy1,wy2);
+[wx3,wy3]=w36.wind_field(scn,0,2*pi);
+tc.verifyEqual(wx3,wx1,'AbsTol',1e-12); tc.verifyEqual(wy3,wy1,'AbsTol',1e-12);
+[wxp,~]=w36.wind_field(scn,0,pi);   % ψ=π: Wx=B−A·cos(π)=B+A
+tc.verifyEqual(wxp,5,'AbsTol',1e-12);
+[wxh,wyh]=w36.wind_field(scn,0,pi/2); % ψ=π/2: Wx=B−A·cos(π/2)=B, Wy=D+C·sin(π/2)=D+C
+tc.verifyEqual(wxh,3,'AbsTol',1e-12);
+tc.verifyEqual(wyh,1+1.5,'AbsTol',1e-12);
+end
+
+function test_sector_periodic_profile(tc)
+wind={'windAmp',2,'windOmega',0.08,'windBias',3,'windAmpY',1.5,'windOmegaY',0.13,'windBiasY',1};
+c=w36.config(wind{:},'windKind','sector');
+scn=w36.scenario('static',c);
+psd=deg2rad(0:1:360);
+[wx,wy]=w36.wind_field(scn,0,psd);
+tc.verifyEqual(wx(1),wx(end),'AbsTol',1e-12,'ψ=0与ψ=2π风应相同(周期)');
+tc.verifyEqual(wy(1),wy(end),'AbsTol',1e-12);
+tc.verifyLessThan(max(wx)-min(wx),4.0001,'扇区风x向峰峰应=2A');
+end
+
+function test_wind_rotation(tc)
+wind={'windAmp',2,'windOmega',0.4,'windBias',3,'windAmpY',1.5,'windOmegaY',0.7,...
+    'windBiasY',1,'windDirDeg',90,'windKind','sin','duration',40,'tailSteps',5};
+c=w36.config(wind{:}); scn=w36.scenario('static',c);
+t=3.7;
+[wx,wy,vx,vy]=w36.wind_field(scn,t,0);
+tc.verifyEqual(vx,-wy,'AbsTol',1e-12);   % R(90°)[Wx;Wy]=[-Wy;Wx]
+tc.verifyEqual(vy,wx,'AbsTol',1e-12);
+end
+
+%% ---------- 空速语义(空速=地速−风; 功率由空速决定) ----------
+function test_plant_airspeed_identity(tc)
+wind={'windAmp',0,'windBias',3,'windAmpY',0,'windBiasY',1,'windKind','const'};
+c=w36.config('seed',11,'duration',30,'tailSteps',5,wind{:});
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+psi=deg2rad(log.headingDeg);
+uExp=hypot(log.speed.*cos(psi)-log.windX, log.speed.*sin(psi)-log.windY);
+tc.verifyEqual(log.airspeed,uExp,'AbsTol',1e-9,'空速应=|地速矢量−风矢量|');
+tc.verifyEqual(log.windX,3*ones(height(log),1),'AbsTol',1e-12);
+tc.verifyEqual(log.windY,1*ones(height(log),1),'AbsTol',1e-12);
+end
+
+function test_user_example_tailwind_headwind(tc)
+% 用户口径例子: 地速向右6m/s + 顺风向右3m/s → 空速3m/s; 地速曲线顺风右移。
+wind={'windAmp',0,'windBias',3,'windAmpY',0,'windBiasY',0,'windKind','const'};
+c=w36.config('seed',11,'duration',5,'tailSteps',1,'turnRadius',600,...
+    'initialSpeed',6,'openLoopV',6,wind{:});
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+tc.verifyLessThan(abs(log.airspeed(1)-3),0.01,...
+    '地速6+顺风3(ψ≈0)时空速应≈3');
+tc.verifyLessThan(abs(log.optimumTrue(1)-9.3),0.02,...
+    '顺风3时地速最优应右移到 6.3+3=9.3');
+% 逆风对照: 偏置3经windDirDeg=180旋转 → w=(−3,0), 空速9, 地速最优左移到 3.3
+windH={'windAmp',0,'windBias',3,'windAmpY',0,'windBiasY',0,'windDirDeg',180,'windKind','const'};
+cH=w36.config('seed',11,'duration',5,'tailSteps',1,'turnRadius',600,...
+    'initialSpeed',6,'openLoopV',6,windH{:});
+[logH,~]=w36.run_algorithm('openloop',w36.scenario('static',cH),cH);
+tc.verifyLessThan(abs(logH.airspeed(1)-9),0.01,'地速6+逆风3时空速应≈9');
+tc.verifyLessThan(abs(logH.optimumTrue(1)-3.3),0.02,'逆风3时地速最优应左移到 6.3−3=3.3');
+end
+
+function test_plant_power_from_airspeed_nowind(tc)
+wind={'windAmp',0,'windBias',0,'windAmpY',0,'windBiasY',0,'windKind','const'};
+c=w36.config('seed',11,'duration',20,'tailSteps',5,'initialSpeed',6.3,'openLoopV',6.3,wind{:});
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+P63=w36.base_curve(6.3,c);   % 零风+恒地速: 空速=地速, 功率=base_curve(6.3)
+tc.verifyEqual(log.powerTrue,P63*ones(height(log),1),'AbsTol',1e-9);
+end
+
+function test_ground_curve_optimum_closed_form(tc)
+wind={'windAmp',2,'windOmega',0.08,'windBias',3,'windAmpY',1.5,'windOmegaY',0.13,'windBiasY',1};
+c=w36.config('seed',11,'duration',40,'tailSteps',10,wind{:});
+scn=w36.scenario('static',c);
+plant=w36.make_plant(scn,c);
+n=40; vK=6;
+for k=1:n
+    plant.q(vK,'hold'); plant.amendEstimate(vK);
+end
+log=plant.table();
+for k=1:n
+    tEnd=log.time(k)+c.tEval;
+    psiE=deg2rad(log.headingDeg(k));
+    [~,~,VxE,VyE]=w36.wind_field(scn,tEnd,psiE);
+    qE=VxE*cos(psiE)+VyE*sin(psiE);
+    disc=qE^2+c.optimum0^2-(VxE^2+VyE^2);
+    if disc>0, vO=qE+sqrt(disc); else, vO=qE; end
+    vO=min(max(vO,c.lower),c.upper);
+    tc.verifyEqual(log.optimumTrue(k),vO,'AbsTol',1e-9,'地速最优应与新约定闭式解一致');
+end
+end
+
+function test_sector_optimum_varies_with_heading(tc)
+wind={'windAmp',2,'windBias',0,'windAmpY',0,'windBiasY',0,'windKind','sector'};
+c=w36.config('seed',11,'duration',60,'tailSteps',5,'initialSpeed',6.3,'openLoopV',6.3,wind{:});
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+tc.verifyGreaterThan(std(log.optimumTrue),0.02,'扇区风下地速最优应随航向变化');
+wind0={'windAmp',0,'windBias',0,'windAmpY',0,'windBiasY',0,'windKind','const'};
+c0=w36.config('seed',11,'duration',60,'tailSteps',5,'initialSpeed',6.3,'openLoopV',6.3,wind0{:});
+[log0,~]=w36.run_algorithm('openloop',w36.scenario('static',c0),c0);
+tc.verifyEqual(std(log0.optimumTrue),0,'AbsTol',1e-9,'零风下地速最优不应随时间变化');
+tc.verifyEqual(mean(log0.optimumTrue),c0.optimum0,'AbsTol',1e-9,'零风下地速最优应=名义V*');
+end
+
+%% ---------- 任务8曲线case标定回归 ----------
+function test_case_anchors_exact(tc)
+for r=[0.95 0.90 0.85]
+    c=w36.config('curveCase',r);
+    tc.verifyEqual(w36.base_curve(0,c),1.0,'AbsTol',1e-9);
+    tc.verifyEqual(w36.base_curve(c.optimum0,c),r,'AbsTol',1e-9);
+    vv=0:0.005:20; Pw=w36.base_curve(vv,c);
+    [~,im]=min(Pw);
+    tc.verifyTrue(abs(vv(im)-c.optimum0)<0.01,'全局谷底应恰在V*');
+end
+end
+
+function test_reference_anchors_watts(tc)
+c=w36.config();
+tc.verifyEqual(c.pHover,103.7); tc.verifyEqual(c.p20,134.5);
+tc.verifyEqual(w36.base_curve(20,c)*c.pHover,134.5,'AbsTol',3.5);
+end
+
+function test_grad_finite_difference(tc)
+c=w36.config();
+for x=[2.0 6.3 10.5 18.0]
+    h=1e-6;
+    fd=(w36.base_curve(x+h,c)-w36.base_curve(x-h,c))/(2*h);
+    tc.verifyEqual(w36.base_curve_grad(x,c),fd,'AbsTol',1e-7);
+end
+end
+
+function test_moe_identity_and_case_in_plant(tc)
+c=w36.config('seed',11,'curveCase',0.85);
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+m=w36.mop_moe(log,c);
+tc.verifyEqual(m.MOE_energy,1/(1+m.energyExcessPercent/100),'AbsTol',1e-9);
+tc.verifyEqual(mean(log.minPowerTrue),0.85,'AbsTol',1e-9);
+end
+
+%% ---------- 任务7执行链回归 ----------
+function test_latency_impulse(tc)
+c=w36.config('initialSpeed',10,'openLoopV',4,'windAmp',0,'windBias',0,...
+    'windAmpY',0,'windBiasY',0,'windKind','const','latencySec',0.3);
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+tc.verifyEqual(log.speed(1),8.6,'AbsTol',1e-9);
+% 任务3.6放宽: τ=0(无时延对照) — 指令立即释放, 仅受限幅: 第1步末 10-2×1=8
+c0=w36.config('initialSpeed',10,'openLoopV',4,'windAmp',0,'windBias',0,...
+    'windAmpY',0,'windBiasY',0,'windKind','const','latencySec',0);
+[log0,~]=w36.run_algorithm('openloop',w36.scenario('static',c0),c0);
+tc.verifyEqual(log0.speed(1),8.0,'AbsTol',1e-9,'τ=0时指令应立即生效(仅受限幅)');
+tc.verifyTrue(all(log0.accelMax<=c0.aMax+1e-9),'τ=0时加速度限幅仍须成立');
+end
+
+function test_task2_noise_kept(tc)
+c=w36.config('seed',11);
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+rel=(log.powerMeas-log.powerTrue)./log.powerTrue;
+tc.verifyEqual(std(rel),0.01,'AbsTol',0.004);
+tc.verifyEqual(mean(rel),0,'AbsTol',0.005);
+end
+
+function test_accel_and_budget_all_policies(tc)
+% 2026-09-07精简: 移除任务1遗留搜索器(tracker/esc/spsa/bayes/qnewton/gtrack)。
+policies={'openloop','est','windinfer','hybrid','sweepcal','rl','purerl_on','purerl_off','purerl_scratch','known'};
+for name=policies
+    c=w36.config('seed',11,'duration',400);
+    [log,~]=w36.run_algorithm(name{1},w36.scenario('static',c),c);
+    tc.verifyEqual(height(log),c.duration,sprintf('%s预算未走满',name{1}));
+    tc.verifyTrue(all(log.accelMax<=c.aMax+1e-9),sprintf('%s加速度超限',name{1}));
+    tc.verifyTrue(all(isfinite(log.powerMeas)),sprintf('%s出现非有限测量',name{1}));
+end
+end
+
+function test_all_kinds_policies_smoke(tc)
+kinds={'const','sin','square','triangle','turb','composite','sector'};
+policies={'openloop','known','sweepcal','rl','purerl_on','purerl_off','purerl_scratch','hybrid'};
+for kk=1:numel(kinds)
+    for pp=1:numel(policies)
+        c=w36.config('seed',11,'duration',250,'tailSteps',5,'windKind',kinds{kk},...
+            'windAmpY',1.5,'windBiasY',1);
+        [log,~]=w36.run_algorithm(policies{pp},w36.scenario('static',c),c);
+        tc.verifyEqual(height(log),250,...
+            sprintf('%s×%s预算未走满',kinds{kk},policies{pp}));
+        tc.verifyTrue(all(log.accelMax<=c.aMax+1e-9),...
+            sprintf('%s×%s加速度超限',kinds{kk},policies{pp}));
+        tc.verifyTrue(all(isfinite(log.powerTrue)),...
+            sprintf('%s×%s功率非有限',kinds{kk},policies{pp}));
+    end
+end
+end
+
+function test_heading_integration(tc)
+c=w36.config('initialSpeed',6.3,'openLoopV',6.3,'windAmp',0,'windBias',0,...
+    'windAmpY',0,'windBiasY',0,'windKind','const');
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+psiExp=rad2deg(cumsum(log.speed)*c.tEval/c.turnRadius);
+tc.verifyEqual(max(abs(mod(log.headingDeg-psiExp+180,360)-180)),0,'AbsTol',1e-6);
+end
+
+function test_openloop_nowind_is_upper(tc)
+c=w36.config('initialSpeed',6.3,'openLoopV',6.3,'windAmp',0,'windBias',0,...
+    'windAmpY',0,'windBiasY',0,'windKind','const');
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+tc.verifyEqual(w36.mop_moe(log,c).MOE_energy,1.0,'AbsTol',1e-9);
+end
+
+function test_known_oracle_information_value(tc)
+exK=zeros(1,5); exO=zeros(1,5);
+for i=1:5
+    c=w36.config('seed',10+i);
+    scn=w36.scenario('static',c);
+    [log,~]=w36.run_algorithm('known',scn,c);
+    exK(i)=w36.mop_moe(log,c).energyExcessPercent;
+    [log,~]=w36.run_algorithm('openloop',scn,c);
+    exO(i)=w36.mop_moe(log,c).energyExcessPercent;
+end
+tc.verifyTrue(mean(exK)<1.0);
+tc.verifyTrue(mean(exO)-mean(exK)>3.0);
+end
+
+%% ---------- 任务3.6核心: u*固定 + 风推断寻优(windinfer) ----------
+function test_ustar_fixed_pmin_constant(tc)
+% 任务3.6核心设定: 无平移调度 → 空速最优点u*固定, Pmin恒定不随时间变化;
+% 地速最优v*仍随风变化(这正是需要寻优的原因)。
+wind={'windKind','sin','windAmp',2,'windBias',3,'windAmpY',1.5,'windOmegaY',0.13,'windBiasY',1};
+c=w36.config('seed',7,'duration',300,'tailSteps',60,wind{:});
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+tc.verifyEqual(std(log.minPowerTrue),0,'AbsTol',1e-12,'Pmin应恒定(u*固定)');
+tc.verifyEqual(mean(log.minPowerTrue),c.curveCase,'AbsTol',1e-9,'Pmin应=curveCase');
+tc.verifyGreaterThan(std(log.optimumTrue),0.1,'变风下地速最优v*应随时间变化');
+end
+
+function test_windinfer_const_wind(tc)
+% 恒定风: 由功率随航向的调制反推风矢量, 收敛后误差<0.6 m/s, 能耗逼近known。
+c=w36.config('seed',3,'windKind','const','windBias',3.5,'windDirDeg',40);
+scn=w36.scenario('static',c);
+[log,info]=w36.run_algorithm('windinfer',scn,c);
+m=w36.mop_moe(log,c);
+wTrue=[3.5*cosd(40);3.5*sind(40)];
+we=info.windEst;
+kFin=find(isfinite(we(1,:)),1,'last');   % 末段就位步不更新估计(预算行为)
+errF=norm(we(:,kFin)-wTrue);
+hh=we(:,ceil(kFin/2):kFin);
+errH=mean(hypot(hh(1,:)-wTrue(1),hh(2,:)-wTrue(2)),'omitnan');
+tc.verifyLessThan(errF,0.6,'恒定风末段风估计误差应<0.6 m/s');
+tc.verifyLessThan(errH,0.9,'恒定风后半程平均误差应<0.9 m/s');
+tc.verifyLessThan(m.energyExcessPercent,2.0,'恒定风能耗超额应<2%');
+tc.verifyEqual(info.regime{kFin},'恒定风','恒定风应被判为恒定风');
+end
+
+function test_windinfer_zero_wind(tc)
+% 零风: 估计≈0, 全程飞u*, 无探针成本 → 超额≈0(探针法的能耗缺点被消除)。
+c=w36.config('seed',3,'windKind','const','windBias',0,'windDirDeg',0);
+scn=w36.scenario('static',c);
+[log,info]=w36.run_algorithm('windinfer',scn,c);
+m=w36.mop_moe(log,c);
+tc.verifyLessThan(m.energyExcessPercent,0.5,'零风应几乎零超额');
+we=info.windEst; kFin=find(isfinite(we(1,:)),1,'last');
+tc.verifyLessThan(norm(we(:,kFin)),0.4,'零风风估计应≈0');
+end
+
+function test_windinfer_vary_wind_beats_openloop(tc)
+% 变风(正弦慢变+湍流): 自适应缩窗跟踪, 至少应优于不补偿的开环巡航。
+wcfg={'windKind','composite','windBias',2.5,'windAmp',1.5,'windOmega',0.08,...
+    'windBiasY',0,'windAmpY',0,'turbStd',0.3};
+c=w36.config('seed',3,wcfg{:});
+scn=w36.scenario('static',c);
+[logI,~]=w36.run_algorithm('windinfer',scn,c);
+[logO,~]=w36.run_algorithm('openloop',scn,c);
+mI=w36.mop_moe(logI,c); mO=w36.mop_moe(logO,c);
+tc.verifyLessThan(mI.energyExcessPercent,mO.energyExcessPercent,'变风下风推断应优于开环');
+tc.verifyLessThan(mI.energyExcessPercent,4.5,'变风超额应有界(<4.5%)');
+end
+
+function test_windinfer_strong_wind(tc)
+% 强风(|w|=5.5接近u*=6.3): 闭式解仍可行, 推断不发散。
+c=w36.config('seed',3,'windKind','const','windBias',5.5,'windDirDeg',200);
+scn=w36.scenario('static',c);
+[log,info]=w36.run_algorithm('windinfer',scn,c);
+m=w36.mop_moe(log,c);
+tc.verifyLessThan(m.energyExcessPercent,3.0,'强风能耗超额应<3%');
+wTrue=[5.5*cosd(200);5.5*sind(200)];
+we=info.windEst; kFin=find(isfinite(we(1,:)),1,'last');
+tc.verifyLessThan(norm(we(:,kFin)-wTrue),1.6,'强风末段估计误差应<1.6(谷底功率对风误差二阶不敏感, 能耗几乎无损)');
+end
+
+function test_windinfer_causal_protocol(tc)
+% 红线1: 预算走满/测量有限/估计序列有限(仅由指令与测量驱动, 种子变化即变化)。
+for sd=[3 9]
+    c=w36.config('seed',sd);
+    scn=w36.scenario('static',c);
+    [log,info]=w36.run_algorithm('windinfer',scn,c);
+    tc.verifyEqual(height(log),c.duration,'预算未走满');
+    tc.verifyTrue(all(isfinite(log.powerMeas)),'出现非有限测量');
+    tc.verifyTrue(all(isfinite(info.windEst(:))),'风估计序列应有限');
+    tc.verifyTrue(~isempty(info.regime), '风况判定序列不应为空');
+end
+end
+
+function test_hover_uniform_baselines(tc)
+% 悬停(地速0): 空速=|w|, 功率=J0(|w|); 零风匀速转圈@u*: 即全局最优(MOE=1)。
+c=w36.config('seed',3,'windKind','const','windBias',3.5,'windDirDeg',40,...
+    'openLoopV',0,'initialSpeed',6.3);
+[log,~]=w36.run_algorithm('openloop',w36.scenario('static',c),c);
+tc.verifyLessThan(abs(mean(log.airspeed)-3.5),0.1,'悬停空速应≈|w|=3.5');
+tc.verifyLessThan(abs(mean(log.powerTrue)-w36.base_curve(3.5,c)),1e-3,'悬停功率应=J0(|w|)');
+c0=w36.config('seed',3,'windKind','const','windBias',0,'openLoopV',6.3);
+[log0,~]=w36.run_algorithm('openloop',w36.scenario('static',c0),c0);
+tc.verifyEqual(w36.mop_moe(log0,c0).MOE_energy,1.0,'AbsTol',1e-9,'零风匀速@u*应=最优');
+end
+
+function test_moe_overall_is_energy_only(tc)
+% 2026-09-04用户口径: MOE只考虑续航能耗, overall=Emin/Eactual。
+c=w36.config('seed',3);
+scn=w36.scenario('static',c);
+[log,~]=w36.run_algorithm('windinfer',scn,c);
+m=w36.mop_moe(log,c);
+tc.verifyEqual(m.MOE.overall,m.MOE_energy,'AbsTol',1e-12,'overall应=MOE_energy');
+tc.verifyEqual(m.MOE.overall,m.MOE.energy,'AbsTol',1e-12,'overall应=MOE.energy');
+end
+
+%% ---------- 任务3.6核心: 曲线未知(sweepcal/rl) ----------
+function test_ctrl_view_whitelist(tc)
+% 红线1结构核验: 曲线未知口径下, 控制器白名单不含任何曲线/最优点/噪声真值。
+c0=w36.config();
+p=w36.ctrl_view(c0);
+drop={'curveCoef','curveCase','pHover','p20','rippleA1','rippleL1','rippleF1',...
+    'rippleA2','rippleL2','optimum0','noiseSigma','eps','tailSteps'};
+for k=1:numel(drop)
+    tc.verifyFalse(isfield(p,drop{k}),'白名单不应包含真值字段');
+end
+keep={'lower','upper','initialSpeed','tEval','turnRadius','latencySec','aMax','openLoopV'};
+for k=1:numel(keep)
+    tc.verifyTrue(isfield(p,keep{k}),'白名单应保留控制器合法知识');
+end
+end
+
+function test_hybrid_const_wind(tc)
+% 任务3.6主角: 恒定风下首飞标定+task2式在线风修正——应辨识出 û*≈6.3 与风矢量,
+% 整体不劣于sweepcal的重拟合链(容差), 显著优于开环。
+c=w36.config('seed',3,'windKind','const','windBias',3.5,'windDirDeg',40,'duration',800);
+scn=w36.scenario('static',c);
+[log,info]=w36.run_algorithm('hybrid',scn,c);
+m=w36.mop_moe(log,c);
+[logS,~]=w36.run_algorithm('sweepcal',scn,c);
+mS=w36.mop_moe(logS,c);
+[logO,~]=w36.run_algorithm('openloop',scn,c);
+mO=w36.mop_moe(logO,c);
+tc.verifyLessThan(abs(info.uStar-c.optimum0),0.6,'û*辨识误差应<0.6 m/s');
+wT=[3.5*cosd(40);3.5*sind(40)];
+we=info.windEst; kF=find(isfinite(we(1,:)),1,'last');
+tc.verifyLessThan(norm(we(:,kF)-wT),0.8,'在线风修正误差应<0.8 m/s');
+tc.verifyLessThan(m.energyExcessPercent,4.5,'能耗超额应<4.5%');
+tc.verifyLessThan(m.energyExcessPercent,mO.energyExcessPercent,'应优于开环基线');
+tc.verifyLessThan(m.energyExcessPercent,mS.energyExcessPercent+0.6,...
+    '恒定风下hybrid应接近sweepcal(冻结曲线的简单性代价<0.6pp)');
+tc.verifyEqual(info.calibSteps,c.swSteps,'标定步数应=swSteps');
+end
+
+function test_hybrid_zero_wind_tuition_only(tc)
+% 零风: 标定后风修正应≈0并恒飞u*; 总超额=标定学费, 稳态尾段应接近最优。
+c=w36.config('seed',3,'windKind','const','windBias',0,'windDirDeg',0,'duration',600);
+scn=w36.scenario('static',c);
+[log,info]=w36.run_algorithm('hybrid',scn,c);
+m=w36.mop_moe(log,c);
+tc.verifyLessThan(m.regretPercent,3.5,'零风尾段应接近最优(近期窗维护的已知小代价)');
+tc.verifyLessThan(m.energyExcessPercent,4.5,'含标定学费的总超额应<4.5%');
+we=info.windEst; kF=find(isfinite(we(1,:)),1,'last');
+tc.verifyLessThan(norm(we(:,kF)),1.5,'零风下风修正漂移<1.5(已知小代价, 超额影响有限)');
+end
+
+function test_hybrid_vary_wind_negative_result(tc)
+% 变风: task2式在线的已知限制复现——变风污染标定后, hybrid恢复慢于sweepcal
+% (详见3.3/3.4 README调参史)。门槛=预算走满/有限 + 劣于sweepcal(诚实记录)。
+wcfg={'windKind','composite','windBias',2.5,'windAmp',1.5,'windOmega',0.08,...
+    'windBiasY',0,'windAmpY',0,'turbStd',0.3};
+c=w36.config('seed',3,wcfg{:},'duration',800);
+scn=w36.scenario('static',c);
+[logH,~]=w36.run_algorithm('hybrid',scn,c);
+[logS,~]=w36.run_algorithm('sweepcal',scn,c);
+[logO,~]=w36.run_algorithm('openloop',scn,c);
+mH=w36.mop_moe(logH,c); mS=w36.mop_moe(logS,c); mO=w36.mop_moe(logO,c);
+tc.verifyLessThan(mH.energyExcessPercent,13.0,'变风下hybrid应有限(已知限制)');
+tc.verifyGreaterThan(mH.energyExcessPercent,mS.energyExcessPercent,...
+    '变风下hybrid应劣于sweepcal(task2式在线已知限制复现)');
+end
+
+function test_hybrid_phase_b_structure(tc)
+% 结构核验: 标定步总数=swSteps(末个标定指令的就位允许向后溢出数行);
+% Phase B 为 infer/probe(探针锚)/hold, 稳定后不再出现 calib。
+c=w36.config('seed',3,'windKind','const','windBias',3.5,'windDirDeg',40,'duration',600);
+scn=w36.scenario('static',c);
+[log,~]=w36.run_algorithm('hybrid',scn,c);
+tags=string(log.tag);
+tc.verifyEqual(sum(tags=='calib'),c.swSteps,'标定步总数应=swSteps');
+late=tags(c.swSteps+6:end);   % 就位溢出容差: 5行
+tc.verifyEqual(sum(late=='calib'),0,'Phase B稳定后不应再出现标定步');
+tc.verifyTrue(all(ismember(unique(setdiff(tags,{'calib'})),{'infer','probe','hold','settle'})),...
+    '其余标签应仅为infer/probe/hold/settle(就位占位)');
+tc.verifyGreaterThan(sum(tags=='probe'),10,'探针锚应按周期存在');
+end
+
+function test_sweepcal_identifies_curve_and_wind(tc)
+% 恒定风: 全速域标定+在线精化, 不知曲线不知风不知u*, 应辨识出 û*≈6.3 与风矢量,
+% 能耗显著优于开环(单一速度点基线)。
+c=w36.config('seed',3,'windKind','const','windBias',3.5,'windDirDeg',40,'duration',800);
+scn=w36.scenario('static',c);
+[log,info]=w36.run_algorithm('sweepcal',scn,c);
+m=w36.mop_moe(log,c);
+[logO,~]=w36.run_algorithm('openloop',scn,c);
+mO=w36.mop_moe(logO,c);
+tc.verifyLessThan(abs(info.uStar-c.optimum0),0.6,'û*辨识误差应<0.6 m/s');
+wT=[3.5*cosd(40);3.5*sind(40)];
+we=info.windEst; kF=find(isfinite(we(1,:)),1,'last');
+tc.verifyLessThan(norm(we(:,kF)-wT),1.0,'风矢量辨识误差应<1.0 m/s');
+tc.verifyLessThan(m.energyExcessPercent,4.5,'能耗超额应<4.5%');
+tc.verifyLessThan(m.energyExcessPercent,mO.energyExcessPercent,'应优于开环基线');
+tc.verifyEqual(info.calibSteps,c.swSteps,'标定步数应=swSteps');
+end
+
+function test_sweepcal_zero_wind(tc)
+% 零风: 标定应直接找到u*并恒飞, 超额小。
+c=w36.config('seed',3,'windKind','const','windBias',0,'windDirDeg',0,'duration',600);
+scn=w36.scenario('static',c);
+[log,info]=w36.run_algorithm('sweepcal',scn,c);
+m=w36.mop_moe(log,c);
+% 标定段(前swSteps步故意飞离最优点采样)是一次性学费, 摊在总账上≈3%;
+% 门槛用尾段稳态口径(regretPercent): 标定完成后应贴近最优。
+tc.verifyLessThan(m.regretPercent,3.5,'零风尾段应接近最优(近期窗维护的已知小代价)');
+tc.verifyLessThan(m.energyExcessPercent,4.5,'含标定学费的总超额应<4.5%');
+tc.verifyLessThan(abs(info.uStar-c.optimum0),0.6,'零风下û*辨识应<0.6');
+end
+
+function test_sweepcal_vary_wind_beats_openloop(tc)
+% 变风: 标定块+在线联合重拟合, 至少应优于不补偿的开环。
+wcfg={'windKind','composite','windBias',2.5,'windAmp',1.5,'windOmega',0.08,...
+    'windBiasY',0,'windAmpY',0,'turbStd',0.3};
+c=w36.config('seed',3,wcfg{:},'duration',800);
+scn=w36.scenario('static',c);
+[logI,~]=w36.run_algorithm('sweepcal',scn,c);
+[logO,~]=w36.run_algorithm('openloop',scn,c);
+mI=w36.mop_moe(logI,c); mO=w36.mop_moe(logO,c);
+tc.verifyLessThan(mI.energyExcessPercent,mO.energyExcessPercent+0.2,...
+    '变风下应不劣于开环(非劣性; 漂移风追踪受滑窗滞后约束)');
+end
+
+function test_rl_completes_and_anneals_honest(tc)
+% RL对照(在线策略梯度): 预算走满/有限/σ退火到位; 性能上如实允许其不敌标定法
+% (谷底奖励二阶+1%噪声, 等预算下样本效率不足——诚实负结果, 与speed_rl_pytorch一致)。
+c=w36.config('seed',3,'duration',600);
+scn=w36.scenario('static',c);
+[log,info]=w36.run_algorithm('rl',scn,c);
+m=w36.mop_moe(log,c);
+tc.verifyEqual(height(log),c.duration,'RL预算未走满');
+tc.verifyTrue(all(isfinite(log.powerMeas)),'RL出现非有限测量');
+tc.verifyLessThan(info.sigma,c.rlSigma+1e-9,'σ应退火不增');
+tc.verifyTrue(isfinite(m.MOE_energy),'RL的MOE应有限');
+end
+
+function test_sweepcal_rl_all_kinds_complete(tc)
+% sweepcal/rl 在七种风场下都能完整跑完(鲁棒性)。
+kinds={'const','sin','square','triangle','turb','composite','sector'};
+for kk=1:numel(kinds)
+    c=w36.config('seed',11,'duration',250,'tailSteps',5,'windKind',kinds{kk},...
+        'windAmpY',1.5,'windBiasY',1);
+    [log1,~]=w36.run_algorithm('sweepcal',w36.scenario('static',c),c);
+    [log2,~]=w36.run_algorithm('rl',w36.scenario('static',c),c);
+    tc.verifyEqual(height(log1),250,'sweepcal预算未走满');
+    tc.verifyEqual(height(log2),250,'rl预算未走满');
+end
+end
+
+
+%% ---------- 任务3.6成员: 预训练purerl拆分(on/off/scratch) ----------
+function test_purerl_variants_structural_model_free(tc)
+variants={'purerl_on','purerl_off','purerl_scratch'};
+for i=1:numel(variants)
+    c=w36.config('seed',3,'duration',300,'plWarmMax',800);
+    scn=w36.scenario('static',c);
+    [~,info]=w36.run_algorithm(variants{i},scn,c);
+    tc.verifyFalse(isfield(info,'coefs'),sprintf('%s不应输出拟合曲线',variants{i}));
+    tc.verifyFalse(isfield(info,'uStar'),sprintf('%s不应输出显式u*辨识',variants{i}));
+    tc.verifyTrue(isfield(info,'muB'),sprintf('%s应输出表格策略μ',variants{i}));
+end
+end
+
+function test_purerl_pretrain_accounting(tc)
+% 预训练不占评测预算: 评价表只含评测步、无warmup标签; 记账完整; on/off更新语义
+c=w36.config('seed',3,'duration',300,'plWarmMax',800);
+scn=w36.scenario('static',c);
+[log,info]=w36.run_algorithm('purerl_off',scn,c);
+tc.verifyEqual(height(log),300,'评价表只含评测步');
+tc.verifyTrue(all(string(log.tag)~="warmup"),'预训练步不得进入评价表');
+tc.verifyTrue(info.warmupSteps>0 && info.warmupSteps<=c.plWarmMax,'预训练步数记账');
+tc.verifyTrue(islogical(info.warmConverged),'收敛标志');
+tc.verifyTrue(isfield(info,'warmBlockP') && ~isempty(info.warmBlockP),'分块功率记录');
+tc.verifyEqual(info.nUpdate,0,'离线部署评估期零更新');
+[~,info2]=w36.run_algorithm('purerl_on',scn,c);
+tc.verifyGreaterThan(info2.nUpdate,0,'在线部署评估期应有更新');
+end
+
+function test_purerl_off_deterministic(tc)
+% 离线部署可复现: 同种子两次评估轨迹逐位一致
+c=w36.config('seed',7,'duration',300,'plWarmMax',800);
+scn=w36.scenario('static',c);
+[log1,~]=w36.run_algorithm('purerl_off',scn,c);
+[log2,~]=w36.run_algorithm('purerl_off',scn,c);
+tc.verifyEqual(log1.powerMeas,log2.powerMeas,'离线部署功率应逐位可复现');
+tc.verifyEqual(log1.speedCmd,log2.speedCmd,'指令序列应逐位可复现');
+end
+
+function test_purerl_pre_const_beats_openloop(tc)
+c=w36.config('seed',3,'windKind','const','windBias',3.5,'windDirDeg',40,'duration',1200);
+scn=w36.scenario('static',c);
+[logO,~]=w36.run_algorithm('openloop',scn,c);
+mO=w36.mop_moe(logO,c);
+for v={'purerl_off','purerl_on'}
+    [log,info]=w36.run_algorithm(v{1},scn,c);
+    m=w36.mop_moe(log,c);
+    tc.verifyLessThan(m.energyExcessPercent,mO.energyExcessPercent,...
+        sprintf('%s应优于开环',v{1}));
+    tc.verifyLessThan(m.energyExcessPercent,3.5,sprintf('%s预训练后1200步应<3.5%%',v{1}));
+    tc.verifyGreaterThan(max(info.muB)-min(info.muB),2.0,sprintf('%s应学到地速补偿轮廓',v{1}));
+end
+end
+
+function test_purerl_pretrain_beats_scratch(tc)
+% 核心主张: 同预算评估窗内, 预训练部署优于从零在线(消除前段学习劣势)
+c=w36.config('seed',3,'windKind','const','windBias',3.5,'windDirDeg',40,'duration',900);
+scn=w36.scenario('static',c);
+[logS,~]=w36.run_algorithm('purerl_scratch',scn,c);
+mS=w36.mop_moe(logS,c);
+for v={'purerl_off','purerl_on'}
+    [log,~]=w36.run_algorithm(v{1},scn,c);
+    m=w36.mop_moe(log,c);
+    tc.verifyLessThan(m.energyExcessPercent,mS.energyExcessPercent,...
+        sprintf('%s应优于从零对照(预训练价值)',v{1}));
+end
+end
+
+function test_purerl_vary_online_beats_openloop(tc)
+wcfg={'windKind','composite','windBias',2.5,'windAmp',1.5,'windOmega',0.08,...
+    'windBiasY',0,'windAmpY',0,'turbStd',0.3};
+c=w36.config('seed',3,wcfg{:},'duration',800);
+scn=w36.scenario('static',c);
+[log,~]=w36.run_algorithm('purerl_on',scn,c);
+[logO,~]=w36.run_algorithm('openloop',scn,c);
+m=w36.mop_moe(log,c); mO=w36.mop_moe(logO,c);
+tc.verifyLessThan(m.energyExcessPercent,mO.energyExcessPercent,'变风下在线部署应优于开环');
+end
+
+function test_purerl_online_beats_offline_under_shift(tc)
+% 在线学习的价值: 曲线跳变后在线重学优于冻结策略(周期性漂移下两者接近, 跳变才分离)
+c=w36.config('seed',3,'duration',800,'jumpUpDx',2.7);
+scn=w36.scenario('jumpUp',c);
+[logOn,~]=w36.run_algorithm('purerl_on',scn,c);
+[logOff,~]=w36.run_algorithm('purerl_off',scn,c);
+mOn=w36.mop_moe(logOn,c); mOff=w36.mop_moe(logOff,c);
+tc.verifyLessThan(mOn.energyExcessPercent,mOff.energyExcessPercent,...
+    '曲线跳变下在线部署应优于离线冻结(重学价值)');
+end
+
+function test_purerl_no_sweep_calibration(tc)
+variants={'purerl_on','purerl_off','purerl_scratch'};
+for i=1:numel(variants)
+    c=w36.config('seed',3,'duration',600,'plWarmMax',800);
+    scn=w36.scenario('static',c);
+    [log,~]=w36.run_algorithm(variants{i},scn,c);
+    early=log.speedCmd(1:150);
+    % 无扫频判据: 无calib标签 且 不进入高速扫频段。注意预训练策略前150步本来就会
+    % 飞在学到的补偿轮廓上(低速可达~3.4), 旧版双侧速度界断言对预训练部署不适用。
+    tc.verifyTrue(~any(strcmp(string(log.tag),"calib")),...
+        sprintf('%s不应出现标定段',variants{i}));
+    tc.verifyLessThan(max(early),c.swHi-1,...
+        sprintf('%s前150步不应出现高速扫频段',variants{i}));
+end
+end
+
+function test_four_heroes_all_kinds_complete(tc)
+kinds={'const','sin','square','triangle','turb','composite','sector'};
+heroes={'sweepcal','rl','purerl_on','purerl_off','hybrid'};
+for kk=1:numel(kinds)
+    for hh=1:numel(heroes)
+        c=w36.config('seed',11,'duration',250,'tailSteps',5,'windKind',kinds{kk},...
+            'windAmpY',1.5,'windBiasY',1);
+        [log,~]=w36.run_algorithm(heroes{hh},w36.scenario('static',c),c);
+        tc.verifyEqual(height(log),250,sprintf('%s×%s预算未走满',kinds{kk},heroes{hh}));
+    end
+end
+end
+
+
+%% ---------- 任务3.6: 平台后端对接(拍板1/2/3) ----------
+function test_platform_budget_seconds(tc)
+% 拍板1: 预算按秒丈量——日志逐秒覆盖任务窗, 时间跨度达预算
+c=w36.config('backend','platform','evalSeconds',400,'seed',11,...
+    'windKind','const','windBias',0,'windBiasY',0);
+scn=w36.scenario('static',c);
+[log,~]=w36.run_algorithm('openloop',scn,c);
+tc.verifyGreaterThanOrEqual(height(log),c.evalSeconds,'平台日志应逐秒覆盖任务窗');
+tc.verifyLessThan(height(log),c.evalSeconds*1.25,'超出任务窗过多(就位吸收失控)');
+tc.verifyGreaterThanOrEqual(log.time(end),c.evalSeconds-1,'仿真秒数应达预算');
+end
+
+function test_platform_settle_delegated_blind(tc)
+% 拍板2: 就位判定交给平台——sweepcal 端到端盲找回平台真值谷底(v*≈5, 算法不可见)
+c=w36.config('backend','platform','evalSeconds',900,'seed',11,...
+    'windKind','const','windBias',0,'windBiasY',0);
+scn=w36.scenario('static',c);
+[~,info]=w36.run_algorithm('sweepcal',scn,c);
+tc.verifyLessThan(abs(info.uStar-5.0),1.2,'sweepcal应盲找回平台真值谷底(v*≈5)');
+end
+
+function test_platform_known_oracle(tc)
+% 拍板3: MOE口径在平台上成立——known oracle 应接近理论最优
+c=w36.config('backend','platform','evalSeconds',500,'seed',11,...
+    'windKind','const','windBias',0,'windBiasY',0);
+scn=w36.scenario('static',c);
+[log,~]=w36.run_algorithm('known',scn,c);
+m=w36.mop_moe(log,c);
+tc.verifyLessThan(m.energyExcessPercent,3.0,'平台oracle应接近理论最优(<3%)');
+end
+
+function test_platform_purerl_off_accounting(tc)
+% 预训练(试飞时段)+离线部署在平台上: 记账完整、日志逐秒、零评估期更新
+c=w36.config('backend','platform','evalSeconds',400,'seed',11,'plWarmMax',400,...
+    'windKind','composite','windBias',2.5,'windAmp',0,'windAmpY',0,'turbStd',0.3);
+scn=w36.scenario('static',c);
+[log,info]=w36.run_algorithm('purerl_off',scn,c);
+tc.verifyTrue(info.warmupSteps>0,'预训练调用数记账');
+tc.verifyEqual(info.nUpdate,0,'离线部署评估期零更新');
+tc.verifyGreaterThanOrEqual(height(log),c.evalSeconds,'任务窗逐秒覆盖');
+end
