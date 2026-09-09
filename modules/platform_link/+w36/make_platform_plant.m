@@ -45,7 +45,7 @@ scnW = w36.scenario('static', cW);
 s = plane.reset(pc);
 est = c.initialSpeed; lastTag = 'init'; curV = c.initialSpeed;
 tHist = []; pHist = [];
-rows = {}; rowCnt = 0; secMarker = floor(s.time_s);
+rows = cell(0,27); rowCnt = 0; secMarker = floor(s.time_s);
 accPeak = 0; vPrev = s.v_ground_mps;
 plt = struct('q', @q, 'amendEstimate', @amendEstimate, 'count', @count, ...
     'table', @table, 'truth', @truth, 'windAt', @windAt, 'planeCfg', pc);
@@ -104,15 +104,16 @@ plt = struct('q', @q, 'amendEstimate', @amendEstimate, 'count', @count, ...
                 wt = Wx2*tangent(1) + Wy2*tangent(2);
                 optGnd = min(max(vStarAir + wt, pc.speed_bounds_mps(1)), ...
                     pc.speed_bounds_mps(2));
+                % 末 8 列 = 每桨电功率/悬停功率(m1Up..m4Lo, UI 八桨功率图;
+                % 每桨功率非曲线/风/最优真值, 不触红线1白名单)
+                motN = out.motor_power_w(:).' / powerScale;   % 1×8
                 rows(end+1,:) = {rowCnt, s.time_s, s.v_ground_mps, curV, ...
                     lastTag, PmeasW/powerScale, out.power_w/powerScale, ...
                     optGnd, PminW/powerScale, est, rad2deg(s.phase_rad), 0, 0, ...
                     accPeak, abs(dot(out.air_velocity_ne_mps, tangent)), ...
                     Wx2, Wy2, s.position_ne_m(1), s.position_ne_m(2), ...
-                    out.motor_power_w(:).'/powerScale}; %#ok<AGROW>
-                % 末 8 列 = 每桨电功率/悬停功率(m1Up..m4Lo, UI 八桨功率图;
-                % 每桨功率非曲线/风/最优真值, 不触红线1白名单)
-            end
+                    motN(1), motN(2), motN(3), motN(4), ...
+                    motN(5), motN(6), motN(7), motN(8)}; %#ok<AGROW>
                 accPeak = 0;
             end
         end
