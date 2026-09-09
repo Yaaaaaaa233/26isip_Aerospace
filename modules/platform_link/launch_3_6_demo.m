@@ -118,12 +118,10 @@ labSeaT=mkTag('搜索步数(含就位) / 稳态波动σ'); put(labSeaT,6,1);
 labSea=mkVal(11); put(labSea,6,2);
 readout=uilabel(left,'Text','','WordWrap','on','FontName','Microsoft YaHei'); put(readout,5,1);
 logBox=uitextarea(left,'Editable','off','FontName','Microsoft YaHei','FontSize',9); put(logBox,6,1);
-plots=uigridlayout(outer,[4 2]); put(plots,2,2); plots.Padding=[0 0 0 0];
-plots.RowHeight={'1x','1x',250,'1x'}; plots.ColumnWidth={'1x','1x'}; plots.RowSpacing=14; plots.ColumnSpacing=18;
+plots=uigridlayout(outer,[3 2]); put(plots,2,2); plots.Padding=[0 0 0 0];
+plots.RowHeight={'1x','1x',250}; plots.ColumnWidth={'1x','1x'}; plots.RowSpacing=14; plots.ColumnSpacing=18;
 ax=gobjects(1,4); for k=1:4, ax(k)=uiaxes(plots); disableDefaultInteractivity(ax(k)); ax(k).Toolbar.Visible='off'; end
 put(ax(1),1,1); put(ax(2),1,2); put(ax(3),2,1); put(ax(4),2,2);
-axMot=uiaxes(plots); put(axMot,3,[1 2]); disableDefaultInteractivity(axMot);
-axMot.Toolbar.Visible='off'; hold(axMot,'on');
 status=uilabel(outer,'Text','就绪','FontName','Microsoft YaHei'); put(status,3,2);
 clock=timer('ExecutionMode','fixedSpacing','Period',.15,'BusyMode','drop','TimerFcn',@tick);
 L=table(); info=[]; scn=[]; c=[]; Lb=table(); mBase=[]; cursor=1; dirty=true;
@@ -596,22 +594,6 @@ prepare();
         title(ax(3),'功率轨迹'); legend(ax(3),'Location','north','FontSize',8);
         h.metric=line(ax(4),nan,nan,'Color',[.8 .45 .1],'LineWidth',1.3);
         xlabel(ax(4),'评估步'); title(ax(4),'累计能量超额(开关=开)');
-        % ---- 第5子图: 八桨电功率折线(平台后端专属; 2026-09-09 叶安需求) ----
-        % 上层四桨暖色(M1上左/M2上右/M3上后/M4上前), 下层四桨冷色; 虚线=总功率/8 均值参考
-        motNames={'M1上左','M2上右','M3上后','M4上前','M5下左','M6下右','M7下后','M8下前'};
-        motCol=[0.85 0.33 0.10; 0.95 0.55 0.10; 0.80 0.20 0.45; 0.90 0.75 0.20; ...
-                0.15 0.45 0.75; 0.10 0.62 0.55; 0.40 0.35 0.75; 0.25 0.65 0.30];
-        h.mot=gobjects(1,8);
-        for k=1:8
-            h.mot(k)=line(axMot,nan,nan,'Color',motCol(k,:),'LineWidth',1.1,...
-                'DisplayName',motNames{k});
-        end
-        h.motAvg=line(axMot,nan,nan,'Color',[.35 .35 .35],'LineStyle','--',...
-            'LineWidth',0.9,'DisplayName','八桨均值');
-        xlabel(axMot,'评估步'); ylabel(axMot,'每桨电功率 / W');
-        title(axMot,'八桨电功率总览(平台P2物理链 out.motor\_power\_w; 本地后端无此数据自动隐藏)');
-        legend(axMot,'Location','eastoutside','NumColumns',2,'FontSize',7);
-        xlim(axMot,[1 2]);
     end
 
     function caseChanged(varargin)
@@ -791,25 +773,6 @@ prepare();
             ax(4).YScale='log'; ax(4).YLabel.String='|v_{hat}-v*(t)| / m/s';
             title(ax(4),'估计误差(开关=关, 只看定位)');
             h.metric.YData=max(estError(1:k),1e-4);
-        end
-        % ---- 第5子图: 八桨电功率(仅平台后端日志有 m1Up 列; 本地后端隐藏) ----
-        hasMot = istable(L) && any(strcmp(L.Properties.VariableNames, 'm1Up'));
-        if hasMot && any(~isnan(L.m1Up(1:k)))
-            motNames8={'m1Up','m2Up','m3Up','m4Up','m1Lo','m2Lo','m3Lo','m4Lo'};
-            for kk=1:8
-                h.mot(kk).XData=(1:k)'; h.mot(kk).YData=L.(motNames8{kk})(1:k)*c.pHover;
-            end
-            h.motAvg.XData=(1:k)'; h.motAvg.YData=L.powerTrue(1:k)*c.pHover/8;
-            h.motAvg.Visible='on';
-            for kk=1:8, h.mot(kk).Visible='on'; end
-            xlim(axMot,[1 n]);
-            ymaxMot=0;
-            for kk=1:8, ymaxMot=max(ymaxMot,max(L.(motNames8{kk})(1:k))); end
-            ylim(axMot,[0,max(50,ymaxMot*c.pHover*1.25)]);
-        else
-            for kk=1:8, h.mot(kk).Visible='off'; end
-            h.motAvg.Visible='off';
-            title(axMot,'八桨电功率总览(平台后端专属; 当前数据源无此列)');
         end
         h.metric.XData=(1:k)';
         ph='—';
