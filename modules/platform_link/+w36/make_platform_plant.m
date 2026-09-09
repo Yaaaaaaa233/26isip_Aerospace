@@ -12,8 +12,8 @@ function plt = make_platform_plant(scn, c)
 % 功率归一: 除以平台悬停功率(真值曲线 J(0)), 算法侧 hover≈1 口径与 3.5 一致。
 % 依赖: models/plane(+plane) 与 harness(+harness) 在 MATLAB path(平台线仓库)。
 if nargin<1, c=w36.config(); end
-root=fileparts(mfilename('fullpath')); repoRoot=fullfile(root,'..','..','..','26isip_Aerospace');
-if exist('plane.config','file')~=2
+root=fileparts(mfilename('fullpath')); repoRoot=fullfile(root,'..','..','..');
+if isempty(which('plane.config'))
     dst=fullfile(tempdir,'t36_plane_fallback');
     if exist(fullfile(dst,'+plane','config.m'),'file')~=2
         if exist(dst,'dir'), rmdir(dst,'s'); end
@@ -21,7 +21,7 @@ if exist('plane.config','file')~=2
     end
     addpath(dst);
 end
-if exist('harness.make_plane_adapter','file')~=2
+if isempty(which('harness.make_plane_adapter'))
     dst2=fullfile(tempdir,'t36_harness_fallback');
     if exist(fullfile(dst2,'+harness','make_plane_adapter.m'),'file')~=2
         if exist(dst2,'dir'), rmdir(dst2,'s'); end
@@ -29,12 +29,12 @@ if exist('harness.make_plane_adapter','file')~=2
     end
     addpath(dst2);
 end
-assert(exist('plane.config','file')==2,'w36:PlatformPlant','找不到平台对象 models/plane/+plane, 请检查仓库路径。');
+assert(~isempty(which('plane.config')),'w36:PlatformPlant','找不到平台对象 models/plane/+plane, 请检查仓库路径。');
 assert(strcmp(c.backend,'platform'),'w36:PlatformPlant','本后端仅用于 backend=platform。');
 assert(abs(c.tEval-1.0)<1e-12,'w36:PlatformPlant','平台后端要求 tEval=1.0s(预算按秒)。');
+rng(c.seed);   % 平台后端可复现性(F4, 2026-09-09): 与本地后端 make_plant 同语义
 pc = plane.config('circle_radius_m', c.turnRadius);
 dt = pc.sample_time_s;
-stepPerSec = round(1.0/dt);
 acT = harness.make_plane_adapter(struct('powerScaleW', 1), struct());
 ttA = acT.truth();
 uu = ttA.curveV(:); JJ = ttA.curveJ(:);
@@ -65,7 +65,10 @@ plt = struct('q', @q, 'amendEstimate', @amendEstimate, 'count', @count, ...
     function Pm = q(v, tag)
         vref = min(pc.speed_bounds_mps(2), max(pc.speed_bounds_mps(1), double(v)));
         curV = vref; lastTag = char(tag);
-        Pm = adv(stepPerSec);
+        % F1(2026-09-09): adv 参数是秒数——每次查询恰推进 1.0 s(预算按秒口径)。
+        % 原实现误传步数 stepPerSec(=100), 每查询推进 100 s, 标定 150 样本
+        % 需 >=15000 s 远超预算, sweepcal 拟合从未执行(û* 停在初值 7.5)。
+        Pm = adv(1.0);
     end
     function PmChunk = adv(dtChunk)
         nInner = round(dtChunk/dt);

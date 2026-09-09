@@ -33,7 +33,7 @@ coefs=NaN(1,5); wSm=[0;0]; uKept=nan(1,0); uKeptCal=nan(1,0);
 uStar=0.5*(p.swLo+p.swHi);            % 初值=扫描区间中点(无任何先验)
 uArg=uStar;                           % 当前曲线的支撑谷底(探针信赖域中心)
 uLo=p.swLo; uHi=p.swHi;               % argmin 允许的 u 范围(随拟合集更新)
-phase=1; calibSteps=NaN; fitRms=NaN; kStep=0; nDisc=0; v=NaN;
+phase=1; calibSteps=NaN; fitRms=NaN; kStep=0; nDisc=0; v=NaN; vFeas=NaN;
 bEst=p.ucB0; sPrev=NaN; uPrev=NaN;
 uHat=nan(1,n); wEst=nan(2,n); phHist=2*ones(1,n);
 while plant.count()<n
@@ -46,8 +46,17 @@ while plant.count()<n
         tx=cos(psiUnw); ty=sin(psiUnw);
         q=tx*wSm(1)+ty*wSm(2);
         disc=q^2+uStar^2-(wSm(1)^2+wSm(2)^2);
-        if disc>0, v=q+sqrt(disc); else, v=max(q,0); nDisc=nDisc+1; end
+        if disc>0
+            v=q+sqrt(disc);
+        else
+            % 守卫C(2026-09-09接手修复F3): disc<0 只说明当前ŵ/û*组合无闭式解,
+            % 不存在"指令归零"的物理理由——保持上一条可行指令, 数学伪影不得把
+            % 飞机打到近悬停(实测原 max(q,0) 兜底使 Phase B 平均地速 0.53 m/s)。
+            nDisc=nDisc+1;
+            if isnan(vFeas), v=min(max(uStar,p.lower+0.3),p.upper-0.3); else, v=vFeas; end
+        end
         v=min(max(v,p.lower+0.3),p.upper-0.3);
+        vFeas=v;
         tag='refine';
         % ---- 探针对(上下交替): 每 ucProbeEvery 步占2步 ----
         sgn=(-1)^floor(kp/p.ucProbeEvery);
@@ -97,8 +106,20 @@ while plant.count()<n
     if phase==2 && mod(kStep,p.swRefitEvery)==0 && nr>=30
         % (1) 风误差在线修正(3参数δw+c0, 2.1机制移植): 标定的虚假风/漂移
         %     会以每圈一次的功率调制自我暴露, 全窗口可观测并扣除。
-        [dwC,~]=w36.wind_corr(rnPsi(1:nr),rnV(1:nr),rnP(1:nr),coefs,wSm,p);
-        wSm=wSm+0.8*dwC;
+        % 守卫B(2026-09-09接手修复F2): 修正仅在窗口信息充分时执行——航向净
+        %     转角>=0.8 rad(2.1 wiSweepMin缺省语义, 该参数被ctrl_view剔除故
+        %     取局部常数)且指令速度极差>=1.0 m/s; 退化几何(速度趴窝/停转)上
+        %     δw是垃圾且会自我强化(实测无此门时ŵ发散到|w|~32 m/s)。
+        %     跳过修正总是安全的——ŵ保持标定值。
+        psiSpanW=rnPsi(nr)-rnPsi(1);
+        vSpanW=max(rnV(1:nr))-min(rnV(1:nr));
+        if psiSpanW>=0.8 && vSpanW>=1.0
+            [dwC,~]=w36.wind_corr(rnPsi(1:nr),rnV(1:nr),rnP(1:nr),coefs,wSm,p);
+            wSm=wSm+0.8*dwC;
+            % 守卫A(2026-09-09接手修复F2): 风估计物理界|w|<=8(与fit_curve_wind
+            % 内钳位同上限)——wind_corr 解无界, 在线累加路径不得绕过该界。
+            wSm=min(max(wSm,-8),8);
+        end
     end
     if phase==2
         if mod(kStep,p.swRefitEvery)==0 && nr>=30

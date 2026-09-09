@@ -694,3 +694,28 @@ tc.verifyTrue(info.warmupSteps>0,'预训练调用数记账');
 tc.verifyEqual(info.nUpdate,0,'离线部署评估期零更新');
 tc.verifyGreaterThanOrEqual(height(log),c.evalSeconds,'任务窗逐秒覆盖');
 end
+
+function test_platform_query_advances_one_second(tc)
+% F1 回归锚(2026-09-09 接手修复): 单次 q() 恰推进 1.000 s、日志恰 1 行。
+% 原缺陷: adv 误传步数(stepPerSec=100), 每查询推进 100 s, 标定 150 样本
+% 需 >=15000 s 远超预算 -> sweepcal 拟合从未执行, û* 停在初值 7.5。
+c=w36.config('backend','platform','evalSeconds',400,'seed',11,...
+    'windKind','const','windBias',0,'windBiasY',0);
+pl=w36.make_platform_plant(w36.scenario('static',c),c);
+t0=pl.count(); pl.q(6.3,'probe'); t1=pl.count();
+tc.verifyEqual(t1-t0,1.0,'AbsTol',1e-9,'单次q()应恰推进1秒(预算按秒口径)');
+tc.verifyEqual(height(pl.table()),1,'单次q()应恰产生1行逐秒日志');
+end
+
+function test_platform_sweepcal_wind_bounded(tc)
+% F2 回归锚(2026-09-09 接手修复): 风估计全程在物理界 |w|<=8 m/s 内
+% (与 fit_curve_wind 内钳位同上限; 原 Phase B wind_corr 无界累加曾发散到 |w|~32)
+c=w36.config('backend','platform','evalSeconds',900,'seed',11,...
+    'windKind','composite','windBias',2.5,'windAmp',0,'windAmpY',0,'turbStd',0.3);
+scn=w36.scenario('static',c);
+[~,info]=w36.run_algorithm('sweepcal',scn,c);
+wNorm=hypot(info.windEst(1,:),info.windEst(2,:));
+wNorm=wNorm(~isnan(wNorm));
+tc.verifyLessThan(max([wNorm,norm(info.windFinal)]),8.0+1e-9,...
+    '风估计应全程在物理界|w|<=8内');
+end
