@@ -1,0 +1,342 @@
+正在运行 tests_task36
+.......... .......... .......... .......... ......[警告: 转义字符 '\U' 无效。有关支持的特殊字符，请参阅 'doc sprintf'。] 
+[> 位置：w36.make_platform_plant (第 41 行)
+位置: w36.run_algorithm (第 34 行)
+位置: tests_task36>test_platform_budget_seconds (第 662 行)
+位置: matlab.unittest/TestRunner/evaluateMethodCore (第 989 行)
+位置: matlab.unittest/TestRunner/evaluateMethodsOnTestContent (第 930 行)
+位置: matlab.unittest/TestRunner/runTestMethodCore (第 1100 行)
+位置: matlab.unittest/TestRunner/runTestCore (第 1074 行)
+位置: matlab.unittest/TestRunner/repeatTest (第 557 行)
+位置: matlab.unittest/TestRunner/runSharedTestCase (第 498 行)
+位置: matlab.unittest/TestRunner/runTestClass (第 1365 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: matlab.unittest.plugins.testrunprogress/ConciseProgressPlugin/runTestClass (第 68 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestClass (第 146 行)
+位置: matlab.unittest/TestRunner/runTestSuite (第 1290 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsOutputPlugin/runTestSuite (第 161 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsRecordingPlugin/runTestSuite (第 208 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestSuite (第 132 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runTestSuite (第 36 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runSession (第 16 行)
+位置: matlab.unittest/TestRunner/runSession (第 1246 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runSession (第 228 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runSession (第 121 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest/TestRunner/doRunWithFcn (第 409 行)
+位置: matlab.unittest/TestRunner/run (第 297 行)
+位置: runtests (第 122 行)]
+
+================================================================================
+tests_task36/test_platform_budget_seconds 中出现错误并且未运行完毕。
+    --------
+    错误 ID:
+    --------
+    'w36:PlatformPlant'
+    -----------
+    错误详细信息:
+    -----------
+    错误使用 assert
+    未找到26isip_Aerospace仓库根(已试: C:
+    
+    出错 w36.make_platform_plant (第 41 行)
+        assert(~isempty(repoRoot),'w36:PlatformPlant', ...
+    
+    出错 w36.run_algorithm (第 34 行)
+        plant=w36.make_platform_plant(scn,c); n=c.evalSeconds;   % 预算按秒
+    
+    出错 tests_task36>test_platform_budget_seconds (第 662 行)
+    [log,~]=w36.run_algorithm('openloop',scn,c);
+================================================================================
+.[警告: 转义字符 '\U' 无效。有关支持的特殊字符，请参阅 'doc sprintf'。] 
+[> 位置：w36.make_platform_plant (第 41 行)
+位置: w36.run_algorithm (第 34 行)
+位置: tests_task36>test_platform_settle_delegated_blind (第 673 行)
+位置: matlab.unittest/TestRunner/evaluateMethodCore (第 989 行)
+位置: matlab.unittest/TestRunner/evaluateMethodsOnTestContent (第 930 行)
+位置: matlab.unittest/TestRunner/runTestMethodCore (第 1100 行)
+位置: matlab.unittest/TestRunner/runTestCore (第 1074 行)
+位置: matlab.unittest/TestRunner/repeatTest (第 557 行)
+位置: matlab.unittest/TestRunner/runSharedTestCase (第 498 行)
+位置: matlab.unittest/TestRunner/runTestClass (第 1365 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: matlab.unittest.plugins.testrunprogress/ConciseProgressPlugin/runTestClass (第 68 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestClass (第 146 行)
+位置: matlab.unittest/TestRunner/runTestSuite (第 1290 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsOutputPlugin/runTestSuite (第 161 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsRecordingPlugin/runTestSuite (第 208 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestSuite (第 132 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runTestSuite (第 36 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runSession (第 16 行)
+位置: matlab.unittest/TestRunner/runSession (第 1246 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runSession (第 228 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runSession (第 121 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest/TestRunner/doRunWithFcn (第 409 行)
+位置: matlab.unittest/TestRunner/run (第 297 行)
+位置: runtests (第 122 行)]
+
+================================================================================
+tests_task36/test_platform_settle_delegated_blind 中出现错误并且未运行完毕。
+    --------
+    错误 ID:
+    --------
+    'w36:PlatformPlant'
+    -----------
+    错误详细信息:
+    -----------
+    错误使用 assert
+    未找到26isip_Aerospace仓库根(已试: C:
+    
+    出错 w36.make_platform_plant (第 41 行)
+        assert(~isempty(repoRoot),'w36:PlatformPlant', ...
+    
+    出错 w36.run_algorithm (第 34 行)
+        plant=w36.make_platform_plant(scn,c); n=c.evalSeconds;   % 预算按秒
+    
+    出错 tests_task36>test_platform_settle_delegated_blind (第 673 行)
+    [~,info]=w36.run_algorithm('sweepcal',scn,c);
+================================================================================
+.[警告: 转义字符 '\U' 无效。有关支持的特殊字符，请参阅 'doc sprintf'。] 
+[> 位置：w36.make_platform_plant (第 41 行)
+位置: w36.run_algorithm (第 34 行)
+位置: tests_task36>test_platform_known_oracle (第 682 行)
+位置: matlab.unittest/TestRunner/evaluateMethodCore (第 989 行)
+位置: matlab.unittest/TestRunner/evaluateMethodsOnTestContent (第 930 行)
+位置: matlab.unittest/TestRunner/runTestMethodCore (第 1100 行)
+位置: matlab.unittest/TestRunner/runTestCore (第 1074 行)
+位置: matlab.unittest/TestRunner/repeatTest (第 557 行)
+位置: matlab.unittest/TestRunner/runSharedTestCase (第 498 行)
+位置: matlab.unittest/TestRunner/runTestClass (第 1365 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: matlab.unittest.plugins.testrunprogress/ConciseProgressPlugin/runTestClass (第 68 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestClass (第 146 行)
+位置: matlab.unittest/TestRunner/runTestSuite (第 1290 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsOutputPlugin/runTestSuite (第 161 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsRecordingPlugin/runTestSuite (第 208 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestSuite (第 132 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runTestSuite (第 36 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runSession (第 16 行)
+位置: matlab.unittest/TestRunner/runSession (第 1246 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runSession (第 228 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runSession (第 121 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest/TestRunner/doRunWithFcn (第 409 行)
+位置: matlab.unittest/TestRunner/run (第 297 行)
+位置: runtests (第 122 行)]
+
+================================================================================
+tests_task36/test_platform_known_oracle 中出现错误并且未运行完毕。
+    --------
+    错误 ID:
+    --------
+    'w36:PlatformPlant'
+    -----------
+    错误详细信息:
+    -----------
+    错误使用 assert
+    未找到26isip_Aerospace仓库根(已试: C:
+    
+    出错 w36.make_platform_plant (第 41 行)
+        assert(~isempty(repoRoot),'w36:PlatformPlant', ...
+    
+    出错 w36.run_algorithm (第 34 行)
+        plant=w36.make_platform_plant(scn,c); n=c.evalSeconds;   % 预算按秒
+    
+    出错 tests_task36>test_platform_known_oracle (第 682 行)
+    [log,~]=w36.run_algorithm('known',scn,c);
+================================================================================
+.[警告: 转义字符 '\U' 无效。有关支持的特殊字符，请参阅 'doc sprintf'。] 
+[> 位置：w36.make_platform_plant (第 41 行)
+位置: w36.run_algorithm (第 34 行)
+位置: tests_task36>test_platform_purerl_off_accounting (第 692 行)
+位置: matlab.unittest/TestRunner/evaluateMethodCore (第 989 行)
+位置: matlab.unittest/TestRunner/evaluateMethodsOnTestContent (第 930 行)
+位置: matlab.unittest/TestRunner/runTestMethodCore (第 1100 行)
+位置: matlab.unittest/TestRunner/runTestCore (第 1074 行)
+位置: matlab.unittest/TestRunner/repeatTest (第 557 行)
+位置: matlab.unittest/TestRunner/runSharedTestCase (第 498 行)
+位置: matlab.unittest/TestRunner/runTestClass (第 1365 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: matlab.unittest.plugins.testrunprogress/ConciseProgressPlugin/runTestClass (第 68 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestClass (第 146 行)
+位置: matlab.unittest/TestRunner/runTestSuite (第 1290 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsOutputPlugin/runTestSuite (第 161 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsRecordingPlugin/runTestSuite (第 208 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestSuite (第 132 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runTestSuite (第 36 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runSession (第 16 行)
+位置: matlab.unittest/TestRunner/runSession (第 1246 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runSession (第 228 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runSession (第 121 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest/TestRunner/doRunWithFcn (第 409 行)
+位置: matlab.unittest/TestRunner/run (第 297 行)
+位置: runtests (第 122 行)]
+
+================================================================================
+tests_task36/test_platform_purerl_off_accounting 中出现错误并且未运行完毕。
+    --------
+    错误 ID:
+    --------
+    'w36:PlatformPlant'
+    -----------
+    错误详细信息:
+    -----------
+    错误使用 assert
+    未找到26isip_Aerospace仓库根(已试: C:
+    
+    出错 w36.make_platform_plant (第 41 行)
+        assert(~isempty(repoRoot),'w36:PlatformPlant', ...
+    
+    出错 w36.run_algorithm (第 34 行)
+        plant=w36.make_platform_plant(scn,c); n=c.evalSeconds;   % 预算按秒
+    
+    出错 tests_task36>test_platform_purerl_off_accounting (第 692 行)
+    [log,info]=w36.run_algorithm('purerl_off',scn,c);
+================================================================================
+.
+[警告: 转义字符 '\U' 无效。有关支持的特殊字符，请参阅 'doc sprintf'。] 
+[> 位置：w36.make_platform_plant (第 41 行)
+位置: tests_task36>test_platform_query_settles_and_counts (第 705 行)
+位置: matlab.unittest/TestRunner/evaluateMethodCore (第 989 行)
+位置: matlab.unittest/TestRunner/evaluateMethodsOnTestContent (第 930 行)
+位置: matlab.unittest/TestRunner/runTestMethodCore (第 1100 行)
+位置: matlab.unittest/TestRunner/runTestCore (第 1074 行)
+位置: matlab.unittest/TestRunner/repeatTest (第 557 行)
+位置: matlab.unittest/TestRunner/runSharedTestCase (第 498 行)
+位置: matlab.unittest/TestRunner/runTestClass (第 1365 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: matlab.unittest.plugins.testrunprogress/ConciseProgressPlugin/runTestClass (第 68 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestClass (第 146 行)
+位置: matlab.unittest/TestRunner/runTestSuite (第 1290 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsOutputPlugin/runTestSuite (第 161 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsRecordingPlugin/runTestSuite (第 208 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestSuite (第 132 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runTestSuite (第 36 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runSession (第 16 行)
+位置: matlab.unittest/TestRunner/runSession (第 1246 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runSession (第 228 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runSession (第 121 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest/TestRunner/doRunWithFcn (第 409 行)
+位置: matlab.unittest/TestRunner/run (第 297 行)
+位置: runtests (第 122 行)]
+
+================================================================================
+tests_task36/test_platform_query_settles_and_counts 中出现错误并且未运行完毕。
+    --------
+    错误 ID:
+    --------
+    'w36:PlatformPlant'
+    -----------
+    错误详细信息:
+    -----------
+    错误使用 assert
+    未找到26isip_Aerospace仓库根(已试: C:
+    
+    出错 w36.make_platform_plant (第 41 行)
+        assert(~isempty(repoRoot),'w36:PlatformPlant', ...
+    
+    出错 tests_task36>test_platform_query_settles_and_counts (第 705 行)
+    pl=w36.make_platform_plant(w36.scenario('static',c),c);
+================================================================================
+.[警告: 转义字符 '\U' 无效。有关支持的特殊字符，请参阅 'doc sprintf'。] 
+[> 位置：w36.make_platform_plant (第 41 行)
+位置: w36.run_algorithm (第 34 行)
+位置: tests_task36>test_platform_sweepcal_wind_bounded (第 721 行)
+位置: matlab.unittest/TestRunner/evaluateMethodCore (第 989 行)
+位置: matlab.unittest/TestRunner/evaluateMethodsOnTestContent (第 930 行)
+位置: matlab.unittest/TestRunner/runTestMethodCore (第 1100 行)
+位置: matlab.unittest/TestRunner/runTestCore (第 1074 行)
+位置: matlab.unittest/TestRunner/repeatTest (第 557 行)
+位置: matlab.unittest/TestRunner/runSharedTestCase (第 498 行)
+位置: matlab.unittest/TestRunner/runTestClass (第 1365 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: matlab.unittest.plugins.testrunprogress/ConciseProgressPlugin/runTestClass (第 68 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestClass (第 430 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestClass (第 146 行)
+位置: matlab.unittest/TestRunner/runTestSuite (第 1290 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsOutputPlugin/runTestSuite (第 161 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: matlab.unittest.plugins/DiagnosticsRecordingPlugin/runTestSuite (第 208 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runTestSuite (第 265 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runTestSuite (第 132 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runTestSuite (第 36 行)
+位置: matlab.unittest.internal/SerialTestRunStrategy/runSession (第 16 行)
+位置: matlab.unittest/TestRunner/runSession (第 1246 行)
+位置: matlab.unittest.plugins/TestRunnerPlugin/runSession (第 228 行)
+位置: sltest.plugins/TestManagerResultsPlugin/runSession (第 121 行)
+位置: matlab.unittest/TestRunner/evaluateMethodOnPlugins (第 421 行)
+位置: matlab.unittest/TestRunner/doRunWithFcn (第 409 行)
+位置: matlab.unittest/TestRunner/run (第 297 行)
+位置: runtests (第 122 行)]
+
+================================================================================
+tests_task36/test_platform_sweepcal_wind_bounded 中出现错误并且未运行完毕。
+    --------
+    错误 ID:
+    --------
+    'w36:PlatformPlant'
+    -----------
+    错误详细信息:
+    -----------
+    错误使用 assert
+    未找到26isip_Aerospace仓库根(已试: C:
+    
+    出错 w36.make_platform_plant (第 41 行)
+        assert(~isempty(repoRoot),'w36:PlatformPlant', ...
+    
+    出错 w36.run_algorithm (第 34 行)
+        plant=w36.make_platform_plant(scn,c); n=c.evalSeconds;   % 预算按秒
+    
+    出错 tests_task36>test_platform_sweepcal_wind_bounded (第 721 行)
+    [~,info]=w36.run_algorithm('sweepcal',scn,c);
+================================================================================
+.
+已完成 tests_task36
+__________
+
+失败摘要:
+
+     Name                                                 Failed  Incomplete  原因
+    ================================================================================
+     tests_task36/test_platform_budget_seconds              X         X       出错。
+    --------------------------------------------------------------------------------
+     tests_task36/test_platform_settle_delegated_blind      X         X       出错。
+    --------------------------------------------------------------------------------
+     tests_task36/test_platform_known_oracle                X         X       出错。
+    --------------------------------------------------------------------------------
+     tests_task36/test_platform_purerl_off_accounting       X         X       出错。
+    --------------------------------------------------------------------------------
+     tests_task36/test_platform_query_settles_and_counts    X         X       出错。
+    --------------------------------------------------------------------------------
+     tests_task36/test_platform_sweepcal_wind_bounded       X         X       出错。
+REGRESS38 46/52 passed

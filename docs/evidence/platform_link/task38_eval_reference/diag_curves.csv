@@ -1,0 +1,7 @@
+backend,ustar,PminRel,delta,penaltyPct
+local,6.300,0.9000,0.5,1.723
+local,6.300,0.9000,1.0,4.134
+local,6.300,0.9000,2.0,4.639
+platform,5.150,355.1510,0.5,0.345
+platform,5.150,355.1510,1.0,1.364
+platform,5.150,355.1510,2.0,5.474

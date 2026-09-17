@@ -1,0 +1,19 @@
+ARM38 start: openloop W=3600
+ARM38 DONE openloop W=3600 MOE=0.9411 excess=6.26%% viol=0.0%%
+ARM38 start: known W=3600
+ARM38 DONE known W=3600 MOE=0.9167 excess=9.08%% viol=0.0%%
+ARM38 start: sweepcal W=3600
+ARM38 DONE sweepcal W=3600 MOE=0.9613 excess=4.02%% viol=0.0%%
+ARM38 start: hybrid W=3600
+ARM38 DONE hybrid W=3600 MOE=0.9618 excess=3.97%% viol=0.0%%
+ARM38 start: rl W=3600
+ARM38 DONE rl W=3600 MOE=0.9394 excess=6.45%% viol=0.4%%
+ARM38 start: purerl_on W=3600
+ARM38 DONE purerl_on W=3600 MOE=0.9908 excess=0.93%% viol=1.8%%
+ARM38 start: purerl_off W=3600
+ARM38 DONE purerl_off W=3600 MOE=0.9954 excess=0.46%% viol=0.9%%
+ARM38 start: purerl_scratch W=3600
+ARM38 DONE purerl_scratch W=3600 MOE=0.9769 excess=2.37%% viol=0.7%%
+ARM38 start: purerl_off W=9000
+ARM38 DONE purerl_off W=9000 MOE=0.9954 excess=0.46%% viol=0.9%%
+EXP38_DONE

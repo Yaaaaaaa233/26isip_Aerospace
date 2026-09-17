@@ -1,0 +1,7 @@
+{错误使用 fprintf
+没有为 'cell' 输入定义函数。
+
+出错 exp38 (第 31 行)
+        fprintf('ARM38 %s W=%d FAILED: %s\n',alg,W,msg);
+} 
+ERROR: MATLAB error Exit Status: 0x00000001
