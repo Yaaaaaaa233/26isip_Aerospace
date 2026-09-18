@@ -88,7 +88,11 @@ rows = {}; rowCnt = 0; secMarker = floor(s.time_s);
 accPeak = 0; vPrev = s.v_ground_mps;
 plt = struct('q', @q, 'amendEstimate', @amendEstimate, 'count', @count, ...
     'table', @table, 'truth', @truth, 'windAt', @windAt, 'planeCfg', pc, ...
-    'settleDelegated', true);   % 就位委托制(2026-09-09): q()返回前已就位, RL更新门据此放行
+    'settleDelegated', true, ...   % 就位委托制(2026-09-09): q()返回前已就位, RL更新门据此放行
+    'phase', @phase);     % 任务3.8: 真实相位句柄(嵌套函数读实时 s.phase_rad; 匿名函数会按值捕获s, 严禁)
+    function p = phase()
+        p = s.phase_rad;   % 评价侧参照(known oracle)读真相位用
+    end
     function [Wx, Wy] = windAt(t, psi)
         [Wx, Wy] = w36.wind_field(scnW, t, psi);
     end

@@ -71,3 +71,19 @@ RMS≈风速 2.5），实际空速偏离谷底均值 2.03 m/s → 9% 超额。C 
 **修复方案（已批准，下一提交实施）**：make_platform_plant 暴露 phase 句柄；
 known_platform_run 每步 psi = plant.phase()（真相位，弃死推），转向公式保持
 v = u* + wt（平台语义下的正确最优）。预期 known 平台 MOE 0.917 → ≈0.99。
+
+## 修复实施（2026-09-18）：known oracle 读真相位 + phase 句柄（嵌套函数）
+
+- `make_platform_plant.m`：plt 新增 `phase` 句柄。**实现教训**：必须用嵌套函数
+  `function p=phase(); p=s.phase_rad; end`——首次实现用匿名函数 `@() s.phase_rad`
+  会按值捕获构造时刻的 s（phase 恒 0），导致 known 退化为恒速飞行（MOE 0.957、
+  excess 4.47% = 恒速 5.14 在复合风下的空速失配，逐秒数据完整复现）。
+- `known_platform_run.m`：每步 `psi = plant.phase()`（真相位），转向公式保持
+  v = u* + wt（平台声明语义：法向风无功率后果，闭式解的 √ 修正反而过度制动）。
+- 验证（3600s 平台）：known MOE 0.9167 → **0.9958**（excess 9.08% → 0.42%，
+  = miss 1.39% + 电压链 −0.97%）；违约 0%；回归 52/52 全绿（平台用例需先挂
+  plane/harness 路径）。
+- 图表刷新：1-11 汇报平台版第 26 页 known 条 0.917 → **0.996**，回到 oracle
+  参照应在的位置；`results/platform_moe_chart.png` 同步更新。
+- 排序（修复后平台 3600s）：known 0.996 ≥ purerl_off 0.995 > purerl_on 0.991 >
+  purerl_scratch 0.977 > hybrid 0.962 ≈ sweepcal 0.961 > openloop 0.941 ≈ rl 0.939。

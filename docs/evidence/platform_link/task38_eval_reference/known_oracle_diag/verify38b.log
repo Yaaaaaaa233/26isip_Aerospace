@@ -1,0 +1,4 @@
+KNOWN38B total=4.47% = miss(f(u)-Pmin) 5.47% + chain(P-f(u)) -1.00%
+mean|u-ustar|=1.610  u-ustar by sign: below -1.601 above 1.618
+speed track RMS(vg-vcmd)=0.214 ; headwind-clamp frac=0.0%
+VERIFY38B_DONE
