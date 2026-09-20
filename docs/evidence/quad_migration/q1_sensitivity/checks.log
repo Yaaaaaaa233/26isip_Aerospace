@@ -1,0 +1,9 @@
+正在运行 tests_q1
+........
+已完成 tests_q1
+__________
+
+单元测试：8/8 通过
+trim: vStarTrue=5.150 (Pmin=355.2W, k=9.56 W/(m/s)^2) | vStarL0=0.000 (k=0.01)
+L0 hover bias=-6.46% (-30.0W) | bias@6m/s=21.57% @9m/s=2.91%
+PASS 8/8
