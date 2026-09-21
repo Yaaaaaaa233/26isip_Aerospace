@@ -4,6 +4,10 @@ function plt = make_platform_plant_l0(scn, c, opt)
 %   estMode='l0':    q() 返回 L0 静态台架估计 P_hat(q39.est_l0), 输入取植物诊断
 %                    motor_pwm_us + voltage_v——实机"指令侧+传感器侧"可观测量的
 %                    仿真对应物。真功率只留日志/评价列(P3 双口径), 植物物理层零改动。
+%   estMode='l1':    q() 返回 L1 估计 P_hat(q39.est_l1) = L0 + 声明系数气速修正;
+%                    修正的空速输入 uhat = |(测量地速矢量 + 风测量)·切向|, 只用
+%                    测量面字段(平台链 wind_measured 全量可见; 实机 ŵ 迭代反馈的
+%                    稳定性论证另列, 不在本链)。(QUAD_MIGRATION_PLAN Q3/D1)
 %   estMode='truth': 与 3.8 号基底逐位同语义(用于复现 moe38 锚点)。
 % 场景偏差注入(合成"台架标定误差", 非估计器知识):
 %   P_hat_meas = P_map * (1 + s1_pct/100) * (1 + s2_pct_mps/100 * |u_air|)
@@ -20,6 +24,7 @@ if nargin < 3 || isempty(opt)
         'dwell_s',0,'pretrainCache',false);
     opt.arms = {};   % struct() 收到空 cell 会生成 0x0 空结构体, 必须后补字段
 end
+if ~isfield(opt, 'decl'), opt.decl = []; end   % L1 声明系数覆盖(空 = c 自身)
 root = fileparts(mfilename('fullpath'));
 cands = {fullfile(root,'..','..','..'), ...
          fullfile(root,'..','..','..','26isip_Aerospace'), ...
@@ -56,7 +61,8 @@ end
 assert(~isempty(which('plane.config')),'q39:PlatformPlantL0','找不到平台对象 models/plane/+plane。');
 assert(strcmp(c.backend,'platform'),'q39:PlatformPlantL0','本后端仅用于 backend=platform。');
 assert(abs(c.tEval-1.0)<1e-12,'q39:PlatformPlantL0','平台后端要求 tEval=1.0s(预算按秒)。');
-assert(any(strcmp(opt.estMode,{'truth','l0'})),'q39:PlatformPlantL0','estMode must be truth or l0.');
+assert(any(strcmp(opt.estMode,{'truth','l0','l1'})),'q39:PlatformPlantL0',...
+    'estMode must be truth, l0 or l1.');
 rng(c.seed);   % 平台后端可复现性(F4): 与基底同语义
 pc = plane.config('circle_radius_m', c.turnRadius);
 dt = pc.sample_time_s;
@@ -80,7 +86,7 @@ scnW = w36.scenario('static', cW);
 s = plane.reset(pc);
 est = c.initialSpeed; lastTag = 'init'; curV = c.initialSpeed;
 tHist = []; pHist = []; eHist = [];
-lastPwm = zeros(pc.motor_count,1); lastV = s.voltage_v; lastUair = 0;
+lastPwm = zeros(pc.motor_count,1); lastV = s.voltage_v; lastUair = 0; lastUhat = 0;
 rows = {}; rowCnt = 0; secMarker = floor(s.time_s);
 accPeak = 0; vPrev = s.v_ground_mps;
 plt = struct('q', @q, 'amendEstimate', @amendEstimate, 'count', @count, ...
@@ -105,9 +111,15 @@ plt = struct('q', @q, 'amendEstimate', @amendEstimate, 'count', @count, ...
         est = v;
     end
     function Pest = est_now()
-        % L0 估计(含场景偏差), 取最近一拍植物诊断(指令侧 pwm + 传感器侧 V)
+        % L0/L1 估计(含场景偏差), 取最近一拍植物诊断(指令侧 pwm + 传感器侧 V);
+        % l1 的气速修正输入 lastUhat 只来自测量面通道(测量地速+风测量, 因果);
+        % s1/s2 合成残差乘子沿用真值空速口径(植物侧场景注入, 与 Q1 各档可比)。
         Vhat = lastV * (1 + opt.s4_vpct/100);
-        Pmap = q39.est_l0(pc, lastPwm, Vhat);
+        if strcmp(opt.estMode, 'l1')
+            Pmap = q39.est_l1(pc, lastPwm, Vhat, lastUhat, opt.decl);
+        else
+            Pmap = q39.est_l0(pc, lastPwm, Vhat);
+        end
         Pest = Pmap * (1 + opt.s1_pct/100) * (1 + opt.s2_pct_mps/100 * lastUair);
     end
     function mult = local_mult(uair)
@@ -133,8 +145,8 @@ plt = struct('q', @q, 'amendEstimate', @amendEstimate, 'count', @count, ...
                 if guard >= 30, break; end
             end
         end
-        if strcmp(opt.estMode, 'l0')
-            Pm = est_now() / powerScale;   % 算法可见口径 = L0 估计(归一不变)
+        if any(strcmp(opt.estMode, {'l0','l1'}))
+            Pm = est_now() / powerScale;   % 算法可见口径 = 估计链(L0/L1, 归一不变)
         else
             Pm = Pm * local_mult(lastUair) / powerScale;   % 真值口径 + S1/S2 合成残差
         end
@@ -164,6 +176,11 @@ plt = struct('q', @q, 'amendEstimate', @amendEstimate, 'count', @count, ...
             lastPwm = out.motor_pwm_us;
             lastV = out.voltage_v;
             lastUair = abs(dot(out.air_velocity_ne_mps, tangentNow));
+            % L1 估计空速: 测量地速 − 风测量 在切向合成(v_air = v_ground − wind
+            % 全仓符号约定; 不读 air_velocity 真值字段。本链测量面 wind_measured
+            % 全量可见, 数值上与真值空速一致是链的属性而非估计器的知识来源)。
+            lastUhat = abs(dot(out.ground_velocity_ne_mps - ...
+                windSample.wind_measured_ne_mps, tangentNow));
             eHist(end+1) = est_now(); %#ok<AGROW>
             accPeak = max(accPeak, abs(s.v_ground_mps - vPrev)/dt);
             vPrev = s.v_ground_mps;
@@ -171,7 +188,7 @@ plt = struct('q', @q, 'amendEstimate', @amendEstimate, 'count', @count, ...
                 secMarker = floor(s.time_s);
                 rowCnt = rowCnt + 1;
                 tq = max(0, s.time_s - 0.2);
-                if strcmp(opt.estMode, 'l0')
+                if any(strcmp(opt.estMode, {'l0','l1'}))
                     edel = interp1(tHist, eHist, tq, 'linear', 'extrap');
                     PmeasW = max(0, edel*(1 + 0.012*randn));
                 else

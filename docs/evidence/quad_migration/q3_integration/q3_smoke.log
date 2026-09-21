@@ -1,0 +1,12 @@
+SMOKE openloop done: excess true/est = 6.2643/6.2759% (d=0.0116pp) margin true/est = NaN/NaNpp (167.6s)
+q3 anchor written: excessOpen true/est = 6.264273/6.275921% vStarAir=5.150000
+SMOKE sweepcal done: excess true/est = 3.9243/3.9060% (d=-0.0183pp) margin true/est = 2.3400/2.3699pp (160.9s)
+SMOKE purerl_off done: excess true/est = 0.8476/0.8217% (d=-0.0259pp) margin true/est = 5.4166/5.4542pp (272.9s)
+SMOKE purerl_on done: excess true/est = 0.5956/0.5668% (d=-0.0288pp) margin true/est = 5.6687/5.7092pp (271.4s)
+
+ans =
+
+  1x4 cell สýื้
+
+    {1x1 struct}    {1x1 struct}    {1x1 struct}    {1x1 struct}
+
