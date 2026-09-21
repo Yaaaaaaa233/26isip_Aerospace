@@ -1,0 +1,7 @@
+gate,verdict,detail
+G1_openloop_crossbatch_bitwise,PASS,"pass1 |d|=0 pass2 |d|=0"
+G2_learning_beat_openloop,PASS,"p1 sweepcal: 2.0823 < 6.3418; p1 purerl_off: 1.0717 < 6.3418; p1 purerl_on: 0.6230 < 6.3418; p2 sweepcal: 2.0823 < 6.3418; p2 purerl_off: 1.0717 < 6.3418; p2 purerl_on: 0.6230 < 6.3418"
+G3_margin_wear_le_1pp,PASS,"p1 sweepcal: wear=-0.0627pp (truth margin 4.1967 / l1 margin 4.2595); p1 purerl_off: wear=0.2181pp (truth margin 5.4881 / l1 margin 5.2701); p1 purerl_on: wear=0.1316pp (truth margin 5.8505 / l1 margin 5.7189); p2 sweepcal: wear=-0.0627pp (truth margin 4.1967 / l1 margin 4.2595); p2 purerl_off: wear=0.2181pp (truth margin 5.4881 / l1 margin 5.2701); p2 purerl_on: wear=0.1316pp (truth margin 5.8505 / l1 margin 5.7189)"
+G4_bitwise_pass1_pass2,PASS,""
+G5_rows_contract_9000,PASS,"rowsN min=9000 max=9006 (n=60)"
+G6_m7_three_row_structure,PASS,"rows=60"

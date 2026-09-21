@@ -159,3 +159,23 @@ X8 冻结回归：52/52 + 20/20 不动（P5/M8，证据 §4）。
 （植物级偏差 10.9% 反超 l0），被接线门当场拦截修正；m7_rows 踩 `struct()`
 数值数组字段整体复制的坑（每元素标量须 cell 包装，与空 cell 陷阱同族）。
 
+## 八、Q4 正式验收批（2026-09-21，方案 §4-Q4/§5-M6·M7）
+
+预注册 `+q39/q4_opt.m`（开批前冻结）：F1* = l1 五臂、F2* = truth 基线五臂
+（同种子），9000 s ×2 全部独立会话（16 会话 rc=0，挂钟约 4 h20m）。
+入口：`matlab -batch "q39.paths_q1(); q39.run_q4_formal('F1A',1)"` …
+门评估：`q39.q4_gates()` → results/q4_gates.csv。
+
+结果（真值口径，两遍逐位一致）：开环 6.3418%；sweepcal 2.0823（赢面 +4.26pp）、
+purerl_off 1.0717（+5.27pp）、purerl_on 0.6230（+5.72pp）——**学习臂全胜开环**；
+赢面损耗 vs 真值批基线：**−0.063 / +0.218 / +0.132 pp（门 ≤1pp）**；
+双口径漂移 ≤0.026pp；openloop/known 真值口径跨批**逐位相等**（植物冻结 9000s
+复验）；rowsN 9000~9006（契约 [9000,11250)）。**M6/M7 机器门 6/6 PASS**。
+
+门定义预注册修正（首次评估后登记，批数据零改动）：runtime_s（挂钟）与锚点臂
+margin 列（pass1 冷启动 NaN / pass2 0 的簿记差）逐出逐位集；G6 补 estMode 过滤。
+修正前后评估均存档（q4_gates_first_fire_FAIL.log / q4_gates_final_PASS.log）。
+
+至此 Q 系机器验收（M1–M8）全部完成；剩余 H1–H6 人工门（叶安）与外部确认项
+C1/C2/C3。证据：`docs/evidence/quad_migration/q4_formal/`。
+
