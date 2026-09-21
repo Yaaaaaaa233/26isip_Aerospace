@@ -1,0 +1,9 @@
+正在运行 tests_quad
+........
+已完成 tests_quad
+__________
+
+单元测试：8/8 通过
+track-A anchors @V=29.40: hover=615.0W vStar=5.65 m/s Pmin=469.7W k=9.91 W/(m/s)^2
+ceiling margin: T_hover/motor=2.500 kgf vs Tce(full)=3.158 kgf (margin 20.8%)
+CHECKS DONE: 8/8
