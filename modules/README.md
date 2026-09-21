@@ -66,7 +66,7 @@ AI协助：Codex（模块盘点、分类和入口整理）
 | [`../harness`](../harness/) | 代理指标层可运行 | 场景、MOP/MOE与公平横评；统一WPC接入未完成 | 待项目组确认 |
 | [`../integration/air_esc`](../integration/air_esc/) | 预留 | 算法、Plane与Control适配 | 待项目组确认 |
 | [`../models/plane`](../models/plane/) | P0 数据拟合门槛和 P1--P4 独立代理契约已通过；整机 S/P/动态校准与 PX4 `.slx` 接入未完成 | 统一 Wind-Plane-Control Plane 对象、联合功率、电池/SOC 与公共字段适配 | 建议霍奕茗，待组内确认 |
-| [`../models/plane_quad`](../models/plane_quad/) | Q2 轨 A 交付（2026-09-21，单元门 M2/M3 8/8）：四旋翼降阶链——plane.step 骨架复用、4 电机单桨、eta 恒 1（接口字段保留），H3/H4/H9/电池链与 P2 同式，标定从冻结源只读；quad_placeholder 占位口径（10 kg 承 X8、MN1005/7S4P），悬停 615 W、谷底 5.65 m/s（k=9.91）、悬停 H9 裕度 20.8%；轨 B（Simulink）与 M4' 对拍门待后续 | 四旋翼算法线日常实验对象（轨 A）；M4' 轨 A 侧配平基线已落档 | 叶安 |
+| [`../models/plane_quad`](../models/plane_quad/) | Q2 双轨交付（2026-09-21，A 门 8/8 + B 门 7/7）：轨 A +plane_quad 降阶链（plane.step 骨架、4 电机单桨、eta 恒 1，悬停 615 W/谷底 5.65 m/s/H9 裕度 20.8%）；轨 B +quad_sim 油门正向链（x8phys 结构 + MN1005 台架标定 + 自带飞控，MATLAB 权威实现）；**M4' 对拍门通过**（6 配平点 0.009–0.36% ≤1.5%，就位比 0.92 ≤2×）；n 效应功率侧复核：L0 全程平坦（盲性复现，D1 升 L1 加固），J² 把真谷底压到 5.00 m/s，推力侧待老师数据（C2）；t_dwell 定稿 ≥2 s（电机 4τ=0.32 s）；quad_placeholder 占位口径；B2 Simulink 薄包装后续 | 四旋翼双轨对象 + M4' 对拍基线 + n 效应/t_dwell 决策数据 | 叶安 |
 
 ## 登记规则
 

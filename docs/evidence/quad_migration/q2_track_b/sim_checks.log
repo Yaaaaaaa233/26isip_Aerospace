@@ -1,0 +1,11 @@
+正在运行 tests_quad_sim
+.......
+已完成 tests_quad_sim
+__________
+
+单元测试：7/7 通过
+M4' parity max rel diff = 0.360%
+n-effect(Jgain=3): vStar_B=5.00 m/s (Pmin 487.0 W), biasL0@6=18.52% @10=-9.54%
+motor spool: tau=0.08 s -> 4*tau=0.32 s (t_dwell 下限贡献)
+CHECKS DONE: 7/7
+settleB=10.75s
