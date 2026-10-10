@@ -41,6 +41,16 @@ c = struct('schema_version','0.3','plane_model_id','quad_sim_b_placeholder_v1',.
     'kvz_damp',0.5,'kp_att',25.0,'kd_att',10.0,'kp_yaw',2.0,...
     'placeholder',true,'placeholder_tag','quad_placeholder');
 c.battery_resistance_ohm = c.battery_n_ser*c.battery_r_cell_ohm/c.battery_n_par;
+% ---- 控制现实性链(P2, 只被 +quad_sim/realism_run 消费; 全零默认=逐位无操作,
+%      既有 trim_run/Q2 证据不受影响)。典型声明值由 +quad_sim/realism_opt 预注册(C8)。
+c.ctrl_period_s = 0;            % 控制更新周期(0=每物理步; >0=指令保持/执行保持)
+c.cmd_delay_s = 0;              % 算法步 -> 执行 指令时延
+c.meas_delay_s = 0;             % 测量时延(T1 语义典型 0.2 s)
+c.meas_noise_V_pct = 0;         % 端电压测量噪声 rms [%]
+c.pwm_slew_us_per_s = 0;        % PWM 速率限制(0=无限)
+c.pwm_quant_us = 0;             % PWM 分辨率(0=连续)
+c.est_delay_s = 0;              % 估计链输入(pwm,V)时延
+c.est_noise_pct = 0;            % 估计链输出乘性噪声 rms [%](T1 语义典型 1.2)
 % ---- 冻结标定只读加载(models/plane/data/calibration, 单一事实源) ----
 calDir = fullfile(fileparts(fileparts(fileparts(mfilename('fullpath')))),...
     'plane','data','calibration');
