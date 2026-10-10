@@ -11,6 +11,12 @@ function result = run_quad_realism_checks()
 %   G-R4 环带宽/超调: REF 与 TYP 阶跃就位 <=20 s 且超调 <=20% 步长
 %   G-R5 估计链重标定: |bias(TYP)-bias(REF)| <= 2pp(绝对偏差报告, C3/C7)
 %   G-R6 确定性: RERUN 与 REF 同会话逐位一致
+% 运行口径澄清(2026-10-11 快测后登记, 门槛数值不动):
+%   - 比较口径 = E/m(单位航程能量 Wh/m): 减速滑跑使各策略终点航程 200~216 m 不等,
+%     逐米归一后同题可比; E_wh 与航程仍在表内如实列出。
+%   - G-R4 阶跃表征在平静气流(风关)下进行——地速传感器+地速前馈控制器在头风下
+%     有物理稳态差(快测 8 m/s 指令稳态 ~5.5 m/s), "就位到 v_ref"在风里失义;
+%     风扰剧本只用于磨损表任务(涌现如实保留)。
 % 输出: 磨损表 CSV(cell x strategy) + 阶跃 CSV + 图组 C 素材 PNG。
 root = fileparts(mfilename('fullpath'));
 repo = fileparts(fileparts(root));
@@ -23,7 +29,7 @@ speeds = m.speeds_mps; nS = numel(speeds);
 cells = opt.cells; nC = numel(cells);
 base = quad_sim.config(quad_sim.baseline('b40'));
 E = zeros(nC,nS); Ehat = zeros(nC,nS); bias = zeros(nC,nS);
-sat = zeros(nC,nS); dst = zeros(nC,nS); tEnd = zeros(nC,nS);
+sat = zeros(nC,nS); dst = zeros(nC,nS); tEnd = zeros(nC,nS); vc = zeros(nC,nS);
 done = false(nC,nS); vlogs = cell(nC,nS);
 runopt = m; runopt.profile = 'cruise';
 for ic = 1:nC
@@ -36,26 +42,27 @@ for ic = 1:nC
         R = quad_sim.realism_run(c,runopt);
         E(ic,is) = R.E_wh; Ehat(ic,is) = R.Ehat_wh; bias(ic,is) = R.bias_pct;
         sat(ic,is) = R.satDuty; dst(ic,is) = R.dist_m; tEnd(ic,is) = R.tEnd_s;
-        done(ic,is) = R.completed; vlogs{ic,is} = R.vLog;
+        vc(ic,is) = R.vMeanCruise; done(ic,is) = R.completed; vlogs{ic,is} = R.vLog;
     end
-    [~,ib] = min(E(ic,:));
-    fprintf('%-5s %-8s E(slow->fast) = %s Wh | argmin %.0f m/s | bias %+0.2f%% | sat %0.3f\n', ...
-        cells(ic).id, cells(ic).family, sprintf('%7.3f ',E(ic,:)), speeds(ib), ...
-        mean(bias(ic,:)), mean(sat(ic,:)));
+    [~,ib] = min(E(ic,:)./dst(ic,:));
+    fprintf('%-5s %-8s E/m(mJ/m) = %s | argmin %.0f m/s | bias %+0.2f%% | sat %0.3f\n', ...
+        cells(ic).id, cells(ic).family, sprintf('%7.1f ',1000*E(ic,:)./dst(ic,:)), ...
+        speeds(ib), mean(bias(ic,:)), mean(sat(ic,:)));
 end
-% ---- 磨损账(相对 REF 逐策略) ----
+% ---- 磨损账(口径 E/m, 相对 REF 逐策略) ----
+Epm = E./dst;
 wear = zeros(nC,nS);
-for ic = 1:nC, wear(ic,:) = 100*(E(ic,:)-E(1,:))./E(1,:); end
-[Es,ix] = sort(E(1,:)); bestRef = speeds(ix(1));
+for ic = 1:nC, wear(ic,:) = 100*(Epm(ic,:)-Epm(1,:))./Epm(1,:); end
+[Es,ix] = sort(Epm(1,:)); bestRef = speeds(ix(1));
 gapRef_pp = 100*(Es(2)-Es(1))/Es(1);
 iTYP = find(strcmp({cells.id},'TYP'),1); iRERUN = find(strcmp({cells.id},'RERUN'),1);
-[Et,ixt] = sort(E(iTYP,:)); bestTyp = speeds(ixt(1));
+[Et,ixt] = sort(Epm(iTYP,:)); bestTyp = speeds(ixt(1));
 gapTyp_pp = 100*(Et(2)-Et(1))/Et(1);
 marginWear_pp = abs(gapTyp_pp-gapRef_pp);
 biasWear_pp = abs(mean(bias(iTYP,:))-mean(bias(1,:)));
 fails = {};
 % ---- G-R0 ----
-if ~all(done(:)) || ~all(isfinite(E(:)))
+if ~all(done(:)) || ~all(isfinite(E(:))) || ~all(isfinite(Epm(:)))
     fails{end+1} = sprintf('G-R0: %d runs incomplete/nonfinite',nnz(~done(:)|~isfinite(E(:))));
 end
 % ---- G-R1/G-R2 ----
@@ -82,6 +89,7 @@ for id = {'REF','TYP'}
     for k = 1:numel(fn), args{2*k-1} = fn{k}; args{2*k} = deg.(fn{k}); end
     c = quad_sim.config(base,args{:});
     ro = m; ro.profile = 'step'; ro.vCmd_mps = NaN;
+    ro.wind_base_mps = 0; ro.wind_sin_amp = 0; ro.wind_gust_mps = 0;   % 平静气流(口径澄清)
     Rs = quad_sim.realism_run(c,ro);
     stepRows(end+1,:) = {id{1}, Rs.settleS, Rs.overshoot_mps, Rs.overshoot_pct, 1}; %#ok<AGROW>
     if isnan(Rs.settleS) || Rs.settleS > g.settleMax_s
@@ -105,18 +113,20 @@ if ~detOK
     fails{end+1} = 'G-R6: RERUN not bitwise equal to REF';
 end
 % ---- 磨损表 CSV ----
-rows = cell(nC*nS,13); ir = 0;
+rows = cell(nC*nS,15); ir = 0;
 for ic = 1:nC
-    [~,ib] = min(E(ic,:));
+    [~,ib] = min(Epm(ic,:));
     for is = 1:nS
         ir = ir + 1;
         rows(ir,:) = {cells(ic).id, cells(ic).family, cells(ic).level, speeds(is), ...
-            E(ic,is), wear(ic,is), Ehat(ic,is), bias(ic,is), sat(ic,is), ...
-            dst(ic,is), tEnd(ic,is), double(done(ic,is)), double(speeds(is)==speeds(ib))};
+            E(ic,is), Epm(ic,is), wear(ic,is), Ehat(ic,is), bias(ic,is), sat(ic,is), ...
+            dst(ic,is), vc(ic,is), tEnd(ic,is), double(done(ic,is)), ...
+            double(speeds(is)==speeds(ib))};
     end
 end
 T = cell2table(rows,'VariableNames',{'cell','family','level','speed_mps','E_wh', ...
-    'wear_pp','Ehat_wh','bias_pct','sat_duty','dist_m','t_end_s','completed','is_argmin'});
+    'E_per_m_Whpm','wear_pp','Ehat_wh','bias_pct','sat_duty','dist_m', ...
+    'v_cruise_mps','t_end_s','completed','is_argmin'});
 csv = fullfile(resDir,'quad_realism_wear.csv');
 writetable(T,csv,'Encoding','UTF-8');
 Ts = cell2table(stepRows,'VariableNames',{'cell','settle_s','overshoot_mps','overshoot_pct','ok'});
@@ -125,9 +135,9 @@ writetable(Ts,stepCsv,'Encoding','UTF-8');
 % ---- 图组 C 素材(脚本同源导出) ----
 fig = figure('Visible','off');
 subplot(2,2,1); hold on;
-plot(speeds,E(1,:),'-o','DisplayName','REF'); plot(speeds,E(iTYP,:),'-s','DisplayName','TYP');
-grid on; xlabel('cruise v (m/s)'); ylabel('E_{trip} (Wh)');
-title('trip energy by strategy'); legend('Location','best');
+plot(speeds,Epm(1,:),'-o','DisplayName','REF'); plot(speeds,Epm(iTYP,:),'-s','DisplayName','TYP');
+grid on; xlabel('cruise v command (m/s)'); ylabel('E/m (Wh/m)');
+title('trip energy per meter by strategy'); legend('Location','best');
 subplot(2,2,2);
 bar(mean(wear,2)); set(gca,'XTick',1:nC,'XTickLabel',{cells.id});
 xtickangle(45); ylabel('mean wear (pp)'); title('delay x saturation x noise wear');
