@@ -1,8 +1,8 @@
 # models/plane_quad：四旋翼双轨对象（Q2 轨 A + 轨 B）
 
-> 状态：**轨 A + 轨 B（MATLAB 权威链）交付，M4' 对拍门通过**；Simulink 薄包装（B2）后续。
-> 方案：[`docs/QUAD_MIGRATION_PLAN_20260921.md`](../docs/QUAD_MIGRATION_PLAN_20260921.md) §4-Q2。
-> 口径：**quad_placeholder（P4）**——整机质量暂承 X8 10 kg、电机/桨/电池沿用 MN1005/40 寸/7S4P 占位，老师参数到位前全部数字不可引用为四旋翼真实结论。
+> 状态：**轨 A + 轨 B（MATLAB 权威链）交付，M4' 对拍门通过**；**建模调整 P0/P1 落地（2026-10-11，工作簿三套 baseline 参数包 + 冒烟 3/3 PASS）**；Simulink 薄包装（B2）后续。
+> 方案：[`docs/QUAD_MIGRATION_PLAN_20260921.md`](../docs/QUAD_MIGRATION_PLAN_20260921.md) §4-Q2；建模调整期按 [`docs/QUAD_SIM_MODEL_PLAN_20261011.md`](../docs/QUAD_SIM_MODEL_PLAN_20261011.md)（含妥协登记 C1–C9）。
+> 口径：默认配置维持 **quad_placeholder（P4）** 占位（Q2 证据可复现）；工作簿机型走 `quad_sim.baseline('bg'/'b40'/'b42')` opt-in（workbook_baseline_20261011，非老师参数，不可外引为真实结论）。
 
 ## 问题
 

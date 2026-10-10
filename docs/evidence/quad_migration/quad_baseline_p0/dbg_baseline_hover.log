@@ -1,0 +1,14 @@
+== bg (mass 7.196 kg, kv 38.78 rpm/V, Vnom 47.9) ==
+map: n_hover=1269.7 rpm  P_map=98.0 W/rotor  anchor=407.1 W
+ctrl: T_tot=70.59 N  thrustN=[17.65 17.65 17.65 17.65]
+ctrl: rpmCmd=[1270 1270 1270 1270]  pwm=[1653 1653 1653 1653]
+ctrl: pitchCmd=0.00 deg  pitch=0.00 deg  vz=0.000 m/s
+plant: motor_rpm=[1270 1270 1270 1270 ]  thrust_sum=70.59 N  Pel=407.1 W  V=50.17 V
+plant: vel=[-0.000 0.000 0.000]  LF=[1.000 1.000 1.000 1.000 ]  soc=0.9971
+== b40 (mass 9.581 kg, kv 38.78 rpm/V, Vnom 24.0) ==
+map: n_hover=1652.6 rpm  P_map=174.6 W/rotor  anchor=713.5 W
+ctrl: T_tot=174.33 N  thrustN=[43.58 43.58 43.58 43.58]
+ctrl: rpmCmd=[2251 2251 2251 2251]  pwm=[2000 2000 2000 2000]
+ctrl: pitchCmd=0.00 deg  pitch=-0.00 deg  vz=16.771 m/s
+plant: motor_rpm=[1108 1108 1108 1108 ]  thrust_sum=42.25 N  Pel=1058.8 W  V=28.57 V
+plant: vel=[0.000 0.000 16.771]  LF=[1.000 1.000 1.000 1.000 ]  soc=0.9961

@@ -1,0 +1,16 @@
+bg   hover anchor 407.1 W vs trim 407.1 W (dev -0.000%) | sheet 359.8 W (dev +13.2%, C7) | v*=3.99 m/s Pmin=320.2 W P0=407.1 W | det 1
+b40  hover anchor 713.5 W vs trim 713.5 W (dev -0.000%) | sheet 570.0 W (dev +25.2%, C7) | v*=5.99 m/s Pmin=575.8 W P0=713.5 W | det 1
+b42  hover anchor 619.3 W vs trim 619.3 W (dev -0.000%) | sheet 485.3 W (dev +27.6%, C7) | v*=6.00 m/s Pmin=502.3 W P0=619.3 W | det 1
+smoke PASS (3 baselines) -> D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_baseline_smoke.csv
+
+ans = 
+
+  包含以下字段的 struct:
+
+        pass: 1
+        tier: 'smoke'
+        rows: 3
+         csv: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_baseline_smoke.csv'
+         png: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_baseline_Pcurve.png'
+    failures: {}
+
