@@ -45,7 +45,7 @@ c.battery_resistance_ohm = c.battery_n_ser*c.battery_r_cell_ohm/c.battery_n_par;
 %      既有 trim_run/Q2 证据不受影响)。典型声明值由 +quad_sim/realism_opt 预注册(C8)。
 c.ctrl_period_s = 0;            % 控制更新周期(0=每物理步; >0=指令保持/执行保持)
 c.cmd_delay_s = 0;              % 算法步 -> 执行 指令时延
-c.meas_delay_s = 0;             % 测量时延(T1 语义典型 0.2 s)
+c.meas_delay_s = 0;             % 测量时延: GPS 级速度测量通道(勘误后语义, IMU/电压不滞后)
 c.meas_noise_V_pct = 0;         % 端电压测量噪声 rms [%]
 c.pwm_slew_us_per_s = 0;        % PWM 速率限制(0=无限)
 c.pwm_quant_us = 0;             % PWM 分辨率(0=连续)

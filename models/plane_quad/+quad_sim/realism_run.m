@@ -1,8 +1,8 @@
 function R = realism_run(c, opt)
 %QUAD_SIM.REALISM_RUN P2 控制现实性任务运行器(现实性链 + 风扰剧本 + 估计链)。
 % 链条(方案 §4 控制现实性清单; 全部参数来自 c, 全零默认=与 trim_run 同序逐位无操作):
-%   时延链:   测量时延 meas_delay_s(ctrl 读到的整帧测量滞后) + 算法步 ctrl_period_s
-%             (控制更新周期, 其间指令保持) + 执行指令时延 cmd_delay_s
+%   时延链:   测量时延 meas_delay_s 只施于 GPS 级速度测量(外环; 勘误后语义, 见下) +
+%             算法步 ctrl_period_s(控制更新周期, 其间指令保持) + 执行指令时延 cmd_delay_s
 %   执行器链: PWM 分辨率 pwm_quant_us(目标量化) + PWM 速率限制 pwm_slew_us_per_s
 %             (执行值斜坡) + 植物内既有饱和(PWM 上下限/rpm 帽/推力上限/俯仰限)
 %   噪声链:   端电压测量噪声 meas_noise_V_pct(单一传感器流, ctrl 与估计链同源不同时延)
@@ -12,6 +12,9 @@ function R = realism_run(c, opt)
 %   风扰剧本: 头风 + 确定性正弦/阵风窗(opt 内预注册), 逐步注入 cmd.wind_ned_mps
 % 噪声用运行器私有 RandStream(mt19937ar, 固定种子, 共同随机数), 不动全局 rng;
 % 所有退化开关为 0 时不抽噪声不改数(逐位无操作)。
+% 勘误(2026-10-11, 首评后重评前登记, 方案 §4.1): meas_delay_s 首评误施于整帧测量
+% (含姿态/角速率), 0.2 s 陀螺滞后摧毁姿态内环(首评数据存档 quad_realism_firstfire_*)。
+% 实机分层语义: 时延只在 GPS 级速度测量; IMU 姿态/角速率与电压传感毫秒级, 不滞后。
 % 任务 profile:
 %   'cruise'(默认): 悬停 hover_s -> 定速 vCmd_mps 飞 dist_m -> 减速 -> 悬停 hover_s;
 %                   同一趟行程能量 E_wh 为策略比较口径(策略=巡航速度)
@@ -60,9 +63,10 @@ for k = 1:nMax
     VmBuf(k) = Vmeas;
     % ---- 控制周期(算法步) + 指令保持 ----
     if mod(k-1,ctrlEvery) == 0 || isempty(pwmTarget)
-        m = struct('velocity_ned_mps',measBuf(1:3,kk), ...
-            'attitude_rad',measBuf(4:6,kk), 'body_rate_radps',measBuf(7:9,kk), ...
-            'battery_voltage_V',measBuf(10,kk));
+        m = struct('velocity_ned_mps',measBuf(1:3,kk), ...   % GPS 级: 时延通道
+            'attitude_rad',measBuf(4:6,k), ...               % IMU 级: 无附加时延(勘误)
+            'body_rate_radps',measBuf(7:9,k), ...
+            'battery_voltage_V',measBuf(10,k));
         vRef = local_vref(opt,phase,s.time_s);
         pwmTarget = quad_sim.ctrl(s,m,vRef,c);
     end
@@ -109,7 +113,7 @@ for k = 1:nMax
             case 1
                 if tNow >= opt.hover_s, phase = 2; end
             case 2
-                vCruiseSum = vCruiseSum + vNow; tCruise = tCruise + dt;
+                vCruiseSum = vCruiseSum + vNow*dt; tCruise = tCruise + dt;
                 if xNow >= opt.dist_m, phase = 3; end
             case 3
                 if vNow <= 0.1, phase = 4; tTail = tNow; end

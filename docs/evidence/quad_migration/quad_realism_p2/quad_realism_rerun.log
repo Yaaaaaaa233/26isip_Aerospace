@@ -1,0 +1,26 @@
+REF   ref      E/m(mJ/m) =    96.3    73.4    60.2    52.9    46.7    42.9    41.5  | argmin 9 m/s | bias +16.23% | sat 0.000
+D1    delay    E/m(mJ/m) =    96.0    73.2    60.0    52.7    46.5    42.8    41.4  | argmin 9 m/s | bias +16.25% | sat 0.000
+D2    delay    E/m(mJ/m) =    95.7    72.9    59.9    52.5    46.3    42.7    41.4  | argmin 9 m/s | bias +16.26% | sat 0.000
+D5    delay    E/m(mJ/m) =    95.0    72.2    59.3    51.8    45.7    42.4    40.9  | argmin 9 m/s | bias +16.27% | sat 0.000
+K1    sat      E/m(mJ/m) =    96.5    73.5    60.3    53.0    46.7    42.9    41.5  | argmin 9 m/s | bias +16.25% | sat 0.000
+K2    sat      E/m(mJ/m) =    96.2    73.2    59.8    52.7    46.4    42.8    41.4  | argmin 9 m/s | bias +16.27% | sat 0.002
+N1    noise    E/m(mJ/m) =    96.3    73.4    60.3    53.0    46.7    43.0    41.5  | argmin 9 m/s | bias +16.24% | sat 0.000
+N2    noise    E/m(mJ/m) =    96.3    73.4    60.3    53.0    46.7    43.0    41.5  | argmin 9 m/s | bias +16.22% | sat 0.000
+TYP   typical  E/m(mJ/m) =    95.7    72.9    59.9    52.5    46.3    42.7    41.4  | argmin 9 m/s | bias +16.28% | sat 0.000
+RERUN rerun    E/m(mJ/m) =    96.3    73.4    60.2    52.9    46.7    42.9    41.5  | argmin 9 m/s | bias +16.23% | sat 0.000
+realism smoke PASS (10 cells x 7 strategies) -> D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_realism_wear.csv
+G-R1 argmin REF 9 == TYP 9 | G-R2 margin wear 0.084 pp (gap 3.39->3.30) | G-R5 bias wear 0.044 pp | det 1
+
+ans = 
+
+  包含以下字段的 struct:
+
+        pass: 1
+        tier: 'smoke'
+        rows: 70
+         csv: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_realism_wear.csv'
+     stepCsv: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_realism_step.csv'
+         png: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_realism_figC.png'
+       gates: [1x1 struct]
+    failures: {}
+

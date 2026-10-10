@@ -1,0 +1,16 @@
+REF   ref      E/m(mJ/m) =    96.3    73.4    60.2    52.9    46.7    42.9    41.5  | argmin 9 m/s | bias +16.23% | sat 0.000
+D1    delay    E/m(mJ/m) =    96.0    73.4    60.3    52.7    46.7    43.1    41.4  | argmin 9 m/s | bias +16.26% | sat 0.000
+D2    delay    E/m(mJ/m) =  -597.4   -69.0  -254.5  -691.5  -279.8  -704.2   -61.0  | argmin 8 m/s | bias +89.29% | sat 0.843
+D5    delay    E/m(mJ/m) =  -323.3  -450.6  -435.8  -507.8 -1478.2 -1286.5   -38.3  | argmin 7 m/s | bias +65.63% | sat 0.971
+K1    sat      E/m(mJ/m) =    96.5    73.5    60.3    53.0    46.7    42.9    41.5  | argmin 9 m/s | bias +16.25% | sat 0.000
+K2    sat      E/m(mJ/m) =    96.2    73.2    59.8    52.7    46.4    42.8    41.4  | argmin 9 m/s | bias +16.27% | sat 0.002
+N1    noise    E/m(mJ/m) =    96.3    73.4    60.3    53.0    46.7    43.0    41.5  | argmin 9 m/s | bias +16.24% | sat 0.000
+N2    noise    E/m(mJ/m) =    96.3    73.4    60.3    53.0    46.7    43.0    41.5  | argmin 9 m/s | bias +16.22% | sat 0.000
+TYP   typical  E/m(mJ/m) =   -82.6  -104.8  -679.6 -1897.2  8863.8  -163.3  -555.6  | argmin 6 m/s | bias +145.03% | sat 0.975
+RERUN rerun    E/m(mJ/m) =    96.3    73.4    60.2    52.9    46.7    42.9    41.5  | argmin 9 m/s | bias +16.23% | sat 0.000
+{错误使用 run_quad_realism_checks
+SMOKE FAIL (6): G-R0: 21 runs incomplete/nonfinite; G-R1: argmin REF 9 != TYP 6 m/s; G-R2: margin wear 67.564 pp > 1.0 pp; G-R4: TYP settle NaN s > 20 s; G-R4: TYP
+overshoot 347.37% > 20%; G-R5: estimator bias wear 128.799 pp > 2.0 pp | archive: D:\Study\Sophomore_to_Junior\UAV\第二阶
+段\26isip_Aerospace\models\plane_quad\results\quad_realism_wear.csv
+} 
+ERROR: MATLAB error Exit Status: 0x00000001

@@ -6,7 +6,8 @@ function opt = realism_opt()
 % 与 Q1 ±5% 合成档同定位)。
 %
 % 因子族(8 个现实性参数, 与 +quad_sim/config 同名, 全零默认=逐位无操作):
-%   D 时延族    meas_delay_s        0.1 / 0.2 / 0.5 s(T1 语义 0.2 为典型)
+%   D 时延族    meas_delay_s        0.1 / 0.2 / 0.5 s(GPS 级速度测量通道, T1 0.2 为典型;
+%               整帧语义已勘误, 见方案 §4.1 与 realism_run 头注)
 %   K 执行器族  ctrl_period_s(指令保持/算法步) + pwm_slew_us_per_s + pwm_quant_us
 %               K1 典型: 0.02 s / 1500 us/s / 1 us    K2 严酷: 0.05 s / 400 / 4
 %   N 噪声族    meas_noise_V_pct + est_noise_pct
