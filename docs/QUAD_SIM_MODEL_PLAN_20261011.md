@@ -154,7 +154,7 @@ IMU/电压不附加滞后；估计链 `est_delay_s`/`est_noise_pct`（T1）不�
 | --- | --- | --- | --- |
 | A 运动/功率 | 三基线 P(v) 曲线+谷底标注 | `quad_baseline_p0/quad_baseline_Pcurve.png`（首版） | U 形、v*∈[2,9] |
 | B 电压/电池 | 满放 V(t) 与推力天花板曲线（E3） | 待做 | 单调、与 OCV×T(n) 一致 |
-| C 控制现实性 | v_ref 阶跃响应 + 时延×饱和磨损表 | 待做 | 磨损 ≤1pp（M6 同款） |
+| C 控制现实性 | v_ref 阶跃响应 + 时延×饱和磨损表 | `quad_realism_p2/quad_realism_figC.png`（P2 首版，脚本同源导出；指标表=quad_realism_wear/step.csv） | 磨损 ≤1pp（M6 同款） |
 | D 对拍 | 悬停锚表 + 工作簿四表复现对照 | `quad_baseline_p0/quad_baseline_smoke.csv` | 锚 ≤3%；四表趋势一致（±15% 报告） |
 
 指标表逐项：指标 | 门槛 | 实测 | PASS/FAIL，与图同源同种子脚本导出；面板截图不作证据。
