@@ -69,7 +69,7 @@ end
 function vb = local_argmin(vPts,pPts,o,vFallback)
 % 三点二次拟合取功率谷(退化时保持原值)
 vb = vFallback;
-if numel(unique(vPts)) < 2, return; end
+if numel(unique(vPts)) < 3, return; end   % 二次拟合需 3 个不同点, 否则欠定告警
 pp = polyfit(vPts,pPts,2);
 if pp(1) > 0
     cand = -pp(2)/(2*pp(1));

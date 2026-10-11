@@ -51,6 +51,7 @@ c.pwm_slew_us_per_s = 0;        % PWM 速率限制(0=无限)
 c.pwm_quant_us = 0;             % PWM 分辨率(0=连续)
 c.est_delay_s = 0;              % 估计链输入(pwm,V)时延
 c.est_noise_pct = 0;            % 估计链输出乘性噪声 rms [%](T1 语义典型 1.2)
+c.est_model = 'l0';             % 'l0'=纯台架映射(P2 口径, 默认保持可复现) | 'l1'=声明系数修正(D1)
 % ---- 冻结标定只读加载(models/plane/data/calibration, 单一事实源) ----
 calDir = fullfile(fileparts(fileparts(fileparts(mfilename('fullpath')))),...
     'plane','data','calibration');

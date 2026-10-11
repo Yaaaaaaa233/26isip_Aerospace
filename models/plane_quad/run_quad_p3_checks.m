@@ -20,7 +20,7 @@ ro = quad_sim.realism_opt();
 deg = ro.cells(strcmp({ro.cells.id},'TYP')).deg;      % P3 口径 = P2 典型整链
 fn = fieldnames(deg); args = cell(1,2*numel(fn));
 for k = 1:numel(fn), args{2*k-1} = fn{k}; args{2*k} = deg.(fn{k}); end
-c = quad_sim.config(quad_sim.baseline('b40'),args{:});
+c = quad_sim.config(quad_sim.baseline('b40'),args{:},'est_model','l1');   % P3 估计口径=L1(§4.3 勘误)
 nPh = numel(m.windPhases_mps); nV = numel(m.vGrid_mps);
 fails = {};
 % ---- 真值扫描: 3 风相位 x vGrid(60 s 定速窗, 尾 30 s 均值) ----
@@ -36,9 +36,11 @@ for p = 1:nPh
         Ptrue(p,iv) = mean(R.PLog(tail));
         Phest(p,iv) = mean(R.PhatLog(tail));
     end
-    [vStar(p),ivs] = min(Ptrue(p,:)); %#ok<AGROW>
+    [pmin,ivs] = min(Ptrue(p,:));
+    vStar(p) = m.vGrid_mps(ivs); %#ok<AGROW> % min 第一输出是最小值不是索引(首评勘误)
+    PminArr(p) = pmin; %#ok<AGROW>
     fprintf('phase %d (wind %+0.1f): P(v) = %s W | v*=%.0f m/s Pmin=%.1f W\n', ...
-        p, m.windPhases_mps(p), sprintf('%6.1f ',Ptrue(p,:)), m.vGrid_mps(ivs), vStar(p));
+        p, m.windPhases_mps(p), sprintf('%6.1f ',Ptrue(p,:)), m.vGrid_mps(ivs), pmin);
 end
 map = struct('bounds_s',m.phaseBounds_s,'vStar',vStar);
 % ---- 三臂 240 s 窗(TYP, 相位风) ----
@@ -89,7 +91,7 @@ for ia = [1 2]
 end
 if ~detOK, fails{end+1} = 'G-P3: RERUN not bitwise equal'; end
 % ---- G-P4 敏感性(Q1 式叠差施于 P̂: P̂'=P̂*(1+(s1+s2*v)/100), 对地速) ----
-sensRows = cell(0,6); wearGated = [];
+sensRows = cell(0,6); wearGated = []; sensLabels = cell(0,1);
 for kind = {'s1','s2'}
     if strcmp(kind{1},'s1'), lv = sN.s1_pct; else, lv = sN.s2_pct_mps; end
     for l = lv
@@ -107,6 +109,7 @@ for kind = {'s1','s2'}
             (strcmp(kind{1},'s2') && abs(l) <= sN.gate_s2_pct_mps);
         if gated, wearGated(end+1) = wear; end %#ok<AGROW>
         sensRows(end+1,:) = {kind{1}, s1, s2, margS, wear, double(gated)}; %#ok<AGROW>
+        sensLabels{end+1} = sprintf('%s%+g',kind{1},l); %#ok<AGROW>
         fprintf('sens %s=%+0.2f: margin %+.3f pp, wear %.3f pp%s\n', ...
             kind{1}, l, margS, wear, tern(gated,' [gated]',''));
     end
@@ -155,8 +158,7 @@ legend('Location','best');
 subplot(2,2,4);
 bar([sensRows{:,5}]); hold on;
 plot([0 size(sensRows,1)+1],[g.sensWearMax_pp g.sensWearMax_pp],'r--');
-set(gca,'XTick',1:size(sensRows,1),'XTickLabel', ...
-    cellfun(@(r) sprintf('%s%+g',r{1},r{2}+r{3}),sensRows,'UniformOutput',false));
+set(gca,'XTick',1:size(sensRows,1),'XTickLabel',sensLabels);
 xtickangle(45); ylabel('margin wear (pp)'); title('estimator-error sensitivity'); grid on;
 png = fullfile(resDir,'quad_p3_fig.png'); saveas(fig,png); close(fig);
 gates = struct('vStar',vStar,'marginTrue_pp',marginTrue,'marginHat_pp',marginHat, ...

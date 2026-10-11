@@ -105,7 +105,20 @@ for k = 1:nMax
     ke = max(1,k-eDelay);
     frac = (appBuf(:,ke)-1000)/1000;
     nHat = frac.*(c.kv_rpm_per_V*VmBuf(ke))/1000;
-    P0 = max(0,sum(polyval(local_p_coef(c,VmBuf(ke)),nHat)));
+    Pmap = max(0,sum(polyval(local_p_coef(c,VmBuf(ke)),nHat)));
+    if strcmp(c.est_model,'l1')
+        % L1 声明系数修正(D1 档; 首评 L0 速度依赖偏差翻转排序, 勘误后 P3 口径):
+        % P̂ = 台架映射 - H3 诱导节省 + 废阻(地速代理, 声明 CdA) + aux —— 与植物
+        % 同型分解(PM-L1=0 无 J 项), 修正项全部来自 config 声明值, 无真值拟合。
+        thrustHat = max(0,polyval(c.bench_T_coef_desc,nHat))*c.gravity_mps2;
+        vG = norm(measBuf(1:3,ke));
+        savHat = local_ind_saving(c,thrustHat,vG);
+        PdragHat = 0.5*c.air_density_kgpm3*c.drag_coefficient(1)* ...
+            c.drag_area_m2(1)*vG^3;
+        P0 = max(0,Pmap-sum(savHat)) + PdragHat + c.aux_power_W;
+    else
+        P0 = Pmap;
+    end
     if c.est_noise_pct > 0
         Phat = max(0,P0*(1+c.est_noise_pct/100*randn(stream,1)));
     else
@@ -124,7 +137,7 @@ for k = 1:nMax
     % ---- 任务状态机 ----
     tNow = s.time_s; xNow = s.position_ned_m(1);
     if strcmp(opt.profile,'window')
-        if tNow >= opt.maxTime_s, completed = true; break; end
+        if tNow >= opt.maxTime_s-0.5*dt, completed = true; break; end  % fp 容差(首评勘误)
     elseif strcmp(opt.profile,'cruise')
         switch phase
             case 1
@@ -208,4 +221,16 @@ i = find(c.bench_V_nom <= V,1,'last'); j = min(i+1,numel(c.bench_V_nom));
 if i == j, pc = c.bench_P_coef(i,:); return; end
 w = (V-c.bench_V_nom(i))/(c.bench_V_nom(j)-c.bench_V_nom(i));
 pc = (1-w)*c.bench_P_coef(i,:) + w*c.bench_P_coef(j,:);
+end
+function [vi,vi0] = local_vi(c,T_N,vair)
+% 动量理论诱导速度(与 step.m 同式; T_N 允许 4x1 向量, vair 标量)
+vi = zeros(size(T_N)); vi0 = zeros(size(T_N));
+A = pi*(c.prop_diameter_m^2)/4; k = T_N/(2*c.air_density_kgpm3*A);
+ok = (T_N > 0) & (vair > 0);
+vi0(ok) = sqrt(k(ok));
+vi(ok) = sqrt((vair/2)^2+k(ok))-vair/2;
+end
+function sv = local_ind_saving(c,T_N,vair)
+[vi,vi0] = local_vi(c,T_N,vair);
+sv = max(0,c.h3_induced_gain.*T_N.*(vi0-vi));
 end
