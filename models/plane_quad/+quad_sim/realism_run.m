@@ -26,7 +26,12 @@ if nargin < 2 || isempty(opt), opt = struct(); end
 defs = struct('profile','cruise','vCmd_mps',6,'dist_m',200,'hover_s',5, ...
     'maxTime_s',240,'stepFrom',[5 8],'step_secs',60,'seed',20261011, ...
     'wind_base_mps',2.5,'wind_sin_amp',0.5,'wind_sin_T_s',23, ...
-    'wind_gust_mps',1.5,'wind_gust_windows_s',[20 25; 45 50]);
+    'wind_gust_mps',1.5,'wind_gust_windows_s',[20 25; 45 50], ...
+    'wind_profile','gust','windPhases_mps',[],'phaseBounds_s',[], ...
+    'vref_policy',[]);
+% profile='window'(P3): 固定时长窗, vRef 由 opt.vref_policy(info) 给出;
+%   info 白名单字段 = t/v/x/Phat/Vmeas/Ehat/cmd(因果边界, 结构强制——真值/风
+%   不进信息面; oracle 臂经闭包自带真值, 在 p3_arm 显式声明)。
 if ~isempty(opt)
     fn = fieldnames(opt);
     for k = 1:numel(fn), defs.(fn{k}) = opt.(fn{k}); end
@@ -47,6 +52,7 @@ VmBuf = zeros(1,nMax);         % 电压测量流
 logEvery = 5; nLog = ceil(nMax/logEvery);
 tLog = zeros(1,nLog); vLog = zeros(1,nLog); PLog = zeros(1,nLog); PhLog = zeros(1,nLog);
 nL = 0; Ehat = 0; nApplied = 0; nSat = 0; pwmTarget = []; pwmPrev = [];
+PhatPrev = 0; vRefCmd = 0;
 phase = 1; tTail = NaN; tCruise = 0; vCruiseSum = 0; completed = false;
 for k = 1:nMax
     wind = local_wind(opt,s.time_s);
@@ -67,7 +73,15 @@ for k = 1:nMax
             'attitude_rad',measBuf(4:6,k), ...               % IMU 级: 无附加时延(勘误)
             'body_rate_radps',measBuf(7:9,k), ...
             'battery_voltage_V',measBuf(10,k));
-        vRef = local_vref(opt,phase,s.time_s);
+        if ~isempty(opt.vref_policy)
+            info = struct('t',s.time_s,'v',norm(out0.velocity_ned_mps(1:2)), ...
+                'x',s.position_ned_m(1),'Phat',PhatPrev,'Vmeas',Vmeas, ...
+                'Ehat',Ehat,'cmd',vRefCmd);
+            vRef = opt.vref_policy(info);
+            vRefCmd = vRef;
+        else
+            vRef = local_vref(opt,phase,s.time_s);
+        end
         pwmTarget = quad_sim.ctrl(s,m,vRef,c);
     end
     cmdBuf(:,k) = pwmTarget;
@@ -98,6 +112,7 @@ for k = 1:nMax
         Phat = P0;
     end
     Ehat = Ehat + Phat*dt;
+    PhatPrev = Phat;
     nApplied = nApplied + 1;
     if out.object_flags.pwm_at_edge || slewActive, nSat = nSat + 1; end
     vNow = norm(s.velocity_ned_mps(1:2));
@@ -108,7 +123,9 @@ for k = 1:nMax
     end
     % ---- 任务状态机 ----
     tNow = s.time_s; xNow = s.position_ned_m(1);
-    if strcmp(opt.profile,'cruise')
+    if strcmp(opt.profile,'window')
+        if tNow >= opt.maxTime_s, completed = true; break; end
+    elseif strcmp(opt.profile,'cruise')
         switch phase
             case 1
                 if tNow >= opt.hover_s, phase = 2; end
@@ -144,7 +161,14 @@ if strcmp(opt.profile,'step')
 end
 end
 function w = local_wind(opt,t)
-% 风扰剧本(预注册, 确定性): 头风(风矢量 -x) + 正弦 + 阵风窗
+% 风扰剧本(预注册, 确定性): 头风(风矢量 -x) + 正弦 + 阵风窗;
+% wind_profile='phases'(P3): 分段常值相位风, 风矢量 x = -windPhases_mps(p)
+if strcmp(opt.wind_profile,'phases')
+    p = find(t < opt.phaseBounds_s(2:end),1,'first');
+    if isempty(p), p = numel(opt.windPhases_mps); end
+    w = [-opt.windPhases_mps(p); 0; 0];
+    return;
+end
 gust = 0;
 gw = opt.wind_gust_windows_s;
 for i = 1:size(gw,1)
