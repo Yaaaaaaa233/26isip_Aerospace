@@ -1,6 +1,6 @@
 # models/plane_quad：四旋翼双轨对象（Q2 轨 A + 轨 B）
 
-> 状态：**轨 A + 轨 B（MATLAB 权威链）交付，M4' 对拍门通过**；**建模调整 P0/P1 落地（2026-10-11，工作簿三套 baseline 参数包 + 冒烟 3/3 PASS）**；**P2 控制现实性关闭（2026-10-11，现实性链+时延×饱和×噪声磨损表全门 PASS）**；**P3 算法验证交付（2026-10-11，排序结论+双口径发现；G-P1 FAIL 登记待叶安裁决估计器路线，见方案 §4.4）**；Simulink 薄包装（B2/P4）后续。
+> 状态：**轨 A + 轨 B（MATLAB 权威链）交付，M4' 对拍门通过**；**建模调整 P0/P1 落地（2026-10-11，工作簿三套 baseline 参数包 + 冒烟 3/3 PASS）**；**P2 控制现实性关闭（2026-10-11，现实性链+时延×饱和×噪声磨损表全门 PASS）**；**P3 算法验证交付（2026-10-13 R7 口径重评，G-P0/P1/P2/P3 PASS + G-P4 FAIL 登记待叶安裁决算法线，见方案 §4.4/§4.5）**；Simulink 薄包装（B2/P4）后续。
 > 方案：[`docs/QUAD_MIGRATION_PLAN_20260921.md`](../docs/QUAD_MIGRATION_PLAN_20260921.md) §4-Q2；建模调整期按 [`docs/QUAD_SIM_MODEL_PLAN_20261011.md`](../docs/QUAD_SIM_MODEL_PLAN_20261011.md)（含妥协登记 C1–C9）。
 > 口径：默认配置维持 **quad_placeholder（P4）** 占位（Q2 证据可复现）；工作簿机型走 `quad_sim.baseline('bg'/'b40'/'b42')` opt-in（workbook_baseline_20261011，非老师参数，不可外引为真实结论）。
 

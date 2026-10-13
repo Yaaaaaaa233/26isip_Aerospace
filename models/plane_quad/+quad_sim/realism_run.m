@@ -45,7 +45,7 @@ stream = RandStream('mt19937ar','Seed',opt.seed);
 mDelay = round(c.meas_delay_s/dt); cDelay = round(c.cmd_delay_s/dt);
 eDelay = round(c.est_delay_s/dt); ctrlEvery = max(1,round(c.ctrl_period_s/dt));
 nMax = ceil(opt.maxTime_s/dt);
-measBuf = zeros(10,nMax);      % [vel3; att3; rate3; Vmeas] 每步写一列
+measBuf = zeros(13,nMax);      % [vel3; att3; rate3; Vmeas; vAir3] 每步写一列
 cmdBuf = zeros(4,nMax);        % 控制器目标 PWM(逐列)
 appBuf = zeros(4,nMax);        % 执行后 PWM(逐列, 估计链输入)
 VmBuf = zeros(1,nMax);         % 电压测量流
@@ -65,14 +65,15 @@ for k = 1:nMax
     end
     kk = max(1,k-mDelay);
     measBuf(:,k) = [out0.velocity_ned_mps; out0.attitude_rad; ...
-        out0.body_rate_radps; Vmeas];
+        out0.body_rate_radps; Vmeas; out0.relative_air_velocity_mps];
     VmBuf(k) = Vmeas;
     % ---- 控制周期(算法步) + 指令保持 ----
     if mod(k-1,ctrlEvery) == 0 || isempty(pwmTarget)
         m = struct('velocity_ned_mps',measBuf(1:3,kk), ...   % GPS 级: 时延通道
             'attitude_rad',measBuf(4:6,k), ...               % IMU 级: 无附加时延(勘误)
             'body_rate_radps',measBuf(7:9,k), ...
-            'battery_voltage_V',measBuf(10,k));
+            'battery_voltage_V',measBuf(10,k), ...
+            'relative_air_velocity_mps',measBuf(11:13,kk));  % R7: 内核空速(plane H6 同口径)
         if ~isempty(opt.vref_policy)
             info = struct('t',s.time_s,'v',norm(out0.velocity_ned_mps(1:2)), ...
                 'x',s.position_ned_m(1),'Phat',PhatPrev,'Vmeas',Vmeas, ...
@@ -108,13 +109,14 @@ for k = 1:nMax
     Pmap = max(0,sum(polyval(local_p_coef(c,VmBuf(ke)),nHat)));
     if strcmp(c.est_model,'l1')
         % L1 声明系数修正(D1 档; 首评 L0 速度依赖偏差翻转排序, 勘误后 P3 口径):
-        % P̂ = 台架映射 - H3 诱导节省 + 废阻(地速代理, 声明 CdA) + aux —— 与植物
-        % 同型分解(PM-L1=0 无 J 项), 修正项全部来自 config 声明值, 无真值拟合。
+        % P̂ = 台架映射 - H3 诱导节省 + 废阻 + aux —— 与植物同型分解(PM-L1=0 无 J 项),
+        % 修正项全部来自 config 声明值, 无真值拟合。R7(2026-10-13): 代理项用
+        % 【空速】(Q3 û 同口径), 地速代理为 Q2 遗留口径偏差(§4.5)。
         thrustHat = max(0,polyval(c.bench_T_coef_desc,nHat))*c.gravity_mps2;
-        vG = norm(measBuf(1:3,ke));
-        savHat = local_ind_saving(c,thrustHat,vG);
+        vAir = norm(measBuf(11:13,ke));
+        savHat = local_ind_saving(c,thrustHat,vAir);
         PdragHat = 0.5*c.air_density_kgpm3*c.drag_coefficient(1)* ...
-            c.drag_area_m2(1)*vG^3;
+            c.drag_area_m2(1)*vAir^3;
         P0 = max(0,Pmap-sum(savHat)) + PdragHat + c.aux_power_W;
     else
         P0 = Pmap;

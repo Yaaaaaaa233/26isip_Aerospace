@@ -1,9 +1,13 @@
 function [pwm, diag] = ctrl(s, out, vRef, c)
 %QUAD_SIM.CTRL 轨 B 内环控制器(v_ref -> 4xPWM 的"飞控模拟")。
-% 传感器集 = 实机 FC 可观测量: 地速(GPS/INS)、姿态/角速度(IMU)、端电压(V 传感器);
-% 不读真功率/真风。结构与轨 A 的 H6 内核同型, 保证 M4' 对拍在控制器层面公平:
+% 口径(R7, 2026-10-13): 理想控制内核, 与 plane.step H6 内核逐行同型——废阻前馈用
+%   空速并精确对消, 风只通过空速改功率、动力学层净阻力效应为零(过去建模口径)。
+%   无空速感知 FC 保留为声明级变体(c.ctrl_ff_model='ground', C8)。
+%   算法层因果边界不变: 被评估算法只见测量面(G-P2 白名单), 不读真功率/真风。
+%   勘误: Q2 初版前馈误用地速(偏离 H6), 风工况 cmd≠实飞——git 历史核查 2026-10-13
+%   确认 P2/P3 未改风建模, 该偏差为 Q2 书写口径错误, 见方案 §4.5。
 %   垂直通道:  az_fb = -kvz*vz(NED), T_tot = m(g+az_fb)/max(cos(pitch),0.3)
-%   前向通道:  aFb = clamp(kp*(vRef-v), +-rate), aDrag_ff = rho*CDA*v|v|/2m
+%   前向通道:  aFb = clamp(kp*(vRef-v), +-rate), aDrag_ff = rho*CDA*vAir|vAir|/2m
 %              thetaA = atan2(aFb+aDrag_ff, g) 限 +-25deg; NED321 中加速前飞
 %              = 低头 = 负俯仰 -> pitchCmd = -thetaA
 %   姿态 PD:   M_cmd = [kp(0-roll)-kd*p; kp(pitchCmd-pitch)-kd*q; kpY*(0-r)]
@@ -21,9 +25,14 @@ Vhat = out.battery_voltage_V;
 % az = g - T*cos/m = -az_fb -> az_fb = +kvz*vz 才能在 vz>0 时给出 az<0
 az_fb = c.kvz_damp*vz;
 T_tot = c.mass_kg*(c.gravity_mps2+az_fb)/max(cos(pitch),0.3);
-% ---- 前向通道(H6 型) ----
+% ---- 前向通道(H6 型, 废阻前馈用空速——R7/plane 链同口径) ----
 aFb = min(c.speed_rate_mps2,max(-c.speed_rate_mps2,c.kp_speed*(vRef-v)));
-aDrag_ff = 0.5*c.air_density_kgpm3*c.drag_coefficient(1)*c.drag_area_m2(1)*v*abs(v)/c.mass_kg;
+if strcmp(c.ctrl_ff_model,'airspeed') && isfield(out,'relative_air_velocity_mps')
+    vFf = norm(out.relative_air_velocity_mps(1:2));   % 空速(plane H6 同型)
+else
+    vFf = v;                                          % 变体: 无空速感知 FC(C8)
+end
+aDrag_ff = 0.5*c.air_density_kgpm3*c.drag_coefficient(1)*c.drag_area_m2(1)*vFf*abs(vFf)/c.mass_kg;
 thetaA = atan2(aFb+aDrag_ff,c.gravity_mps2);
 thetaA = max(-deg2rad(c.pitch_max_deg),min(deg2rad(c.pitch_max_deg),thetaA));
 pitchCmd = -thetaA;                     % NED321: 前飞加速 = 低头(负俯仰)

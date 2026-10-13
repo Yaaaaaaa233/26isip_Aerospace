@@ -1,17 +1,16 @@
-phase 1 (wind +4.0): P(v) =  576.5  582.3  593.2  609.6  632.1  661.6  699.1  745.9  804.0  875.6  963.8  W | v*=4 m/s Pmin=576.5 W
+phase 1 (wind +4.0): P(v) =  603.2  635.2  683.1  752.0  850.7  995.2 1220.7 1360.8 1360.9 1361.0 1360.8  W | v*=4 m/s Pmin=603.2 W
 phase 2 (wind +0.0): P(v) =  587.6  577.2  575.8  584.1  603.3  635.3  683.1  752.0  850.7  995.4 1219.6  W | v*=6 m/s Pmin=575.8 W
-phase 3 (wind -4.0): P(v) =  649.1  599.3  576.5  583.0  625.8 1148.1 1360.6 1360.9 1360.7 1360.6 1360.9  W | v*=6 m/s Pmin=576.5 W
-arms E =   41.14   41.14   38.50  Wh | excess =   6.87   6.87   0.00  pp | margin(sweep vs open) = -0.000 pp (hat +14.511)
-sens s1=+3.00: margin -0.000 pp, wear 0.000 pp [gated]
-sens s1=-3.00: margin -0.000 pp, wear 0.000 pp [gated]
-sens s1=+5.00: margin -0.000 pp, wear 0.000 pp
-sens s1=-5.00: margin -0.000 pp, wear 0.000 pp
-sens s2=+0.70: margin +0.017 pp, wear 0.017 pp [gated]
-sens s2=-0.70: margin +0.050 pp, wear 0.051 pp [gated]
-sens s2=+1.40: margin -0.308 pp, wear 0.308 pp
-sens s2=-1.40: margin +1.724 pp, wear 1.724 pp
+phase 3 (wind -4.0): P(v) =  713.4  670.1  634.3  606.7  587.6  577.2  575.8  584.1  603.3  635.2  683.0  W | v*=10 m/s Pmin=575.8 W
+arms E =   44.93   43.93   38.99  Wh | excess =  15.24  12.69   0.00  pp | margin(sweep vs open) = +2.552 pp (hat +2.429)
+sens s1=+3.00: margin +2.552 pp, wear 0.000 pp [gated]
+sens s1=-3.00: margin +2.552 pp, wear 0.000 pp [gated]
+sens s1=+5.00: margin +2.552 pp, wear 0.000 pp
+sens s1=-5.00: margin +2.552 pp, wear 0.000 pp
+sens s2=+0.70: margin +5.107 pp, wear 2.555 pp [gated]
+sens s2=-0.70: margin +2.559 pp, wear 0.007 pp [gated]
+sens s2=+1.40: margin +0.846 pp, wear 1.706 pp
+sens s2=-1.40: margin +2.538 pp, wear 0.014 pp
 {错误使用 run_quad_p3_checks
-P3 FAIL (2): G-P1: ranking differs true [3 1 2] vs hat [2 3 1]; G-P1: margin drift 14.511 pp > 1.0 pp | archive: D:\Study\Sophomore_to_Junior\UAV\第二阶
-段\26isip_Aerospace\models\plane_quad\results\quad_p3_arms.csv
+P3 FAIL (1): G-P4: gated wear max 2.555 pp > 1.0 pp | archive: D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_p3_arms.csv
 } 
 ERROR: MATLAB error Exit Status: 0x00000001
