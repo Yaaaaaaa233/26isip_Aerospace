@@ -1,6 +1,6 @@
 # models/plane_quad：四旋翼双轨对象（Q2 轨 A + 轨 B）
 
-> 状态：**轨 A + 轨 B（MATLAB 权威链）交付，M4' 对拍门通过**；**建模调整 P0/P1 落地（2026-10-11，工作簿三套 baseline 参数包 + 冒烟 3/3 PASS）**；**P2 控制现实性关闭（2026-10-11，现实性链+时延×饱和×噪声磨损表全门 PASS）**；**P3 算法验证交付（2026-10-13 R7 口径重评，G-P0/P1/P2/P3 PASS + G-P4 FAIL 登记待叶安裁决算法线，见方案 §4.4/§4.5）**；**P4 薄包装收尾（2026-10-13，air_quad.slx + 商飞 0xF2 接口位，冒烟全过；接口审查待叶安，见 [`docs/AIR_QUAD_INTERFACE.md`](../docs/AIR_QUAD_INTERFACE.md)）**。
+> 状态：**轨 A + 轨 B（MATLAB 权威链）交付，M4' 对拍门通过**；**建模调整 P0/P1 落地（2026-10-11，工作簿三套 baseline 参数包 + 冒烟 3/3 PASS）**；**P2 控制现实性关闭（2026-10-11，现实性链+时延×饱和×噪声磨损表全门 PASS）**；**P3 算法验证交付（2026-10-14 G-P4 修复两轮复评 G-P0–G-P4 全门槛 PASS，R7 口径，见方案 §4.4/§4.6/§4.7）**；**P4 薄包装收尾（2026-10-13，air_quad.slx + 商飞 0xF2 接口位，冒烟全过；2026-10-14 组帧对照协议自查修正 + 审查决策包三点待叶安，见 [`docs/AIR_QUAD_INTERFACE.md`](../docs/AIR_QUAD_INTERFACE.md)）**。
 > 方案：[`docs/QUAD_MIGRATION_PLAN_20260921.md`](../docs/QUAD_MIGRATION_PLAN_20260921.md) §4-Q2；建模调整期按 [`docs/QUAD_SIM_MODEL_PLAN_20261011.md`](../docs/QUAD_SIM_MODEL_PLAN_20261011.md)（含妥协登记 C1–C9）。
 > 口径：默认配置维持 **quad_placeholder（P4）** 占位（Q2 证据可复现）；工作簿机型走 `quad_sim.baseline('bg'/'b40'/'b42')` opt-in（workbook_baseline_20261011，非老师参数，不可外引为真实结论）。
 
@@ -43,8 +43,11 @@ run_quad_sim_checks   % 轨 B: 单元门 + M4' 对拍表 + n 效应 + 就位比
 ## 局限
 
 - 占位参数待老师交付（换参 = config 覆盖 + 重跑入口，H4 演练门）；
-- B2：新建 air_quad.slx 薄包装（老师面/SITL 接口位）后续；既有 .slx 零触碰；
-- Q1 结论在本模块加固：谷由 H3 创造、纯静态 L0 盲——估计链按 D1 用 L1 档。
+- B2 已交付（2026-10-13）：air_quad.slx 薄包装 + 0xF2 组帧接口位；既有 .slx
+  零触碰；接口审查决策包三点待叶安拍板（[`docs/AIR_QUAD_INTERFACE.md`](../docs/AIR_QUAD_INTERFACE.md) §5.1）；
+- Q1 结论在本模块加固：谷由 H3 创造、纯静态 L0 盲——估计链按 D1 用 L1 档；
+- P3 G-P4 已按登记两轮修复关闭（2026-10-14 全门槛 PASS：锚定选谷+邻域钳位+
+  曲率门槛+探针边界防退化，`p3_arm`/`p3_opt`/方案 §4.6–4.7）；多臂适配按序最后。
 
 ## 署名
 

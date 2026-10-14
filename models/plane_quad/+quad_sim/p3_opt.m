@@ -8,6 +8,9 @@ function opt = p3_opt()
 % 臂(openloop/sweepcal/known, 见 +quad_sim/p3_arm):
 %   openloop  固定 8 m/s(先验, 无反馈基线)
 %   sweepcal  在线三点扫 + 二次拟合定谷(周期 30 s, 每点驻留 3 s, 只读 P̂)
+%             G-P4 轻量版预注册(2026-10-14 冻结, 先于复评数据; 方案 §4.6/§4.7):
+%             样本支撑选谷(锚定实测最优样本, 不外推)+邻域钳位(maxStep)+曲率门槛
+%             (curvMin_pp1)+探针边界防退化+尾窗 2 s; 门槛数值不动, 改的是算法
 %   known     oracle 上界(真值扫描逐风相位 v*, 显式 oracle, 不受因果门约束)
 %   purerl    不在本机复现(无训练栈), 声明裁剪(Q 系 purerl 结论不迁移)
 % 敏感性(Q1 式, 施于估计口径 P̂, 对地速; 与 Q1 空速口径差在此声明):
@@ -29,7 +32,8 @@ mission = struct('T_s',240,'dt_s',0.01,'seed',20261011, ...
     'vMin_mps',4,'vMax_mps',14,'vInit_mps',8, ...
     'cycle_s',30,'dwell_s',3,'tDwellMin_s',2);
 arms = struct('openloop_v',8,'sweepcal',struct('cycle_s',30,'dwell_s',3, ...
-    'probeOff_mps',2,'vMin_mps',4,'vMax_mps',14));
+    'tail_s',2,'probeOff_mps',1.5,'supportExt_mps',0,'maxStep_mps',1.5, ...
+    'curvMin_pp1',0.5,'vMin_mps',4,'vMax_mps',14,'vInit_mps',8));
 sens = struct('s1_pct',[3 -3 5 -5],'s2_pct_mps',[0.7 -0.7 1.4 -1.4], ...
     'gate_s1_pct',3,'gate_s2_pct_mps',0.7);
 gates = struct('driftMax_pp',1.0,'sensWearMax_pp',1.0, ...
