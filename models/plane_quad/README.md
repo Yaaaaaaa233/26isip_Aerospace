@@ -30,7 +30,7 @@ MN1005 台架 T(n)/P(n;V)/H3（替代 x8phys 代理系数）；`ctrl` = v_ref→
 cd models/plane_quad
 run_quad_checks       % 轨 A: 单元门 M2/M3 + 稳态配平表
 run_quad_sim_checks   % 轨 B: 单元门 + M4' 对拍表 + n 效应 + 就位比
-launch_quad_demo      % 展示面板(演示层, 2026-10-14): 控制台/P(v)谷图/时间线/仪表+0xF2
+launch_quad_demo      % 展示面板(演示层, v3 布局=老 3.6 面板 uigridlayout 网格骨架)
 run_quad_demo_smoke   % 面板开发级冒烟(S-D1–S-D5)
 ```
 

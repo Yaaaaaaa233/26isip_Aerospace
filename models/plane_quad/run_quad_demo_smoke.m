@@ -24,7 +24,7 @@ for r = 1:2
         S.step(1200);                          % 续推到 1500 步(S-D5, 另存)
         svEnd = S.state();
         png = fullfile(resDir,'quad_demo_shot.png');
-        saveas(fig,png);
+        exportapp(fig,png);          % uifigure 不支持 saveas, 用 exportapp
     end
     close(fig);
 end

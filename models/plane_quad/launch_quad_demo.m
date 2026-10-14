@@ -1,5 +1,12 @@
 function fig = launch_quad_demo(visible)
-%LAUNCH_QUAD_DEMO 四旋翼新模型展示面板(演示层, 2026-10-14)。
+%LAUNCH_QUAD_DEMO 四旋翼新模型展示面板(演示层, 2026-10-15 v3)。
+% v2: 布局层按老 UI(modules/platform_link/launch_3_6_demo.m)骨架重做——uifigure +
+%   uigridlayout 网格托管 + uipanel 卡片(put/choice/number 助手同款), 修 v1 手工
+%   坐标错位问题。内容语义与 v1 相同。
+% v3: 视觉修复(仅布局层)——滑条刻度标签截断(表单末行 32->54)、环境卡"放大"按钮
+%   压住风速轴 x 刻度(uiaxes 包 uipanel 再入 flex 行)、P(v) 图例遮曲线(改左上)、
+%   时间线图例贴 v_cmd 尖峰(改顶部横排)、'1x' 行不撑满致底部约 120 px 空带(改显式
+%   行高按客户区配平)、左栏"小字说明"归位到评价卡下方(表单 4 行)。语义/API 不变。
 % 黑箱红线: 面板仅演示, 不作可引用数据源(数字口径以 docs/evidence 证据 CSV 为准);
 %   演示链 = air_quad_tick(P4 薄包装 -> quad_sim.ctrl/step 权威链)逐步推进,
 %   无 P2 现实性退化(时延/噪声/量化见 P2 验收证据, 面板不复现)。
@@ -7,7 +14,6 @@ function fig = launch_quad_demo(visible)
 %   openloop 固定 8 / sweepcal 在线三点扫 / known = R7 定律 oracle(v*=6-w, 显式)。
 % P(v) 谷图 = E1 真值扫描证据加载(docs/evidence/quad_migration/quad_p3/
 %   quad_p3_sweep_vi.csv), 不重算; 谷随风移动 = R7 定律(命令谷 = 空速谷 6 - w)。
-% 区: 控制台(臂/估计档/风剧本/速度/起停) | P(v) 谷图 | 时间线 | 仪表 + 0xF2 组帧。
 % 用法: launch_quad_demo                    % 交互
 %       fig = launch_quad_demo('off');      % 无窗(批处理/冒烟)
 %       S = getappdata(fig,'qdemo'); S.step(500); S.state   % 批处理驱动
@@ -17,7 +23,7 @@ repo = fileparts(fileparts(root));
 addpath(root); addpath(fullfile(repo,'models','px4_x8'));
 % ---- 常量(P3 窗口口径) ----
 dt = 0.01; T_s = 240; phWind = [4 0 -4]; phBnd = [0 80 160 240];
-vMin = 4; vMax = 14; uStar = 6;             % 空速谷 6 m/s(E1 证据, 相位不变)
+vMin = 4; vMax = 14; uStar = 6;
 whitelist = {'t','v','x','Phat','Vmeas','Ehat','cmd'};
 % ---- P(v) 证据曲线(不重算) ----
 curveCsv = fullfile(repo,'docs','evidence','quad_migration','quad_p3', ...
@@ -37,65 +43,159 @@ st = struct('t',0,'k',0,'vCmd',8,'Ehat',0,'Ewh',0,'needReset',true, ...
     'phase',1,'running',false);
 nMax = ceil(T_s/dt); down = 5; nD = ceil(nMax/down)+1;
 hist = struct('t',zeros(1,nD),'v',zeros(1,nD),'vc',zeros(1,nD), ...
-    'P',zeros(1,nD),'Ph',zeros(1,nD),'n',0);
+    'P',zeros(1,nD),'Ph',zeros(1,nD),'E',zeros(1,nD),'Eh',zeros(1,nD),'n',0);
 pol = []; estTier = 'vi'; windKind = 'phase'; rate = 2; armName = 'sweepcal';
 cfg = quad_sim.config(quad_sim.baseline('b40'),'est_model',estTier);
 assignin('base','air_quad_config',cfg);
-% ---- 图 ----
-fig = figure('Name','quad demo (演示层, 非数据源)','NumberTitle','off', ...
-    'Position',[60 50 1280 820],'Visible',visible, ...
-    'Color',[0.96 0.96 0.97],'CloseRequestFcn',@onClose);
-% 控制台
-uicontrol(fig,'Style','text','String','臂:','Units','normalized', ...
-    'Position',[0.02 0.955 0.03 0.03],'BackgroundColor',[0.96 0.96 0.97]);
-hArm = uicontrol(fig,'Style','popupmenu','Units','normalized', ...
-    'Position',[0.05 0.955 0.11 0.035], ...
-    'String',{'sweepcal (在线寻优)','openloop (恒速 8)','known (R7 oracle)'}, ...
-    'Value',1,'Callback',@onArm);
-uicontrol(fig,'Style','text','String','估计档:','Units','normalized', ...
-    'Position',[0.17 0.955 0.05 0.03],'BackgroundColor',[0.96 0.96 0.97]);
-hEst = uicontrol(fig,'Style','popupmenu','Units','normalized', ...
-    'Position',[0.22 0.955 0.14 0.035], ...
-    'String',{'vi (V·I 测量主档, R8③)','l1 (空速修正降级)','l0 (粗估降级)'}, ...
-    'Value',1,'Callback',@onEst);
-uicontrol(fig,'Style','text','String','风剧本:','Units','normalized', ...
-    'Position',[0.37 0.955 0.05 0.03],'BackgroundColor',[0.96 0.96 0.97]);
-hWind = uicontrol(fig,'Style','popupmenu','Units','normalized', ...
-    'Position',[0.42 0.955 0.16 0.035], ...
-    'String',{'三段相位 4/0/-4 (P3 口径)','静风 0','恒风 +2.5'}, ...
-    'Value',1,'Callback',@onWind);
-uicontrol(fig,'Style','text','String','速度x','Units','normalized', ...
-    'Position',[0.59 0.955 0.04 0.03],'BackgroundColor',[0.96 0.96 0.97]);
-hRate = uicontrol(fig,'Style','slider','Units','normalized', ...
-    'Position',[0.63 0.958 0.12 0.028],'Min',0.5,'Max',5,'Value',2, ...
-    'SliderStep',[0.1 0.2],'Callback',@onRate);
-hRun = uicontrol(fig,'Style','pushbutton','String','开始','Units','normalized', ...
-    'Position',[0.77 0.952 0.06 0.04],'Callback',@onRun);
-uicontrol(fig,'Style','pushbutton','String','复位','Units','normalized', ...
-    'Position',[0.84 0.952 0.06 0.04],'Callback',@onReset);
-hStatus = uicontrol(fig,'Style','text','String','','Units','normalized', ...
-    'Position',[0.02 0.012 0.96 0.028],'HorizontalAlignment','left', ...
-    'BackgroundColor',[0.96 0.96 0.97],'FontName','Consolas');
-% 四区
-axCurve = axes('Parent',fig,'Units','normalized','Position',[0.05 0.44 0.40 0.46]);
-axTime  = axes('Parent',fig,'Units','normalized','Position',[0.53 0.44 0.43 0.46]);
-axGauge = axes('Parent',fig,'Units','normalized','Position',[0.05 0.08 0.40 0.28]);
-axTel   = axes('Parent',fig,'Units','normalized','Position',[0.53 0.08 0.43 0.28]);
-drawCurve(); drawTime(); drawGauge(); drawTel();
-tm = timer('ExecutionMode','fixedSpacing','Period',0.05,'BusyMode','drop', ...
+% ================= UI 骨架(老 3.6 面板同款: uifigure+uigridlayout+卡片) =================
+fig = uifigure('Name','四旋翼在线速度寻优演示(P4 薄包装链, 演示层)', ...
+    'Position',[40 30 1500 960],'Color',[.96 .97 .98],'Visible',visible, ...
+    'AutoResizeChildren','off','CloseRequestFcn',@onClose);
+outer = uigridlayout(fig,[3 2]);
+outer.RowHeight = {44,'1x',28}; outer.ColumnWidth = {330,'1x'};
+outer.Padding = [12 10 12 10]; outer.RowSpacing = 10;
+header = uilabel(outer,'Text', ...
+    '四旋翼演示 | P̂=V·I 测量主档(R8③) × 谷=气动物理涌现(E1) × 命令谷=空速谷6∓风(R7) × 臂=p3_arm(G-P2 白名单) × [演示口径, 非数据源]', ...
+    'FontName','Microsoft YaHei','FontSize',14,'FontWeight','bold');
+put(header,1,[1 2]);
+% ---- 左栏(参数表单/操作/评价卡/日志) ----
+leftLayout = uigridlayout(outer,[5 1]); put(leftLayout,2,1);
+% 显式行高: uigridlayout 的 '1x' 行在本环境只取内容偏好高度而非剩余空间, 会留
+% 底部空带; 按客户区 939 px(1500x960 图 - 上下内边距/标题/状态)配平到 826 px(v3 修复)
+leftLayout.RowHeight = {176,110,175,30,303};
+leftLayout.Padding = [0 0 0 0]; leftLayout.RowSpacing = 8;
+left = leftLayout;
+form = uipanel(left,'BorderType','none'); put(form,1,1);
+g = uigridlayout(form,[4 2]); g.ColumnWidth = {140,'1x'};
+% 末行 54 px: uislider 刻度标签需要约 48 px, 32 px 会截断标签(v3 修复)
+g.RowHeight = {32,32,32,54}; g.Padding = [0 0 8 0]; g.RowSpacing = 7;
+hArm = choice(g,'控制策略',1,{'sweepcal 在线寻优','openloop 恒速 8','known R7 oracle'}, ...
+    {'sweepcal','openloop','known'},'sweepcal');
+hArm.ValueChangedFcn = @onArm;
+hEst = choice(g,'估计档',2,{'vi (V·I 测量主档)','l1 (空速修正降级)','l0 (粗估降级)'}, ...
+    {'vi','l1','l0'},'vi');
+hEst.ValueChangedFcn = @onEst;
+hWind = choice(g,'风剧本',3,{'三段相位 4/0/-4 (P3 口径)','静风 0','恒风 +2.5'}, ...
+    {'phase','calm','gust'},'phase');
+hWind.ValueChangedFcn = @onWind;
+speedLabel = uilabel(g,'Text','播放速度: 2.00x','FontName','Microsoft YaHei', ...
+    'FontSize',11,'WordWrap','on'); put(speedLabel,4,1);
+% 刻度 1x 与 0.5x 间距过近会叠字, 去掉 0.5x 标签(极限值仍可拖动, 读数在左侧文本)
+speedSlider = uislider(g,'Limits',[0.5 5],'Value',2,'MajorTicks',[1 2 3 5], ...
+    'MajorTickLabels',{'1x','2x','3x','5x'}); put(speedSlider,4,2);
+speedSlider.ValueChangedFcn = @(~,ev) setSpeed(ev.Value);
+actions = uigridlayout(left,[2 4]); put(actions,2,1);
+actions.RowHeight = {34,34}; actions.RowSpacing = 7; actions.Padding = [0 0 8 0];
+play = uibutton(actions,'Text','播放'); put(play,1,1);
+pauseBtn = uibutton(actions,'Text','暂停'); put(pauseBtn,1,2);
+resetBtn = uibutton(actions,'Text','重置'); put(resetBtn,1,3);
+finishBtn = uibutton(actions,'Text','末帧'); put(finishBtn,1,4);
+exportPng = uibutton(actions,'Text','导出PNG'); put(exportPng,2,[1 4]);
+play.ButtonPushedFcn = @onRun; pauseBtn.ButtonPushedFcn = @onPause;
+resetBtn.ButtonPushedFcn = @onReset; finishBtn.ButtonPushedFcn = @onFinish;
+exportPng.ButtonPushedFcn = @exportCurrent;
+resultCard = uipanel(left,'Title','★ 评价结果(实时)','FontName','Microsoft YaHei', ...
+    'FontSize',11,'ForegroundColor',[.62 .08 .08],'HighlightColor',[.62 .08 .08]);
+put(resultCard,3,1);
+rg = uigridlayout(resultCard,[5 2]); rg.RowHeight = {26,24,24,24,24};
+rg.ColumnWidth = {'1x','1x'}; rg.Padding = [8 2 8 2]; rg.RowSpacing = 1;
+mkTag = @(txt) uilabel(rg,'Text',txt,'FontName','Microsoft YaHei','FontSize',9, ...
+    'FontColor',[.25 .25 .25]);
+mkVal = @(sz) uilabel(rg,'Text','—','FontName','Microsoft YaHei','FontSize',sz, ...
+    'FontWeight','bold','HorizontalAlignment','right');
+labET = mkTag('E真 / Ê (Wh, 任务累计)'); put(labET,1,1);
+labE = mkVal(12); put(labE,1,2); labE.FontColor = [.0 .45 .2];
+labVT = mkTag('v_cmd / v实 (m/s)'); put(labVT,2,1);
+labV = mkVal(11); put(labV,2,2);
+labPT = mkTag('P̂ / P真 (W)'); put(labPT,3,1);
+labP = mkVal(11); put(labP,3,2);
+labST = mkTag('命令谷 6∓w (R7) / 相位'); put(labST,4,1);
+labStar = mkVal(11); put(labStar,4,2);
+labTT = mkTag('t (s) / 估计档'); put(labTT,5,1);
+labT = mkVal(11); put(labT,5,2);
+readout = uilabel(left,'Text','演示口径: tick=薄包装权威链; P(v)=E1 证据', ...
+    'WordWrap','on','FontName','Microsoft YaHei','FontSize',9, ...
+    'FontColor',[.4 .4 .4]); put(readout,4,1);
+logBox = uitextarea(left,'Editable','off','FontName','Microsoft YaHei','FontSize',9);
+put(logBox,5,1);
+% ---- 右侧绘图区(老面板 3x2 网格: 4 axes + 飞机/环境双卡) ----
+plots = uigridlayout(outer,[3 2]); put(plots,2,2);
+% 显式行高(同上, '1x' 不撑满): 上两行各 274 px 承载四图, 卡片行 250 px;
+% 三行 + 行距 826 px 与左栏配平, 两侧底边对齐(约 y=884), 消除底部空带
+plots.RowHeight = {274,274,250}; plots.ColumnWidth = {'1x','1x'};
+plots.RowSpacing = 14; plots.ColumnSpacing = 18; plots.Padding = [0 0 0 0];
+ax = gobjects(1,4); axHold = gobjects(1,2);
+% uiaxes 直接放多行 uigridlayout 单元格时会按自身偏好高度渲染并伸出单元格(压住
+% 下一行, 底部留空带); 每行两只轴先包一层无边框 uipanel 再入 flex 行, 行高才能
+% 撑满(v3 修复)。holder 背景色与图区底色一致, 不引入可见色块。
+for r = 1:2
+    axHold(r) = uipanel(plots,'BorderType','none', ...
+        'BackgroundColor',[.96 .97 .98]); put(axHold(r),r,[1 2]);
+    hg = uigridlayout(axHold(r),[1 2]);
+    hg.Padding = [0 0 0 0]; hg.ColumnSpacing = 18;
+    for c = 1:2
+        k = 2*(r-1)+c;
+        ax(k) = uiaxes(hg); put(ax(k),1,c);
+        disableDefaultInteractivity(ax(k)); ax(k).Toolbar.Visible = 'off';
+    end
+end
+airPanel = uipanel(plots,'Title','飞机模型：功率+速度双表盘(黑箱仪表)', ...
+    'FontName','Microsoft YaHei','ForegroundColor',[.15 .3 .6], ...
+    'HighlightColor',[.15 .3 .6]);
+airPanel.Layout.Row = 3; airPanel.Layout.Column = 1;
+ag = uigridlayout(airPanel,[5 2]); ag.RowHeight = {150,16,16,16,34};
+ag.ColumnWidth = {'1x','1x'}; ag.Padding = [6 6 6 4]; ag.RowSpacing = 4;
+gPower = uigauge(ag,'Limits',[400 1400]); put(gPower,1,1);
+labPw = uilabel(ag,'Text','功率表 P̂ / W','FontName','Microsoft YaHei','FontSize',9, ...
+    'HorizontalAlignment','center'); put(labPw,2,1);
+gSpeed = uigauge(ag,'Limits',[0 16]); put(gSpeed,1,2);
+labSp = uilabel(ag,'Text','地速表 / m·s⁻¹','FontName','Microsoft YaHei','FontSize',9, ...
+    'HorizontalAlignment','center'); put(labSp,2,2);
+labVI = uilabel(ag,'Text','母线: —','FontName','Microsoft YaHei','FontSize',10, ...
+    'HorizontalAlignment','center'); put(labVI,3,[1 2]);
+labTh = uilabel(ag,'Text','油门组: —','FontName','Microsoft YaHei','FontSize',10, ...
+    'HorizontalAlignment','center'); put(labTh,4,[1 2]);
+btnAirSize = uibutton(ag,'Text','放大 ⤢'); put(btnAirSize,5,[1 2]);
+btnAirSize.ButtonPushedFcn = @(~,~) toggleSize('air');
+envPanel = uipanel(plots,'Title','环境模型：相位风 × 风矢量', ...
+    'ForegroundColor',[.1 .45 .25],'HighlightColor',[.1 .45 .25]);
+envPanel.Layout.Row = 3; envPanel.Layout.Column = 2;
+eg = uigridlayout(envPanel,[2 1]); eg.RowHeight = {'1x',28};
+% uiaxes 直接放在 flex 行会伸出单元格压住下一行(uigridlayout 行为), 两轴先包一层
+% 无边框 uipanel 再入 flex 行(v3 修复: 原实现按钮压住风速轴 x 刻度)
+eg.Padding = [4 4 4 2]; eg.RowSpacing = 2;
+envHolder = uipanel(eg,'BorderType','none'); put(envHolder,1,1);
+btnEnvSize = uibutton(eg,'Text','放大 ⤢'); put(btnEnvSize,2,1);
+btnEnvSize.ButtonPushedFcn = @(~,~) toggleSize('env');
+egh = uigridlayout(envHolder,[1 2]); egh.Padding = [0 0 0 0]; egh.ColumnSpacing = 8;
+axEnv = uiaxes(egh); put(axEnv,1,1);
+disableDefaultInteractivity(axEnv); axEnv.Toolbar.Visible = 'off';
+title(axEnv,'风速-相位(三段剧本)','FontSize',8);
+axWind = uiaxes(egh); put(axWind,1,2);
+disableDefaultInteractivity(axWind); axWind.Toolbar.Visible = 'off';
+title(axWind,'风矢量 + 工作点','FontSize',8);
+status = uilabel(outer,'Text','就绪','FontName','Microsoft YaHei','FontSize',10);
+put(status,3,2);
+drawAll();
+updateStatus();
+clock = timer('ExecutionMode','fixedSpacing','Period',.15,'BusyMode','drop', ...
     'TimerFcn',@(~,~) stepSim(ticksPerFire()));
 S = struct('step',@stepSim,'state',@getState,'hist',@getHist,'policy',@getPol, ...
-    'whitelist',{whitelist},'frame',@frameNow);
+    'whitelist',{whitelist},'frame',@frameNow,'autostart',@onRun);
 setappdata(fig,'qdemo',S);
-updateStatus();
 
-% ================= 嵌套函数(可变状态一律嵌套, 勿匿名捕获) =================
-% 取值器必须是具名嵌套函数: 匿名 @() st 会按值冻结构造时刻快照(交接书教训)。
+% ================= 嵌套函数(可变状态一律具名嵌套, 勿匿名捕获) =================
     function s = getState(), s = st; end
     function hh = getHist(), hh = hist; end
     function p = getPol(), p = pol; end
     function n = ticksPerFire()
-        n = max(1,round(rate*0.05/dt));
+        n = max(1,round(rate*0.15/dt));
+    end
+    function setSpeed(val)
+        rate = val;
+        speedLabel.Text = sprintf('播放速度: %.2fx',val);
+        % 运行中 timer 不能直接改 Period(老面板教训): 先 stop 再改再 start
+        if strcmp(clock.Running,'on'), stop(clock); clock.Period = .15; start(clock); end
     end
     function w = windAt(t)
         switch windKind
@@ -139,9 +239,7 @@ updateStatus();
             end
             w = windAt(st.t);
             rst = 0;
-            if st.needReset
-                rst = 1; st.needReset = false;
-            end
+            if st.needReset, rst = 1; st.needReset = false; end
             y = air_quad_tick([st.vCmd; w; rst]);
             info = struct('t',st.t,'v',y(4),'x',y(7),'Phat',y(1), ...
                 'Vmeas',y(2),'Ehat',st.Ehat,'cmd',st.vCmd);
@@ -156,12 +254,13 @@ updateStatus();
                 hist.t(hist.n) = st.t; hist.v(hist.n) = y(4);
                 hist.vc(hist.n) = st.vCmd;
                 hist.P(hist.n) = y(2)*y(3); hist.Ph(hist.n) = y(1);
+                hist.E(hist.n) = st.Ewh; hist.Eh(hist.n) = st.Ehat;
             end
             st.t = st.t + dt;
             st.vCmd = pol(info);
             st.lastY = y;
         end
-        drawCurve(); drawTime(); drawGauge(); drawTel();
+        drawAll();
         updateStatus();
     end
     function b = frameNow()
@@ -169,112 +268,144 @@ updateStatus();
         y = st.lastY;
         b = air_quad_telemetry_pack([y(2); y(3); y(5); y(6); 0]);
     end
+    function drawAll()
+        drawCurve(); drawTime(); drawEnergy(); drawFrame();
+        drawGauges(); drawEnv();
+    end
     function drawCurve()
-        cla(axCurve); hold(axCurve,'on');
+        cla(ax(1)); hold(ax(1),'on');
         if isempty(Pev)
-            text(axCurve,0.2,0.5,'P(v) 证据 CSV 缺失','FontSize',11);
+            text(ax(1),0.2,0.5,'P(v) 证据 CSV 缺失');
         else
             cols = lines(numel(phWind));
             for p = 1:numel(phWind)
                 lw = 1.0; ls = '--';
                 if p == st.phase, lw = 2.2; ls = '-'; end
-                plot(axCurve,vGrid,Pev(p,:),ls,'Color',cols(p,:), ...
+                plot(ax(1),vGrid,Pev(p,:),ls,'Color',cols(p,:), ...
                     'LineWidth',lw,'DisplayName',sprintf('风 %+.0f m/s',phWind(p)));
                 [~,iv] = min(Pev(p,:));
-                plot(axCurve,vGrid(iv),Pev(p,iv),'p','Color',cols(p,:), ...
+                plot(ax(1),vGrid(iv),Pev(p,iv),'p','Color',cols(p,:), ...
                     'MarkerSize',12,'HandleVisibility','off');
             end
             if isfield(st,'lastY')
-                plot(axCurve,st.lastY(4),st.lastY(2)*st.lastY(3),'ko', ...
+                plot(ax(1),st.lastY(4),st.lastY(2)*st.lastY(3),'ko', ...
                     'MarkerSize',8,'LineWidth',1.5,'HandleVisibility','off');
-                xline(axCurve,st.vCmd,'k:','HandleVisibility','off');
+                xline(ax(1),st.vCmd,'k:','HandleVisibility','off');
             end
-            legend(axCurve,'Location','northeast','FontSize',8);
-            xlabel(axCurve,'地速指令 v (m/s)'); ylabel(axCurve,'P (W)');
-            title(axCurve,sprintf('P(v) 谷随风移动 (E1 证据; 谷*=6∓w = %s)', ...
-                mat2str(min(vMax,max(vMin,uStar-phWind)))));
-            grid(axCurve,'on');
+            legend(ax(1),'Location','northwest','FontSize',8);
+            title(ax(1),sprintf('P(v) 谷随风移动 (E1 证据; 谷*=6∓w=%s)', ...
+                mat2str(min(vMax,max(vMin,uStar-phWind)))),'FontSize',10);
+            xlabel(ax(1),'地速指令 v / m·s⁻¹','FontSize',9);
+            ylabel(ax(1),'P / W','FontSize',9);
+            grid(ax(1),'on');
         end
-        hold(axCurve,'off');
+        hold(ax(1),'off');
     end
     function drawTime()
-        cla(axTime); hold(axTime,'on');
+        cla(ax(2)); hold(ax(2),'on');
         cols = lines(numel(phWind));
-        for p = 1:numel(phWind)
+        for p = 1:numel(phWind)          % uiaxes 怪癖: patch 须先于 line 创建
             x = [phBnd(p) phBnd(p+1) phBnd(p+1) phBnd(p)];
-            patch(axTime,x,[0 0 1400 1400],cols(p,:),'FaceAlpha',0.08, ...
+            patch(ax(2),x,[0 0 1400 1400],cols(p,:),'FaceAlpha',0.08, ...
                 'EdgeColor','none','HandleVisibility','off');
-            text(axTime,mean(x(1:2)),15.2,sprintf('风 %+.0f',phWind(p)), ...
-                'FontSize',8,'Color',cols(p,:));
         end
         if hist.n > 1
             ii = 1:hist.n;
-            yyaxis(axTime,'left'); hold(axTime,'on');   % yyaxis 会重置 hold, 逐边补
-            plot(axTime,hist.t(ii),hist.vc(ii),'-','LineWidth',1.0, ...
+            yyaxis(ax(2),'left'); hold(ax(2),'on');   % yyaxis 重置 hold, 换边补
+            plot(ax(2),hist.t(ii),hist.vc(ii),'-','LineWidth',1.0, ...
                 'DisplayName','v_{cmd}');
-            plot(axTime,hist.t(ii),hist.v(ii),'-','LineWidth',1.4, ...
+            plot(ax(2),hist.t(ii),hist.v(ii),'-','LineWidth',1.4, ...
                 'DisplayName','v_{实}');
-            ylabel(axTime,'v (m/s)'); ylim(axTime,[0 16]);
-            yyaxis(axTime,'right'); hold(axTime,'on');
-            plot(axTime,hist.t(ii),hist.Ph(ii),'-','LineWidth',1.0, ...
+            ylabel(ax(2),'v / m·s⁻¹','FontSize',9); ylim(ax(2),[0 16]);
+            yyaxis(ax(2),'right'); hold(ax(2),'on');
+            plot(ax(2),hist.t(ii),hist.Ph(ii),'-','LineWidth',1.0, ...
                 'DisplayName','P̂');
-            plot(axTime,hist.t(ii),hist.P(ii),'--','LineWidth',1.0, ...
+            plot(ax(2),hist.t(ii),hist.P(ii),'--','LineWidth',1.0, ...
                 'DisplayName','P真(V·I)');
-            ylabel(axTime,'P (W)'); ylim(axTime,[400 1400]);
-            legend(axTime,'Location','northwest','FontSize',8);
+            ylabel(ax(2),'P / W','FontSize',9); ylim(ax(2),[400 1400]);
+            legend(ax(2),'Orientation','horizontal','Location','north','FontSize',8);
         end
-        xlabel(axTime,'t (s)'); xlim(axTime,[0 T_s]);
-        title(axTime,'任务时间线 (三段相位风, 240 s 窗)');
-        grid(axTime,'on');
-        hold(axTime,'off');
+        title(ax(2),'任务时间线 (相位风色带, 240 s 窗)','FontSize',10);
+        xlabel(ax(2),'t / s','FontSize',9); xlim(ax(2),[0 T_s]);
+        grid(ax(2),'on');
+        hold(ax(2),'off');
     end
-    function drawGauge()
-        cla(axGauge); hold(axGauge,'on');
-        if ~isfield(st,'lastY')
-            text(axGauge,0.2,0.5,'未开始','FontSize',11); return;
+    function drawEnergy()
+        cla(ax(3)); hold(ax(3),'on');
+        if hist.n > 1
+            ii = 1:hist.n;
+            plot(ax(3),hist.t(ii),hist.E(ii),'-','LineWidth',1.4, ...
+                'DisplayName','E真(V·I)');
+            plot(ax(3),hist.t(ii),hist.Eh(ii),'--','LineWidth',1.2, ...
+                'DisplayName','Ê(P̂)');
         end
-        y = st.lastY;
-        vals = [y(2)*y(3) y(2) y(3) y(5) y(6) y(8)];
-        nrm = [700 30 60 1 1 1];
-        lbl = {'P真(V·I)','母线 V','母线 I','油门组1','油门组2','SOC'};
-        txt = {sprintf('%.1f W',vals(1)),sprintf('%.2f V',vals(2)), ...
-            sprintf('%.1f A',vals(3)),sprintf('%.2f',vals(4)), ...
-            sprintf('%.2f',vals(5)),sprintf('%.3f',vals(6))};
-        bar(axGauge,vals./nrm,0.6);
-        set(axGauge,'XTick',1:6,'XTickLabel',lbl,'FontSize',8);
-        ylim(axGauge,[0 1.35]);
-        for i = 1:6
-            text(axGauge,i,vals(i)/nrm(i)+0.06,txt{i},'HorizontalAlignment','center', ...
-                'FontSize',8);
-        end
-        title(axGauge,'仪表 (归一化条 + 读数; P̂ 见状态栏)');
-        grid(axGauge,'on');
+        title(ax(3),'能量累计(同窗口径)','FontSize',10);
+        xlabel(ax(3),'t / s','FontSize',9); ylabel(ax(3),'E / Wh','FontSize',9);
+        xlim(ax(3),[0 T_s]); grid(ax(3),'on');
+        if hist.n > 1, legend(ax(3),'Location','northwest','FontSize',8); end
+        hold(ax(3),'off');
     end
-    function drawTel()
-        cla(axTel); hold(axTel,'on'); axis(axTel,'off');  % 无 hold 时 quiver 会清轴
+    function drawFrame()
+        cla(ax(4)); hold(ax(4),'on');
         b = frameNow();
-        hexs = reshape(dec2hex(b,2)',1,[]);
-        txt = '';
-        for i = 1:24
-            txt = [txt hexs(2*i-1:2*i) ' ']; %#ok<AGROW>
-            if i == 12, txt = [txt newline]; end %#ok<AGROW>
-        end
-        text(axTel,0.02,0.82,'0xF2 副帧 2 (24 B, R8①② 映射):','FontSize',10);
-        text(axTel,0.02,0.55,txt,'FontName','Consolas','FontSize',10);
+        bar(ax(4),1:24,b,0.7,'HandleVisibility','off');
+        plot(ax(4),[0.5 24.5],[242 242],':','Color',[.6 .6 .6], ...
+            'HandleVisibility','off');
+        text(ax(4),1,246,'0xF2','FontSize',8);
+        title(ax(4),sprintf('0xF2 副帧 2 字节 (校验和=%d, R8①)',b(24)),'FontSize',10);
+        xlabel(ax(4),'Data[]','FontSize',9); ylabel(ax(4),'字节值','FontSize',9);
+        xlim(ax(4),[0.5 24.5]); ylim(ax(4),[0 265]); grid(ax(4),'on');
+        hold(ax(4),'off');
+    end
+    function drawGauges()
         if isfield(st,'lastY')
-            w = windAt(st.t);
-            quiver(axTel,0.25,0.22,w(1)/4,0,0,'LineWidth',2,'MaxHeadSize',2);
-            text(axTel,0.25,0.10,sprintf('风矢量 x = %+.1f m/s (NED)',w(1)),'FontSize',9);
+            y = st.lastY;
+            gPower.Value = min(max(y(2)*y(3),gPower.Limits(1)),gPower.Limits(2));
+            gSpeed.Value = min(max(y(4),gSpeed.Limits(1)),gSpeed.Limits(2));
+            labVI.Text = sprintf('母线: %.2f V / %.1f A',y(2),y(3));
+            labTh.Text = sprintf('油门组: %.2f / %.2f | SOC %.3f',y(5),y(6),y(8));
         end
-        text(axTel,0.55,0.22,sprintf('E_{真} = %.3f Wh',st.Ewh),'FontSize',10);
-        text(axTel,0.55,0.10,sprintf('Ê    = %.3f Wh',st.Ehat),'FontSize',10);
+    end
+    function drawEnv()
+        cla(axEnv); hold(axEnv,'on');
+        cols = lines(numel(phWind));
+        for p = 1:numel(phWind)
+            patch(axEnv,[phBnd(p) phBnd(p+1) phBnd(p+1) phBnd(p)], ...
+                [-8 -8 8 8],cols(p,:),'FaceAlpha',0.08,'EdgeColor','none', ...
+                'HandleVisibility','off');
+        end
+        tt = linspace(0,T_s,200);
+        ww = zeros(size(tt));
+        for j = 1:numel(tt)
+            wj = windAt(tt(j)); ww(j) = wj(1);
+        end
+        plot(axEnv,tt,ww,'-','LineWidth',1.4);
+        title(axEnv,'风速-相位(三段剧本)','FontSize',8);
+        xlabel(axEnv,'t / s','FontSize',8); ylabel(axEnv,'w_x / m·s⁻¹','FontSize',8);
+        xlim(axEnv,[0 T_s]); ylim(axEnv,[-8 8]); grid(axEnv,'on');
+        hold(axEnv,'off');
+        cla(axWind); hold(axWind,'on');
+        w = windAt(st.t);
+        quiver(axWind,0,0,w(1)/4,0,'LineWidth',2,'MaxHeadSize',2);
+        text(axWind,0,0.4,sprintf('w_x=%+.1f m/s',w(1)),'FontSize',9);
+        vs = min(vMax,max(vMin,uStar-w(1)));
+        plot(axWind,vs,0,'p','MarkerSize',14);
+        text(axWind,vs,-0.5,sprintf('命令谷 %+.0f',vs),'FontSize',9, ...
+            'HorizontalAlignment','center');
+        xlim(axWind,[-1 3]); ylim(axWind,[-1 1]); axis(axWind,'off');
+        hold(axWind,'off');
     end
     function updateStatus()
-        ph = '相位-';
-        if st.t > 0 || st.k > 0, ph = sprintf('相位%d',st.phase); end
-        set(hStatus,'String',sprintf( ...
-            ' t=%6.1f s | %s | v_cmd=%4.1f v实=%4.1f | P̂=%6.1f W P真=%6.1f W | E=%.3f Wh | 臂=%s 估计档=%s | [演示口径, 非数据源]', ...
-            st.t,ph,st.vCmd,localV(),localPhat(),localPtrue(),st.Ewh,armName,estTier));
+        status.Text = sprintf( ...
+            't=%6.1f s | 相位%d | v_cmd=%4.1f v实=%4.1f | E真=%.3f Wh Ê=%.3f Wh | 臂=%s 估计档=%s [演示口径]', ...
+            st.t,st.phase,st.vCmd,localV(),st.Ewh,st.Ehat,armName,estTier);
+        labE.Text = sprintf('%.3f / %.3f',st.Ewh,st.Ehat);
+        labV.Text = sprintf('%.1f / %.1f',st.vCmd,localV());
+        labP.Text = sprintf('%.0f / %.0f',localPhat(),localPtrue());
+        wNow = windAt(st.t);
+        labStar.Text = sprintf('%+.0f / %d', ...
+            min(vMax,max(vMin,uStar-wNow(1))),st.phase);
+        labT.Text = sprintf('%.1f / %s',st.t,estTier);
     end
     function v = localV()
         v = 0; if isfield(st,'lastY'), v = st.lastY(4); end
@@ -287,19 +418,24 @@ updateStatus();
     end
     function stopRun()
         st.running = false;
-        if strcmp(get(tm,'Running'),'on'), stop(tm); end
-        set(hRun,'String','开始');
+        if strcmp(clock.Running,'on'), stop(clock); end
     end
     function onRun(~,~)
         if st.t >= T_s, onReset([],[]); end
-        if strcmp(get(tm,'Running'),'on')
+        if strcmp(clock.Running,'on')
             stopRun();
         else
             st.running = true;
             if isempty(pol), buildPolicy(); end
-            start(tm);
-            set(hRun,'String','暂停');
+            start(clock);
         end
+    end
+    function onPause(~,~)
+        stopRun();
+    end
+    function onFinish(~,~)
+        stopRun();
+        stepSim(ceil((T_s-st.t)/dt));
     end
     function onReset(~,~)
         stopRun();
@@ -310,33 +446,75 @@ updateStatus();
         st.needReset = true; st.phase = 1;
         hist.n = 0;
         buildPolicy();
-        drawCurve(); drawTime(); drawGauge(); drawTel();
+        drawAll();
         updateStatus();
     end
     function onArm(h,~)
-        names = {'sweepcal','openloop','known'};
-        armName = names{get(h,'Value')};
+        armName = h.Value;
+        logMsg(sprintf('臂 -> %s',armName));
         onReset([],[]);
     end
     function onEst(h,~)
-        tiers = {'vi','l1','l0'};
-        estTier = tiers{get(h,'Value')};
+        estTier = h.Value;
+        logMsg(sprintf('估计档 -> %s',estTier));
         onReset([],[]);
     end
     function onWind(h,~)
-        kinds = {'phase','calm','gust'};
-        windKind = kinds{get(h,'Value')};
+        windKind = h.Value;
+        logMsg(sprintf('风剧本 -> %s',windKind));
         onReset([],[]);
     end
-    function onRate(h,~)
-        rate = get(h,'Value');
+    function logMsg(msg)
+        v = logBox.Value;
+        if ~iscell(v), v = {v}; end
+        logBox.Value = [{sprintf('[%6.1f] %s',st.t,msg)}; v(:)];
+    end
+    function exportCurrent(~,~)
+        png = fullfile(root,'results','quad_demo_export.png');
+        exportapp(fig,png);
+        logMsg(sprintf('导出 %s',png));
+    end
+    function toggleSize(which)
+        if strcmp(which,'air')
+            if airPanel.Layout.Row(1) == 1
+                airPanel.Layout.Row = 3; airPanel.Layout.Column = 1;
+                btnAirSize.Text = '放大 ⤢';
+            else
+                airPanel.Layout.Row = [1 3]; airPanel.Layout.Column = [1 2];
+                btnAirSize.Text = '还原 ⤡';
+            end
+        else
+            if envPanel.Layout.Row(1) == 1
+                envPanel.Layout.Row = 3; envPanel.Layout.Column = 2;
+                btnEnvSize.Text = '放大 ⤢';
+            else
+                envPanel.Layout.Row = [1 3]; envPanel.Layout.Column = [1 2];
+                btnEnvSize.Text = '还原 ⤡';
+            end
+        end
     end
     function onClose(~,~)
         stopRun();
-        if isvalid(tm), delete(tm); end
+        if isvalid(clock), delete(clock); end
         if evalin('base','exist(''air_quad_config'',''var'')')
             evalin('base','clear air_quad_config');
         end
         delete(fig);
     end
+end
+% ================= 局部助手(老 3.6 面板同款) =================
+function h = number(g,text,row,value,limits)
+label(g,text,row);
+h = uieditfield(g,'numeric','Value',value,'Limits',limits); put(h,row,2);
+end
+function h = choice(g,text,row,items,data,value)
+label(g,text,row);
+h = uidropdown(g,'Items',items,'ItemsData',data,'Value',value); put(h,row,2);
+end
+function label(g,text,row)
+h = uilabel(g,'Text',text,'FontName','Microsoft YaHei','FontSize',11, ...
+    'WordWrap','on'); put(h,row,1);
+end
+function put(h,row,col)
+h.Layout.Row = row; h.Layout.Column = col;
 end
