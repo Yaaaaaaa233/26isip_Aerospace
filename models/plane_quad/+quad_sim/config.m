@@ -47,11 +47,12 @@ c.ctrl_period_s = 0;            % 控制更新周期(0=每物理步; >0=指令�
 c.cmd_delay_s = 0;              % 算法步 -> 执行 指令时延
 c.meas_delay_s = 0;             % 测量时延: GPS 级速度测量通道(勘误后语义, IMU/电压不滞后)
 c.meas_noise_V_pct = 0;         % 端电压测量噪声 rms [%]
+c.meas_noise_I_pct = 0;         % 电流测量噪声 rms [%](R8③ 电流采样器; vi 档 TYP 声明 1.0)
 c.pwm_slew_us_per_s = 0;        % PWM 速率限制(0=无限)
 c.pwm_quant_us = 0;             % PWM 分辨率(0=连续)
 c.est_delay_s = 0;              % 估计链输入(pwm,V)时延
 c.est_noise_pct = 0;            % 估计链输出乘性噪声 rms [%](T1 语义典型 1.2)
-c.est_model = 'l0';             % 'l0'=纯台架映射(P2 口径, 默认保持可复现) | 'l1'=声明系数修正(D1)
+c.est_model = 'l0';             % 'l0'=纯台架映射 | 'l1'=声明系数修正(D1) | 'vi'=V·I 测量档(R8③)
 c.ctrl_ff_model = 'airspeed';   % R7(2026-10-13): 'airspeed'=废阻前馈用空速(plane H6 同口径, 默认)
                                 % | 'ground'=无空速感知 FC 声明级变体(C8, Q2 旧口径)
 % ---- 冻结标定只读加载(models/plane/data/calibration, 单一事实源) ----

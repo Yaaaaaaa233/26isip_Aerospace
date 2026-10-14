@@ -1,6 +1,8 @@
-function result = run_quad_p3_checks()
+function result = run_quad_p3_checks(estMode)
 %RUN_QUAD_P3_CHECKS 建模调整方案 P3 算法验证验收(2026-10-11, 方案 §4.3)。
-% 运行: cd models/plane_quad && run_quad_p3_checks
+% 运行: cd models/plane_quad && run_quad_p3_checks        % l1 档(默认, §4.4/4.7 口径)
+%       run_quad_p3_checks('vi')                          % V·I 测量档(R8③, §4.8)
+% estMode: 估计口径 'l1'(默认) | 'vi'(电流采样器主档); 门槛 G-P0–G-P4 两档同值。
 % 预注册单一事实源: +quad_sim/p3_opt(门槛先于数据冻结)。按 R6 单机 b40, TYP 典型
 % 整链口径; 任务=240 s 定速巡航窗 + 三段相位风(头风4/静/顺风4), 谷随风移动。
 % 门(全部硬断言, 失败携带归档路径退出):
@@ -15,12 +17,13 @@ repo = fileparts(fileparts(root));
 addpath(root); addpath(fullfile(repo,'models','px4_x8'));
 resDir = fullfile(root,'results');
 if ~exist(resDir,'dir'), mkdir(resDir); end
+if nargin < 1, estMode = 'l1'; end
 opt = quad_sim.p3_opt(); m = opt.mission; g = opt.gates; sN = opt.sens;
 ro = quad_sim.realism_opt();
 deg = ro.cells(strcmp({ro.cells.id},'TYP')).deg;      % P3 口径 = P2 典型整链
 fn = fieldnames(deg); args = cell(1,2*numel(fn));
 for k = 1:numel(fn), args{2*k-1} = fn{k}; args{2*k} = deg.(fn{k}); end
-c = quad_sim.config(quad_sim.baseline('b40'),args{:},'est_model','l1');   % P3 估计口径=L1(§4.3 勘误)
+c = quad_sim.config(quad_sim.baseline('b40'),args{:},'est_model',estMode);  % 估计口径见 estMode(§4.3/§4.8)
 nPh = numel(m.windPhases_mps); nV = numel(m.vGrid_mps);
 fails = {};
 % ---- 真值扫描: 3 风相位 x vGrid(60 s 定速窗, 尾 30 s 均值) ----
@@ -127,16 +130,17 @@ for p = 1:nPh
     end
 end
 Tsw = cell2table(sw,'VariableNames',{'phase','wind_mps','v_mps','P_true_W','P_hat_W'});
-csv1 = fullfile(resDir,'quad_p3_sweep.csv'); writetable(Tsw,csv1,'Encoding','UTF-8');
+sfx = ''; if ~strcmp(estMode,'l1'), sfx = ['_' estMode]; end
+csv1 = fullfile(resDir,['quad_p3_sweep' sfx '.csv']); writetable(Tsw,csv1,'Encoding','UTF-8');
 Ta = cell2table([armNames(:), num2cell(E(:)), num2cell(Ehat(:)), ...
     num2cell(excess(:)), num2cell(excessHat(:)), num2cell(MOE(:)), ...
     num2cell(MOEhat(:)), num2cell(sat(:)), num2cell(double(done(:)))], ...
     'VariableNames',{'arm','E_wh','Ehat_wh','excess_true_pp','excess_hat_pp', ...
     'MOE_true','MOE_hat','sat_duty','completed'});
-csv2 = fullfile(resDir,'quad_p3_arms.csv'); writetable(Ta,csv2,'Encoding','UTF-8');
+csv2 = fullfile(resDir,['quad_p3_arms' sfx '.csv']); writetable(Ta,csv2,'Encoding','UTF-8');
 Ts = cell2table(sensRows,'VariableNames',{'kind','s1_pct','s2_pct_mps', ...
     'margin_pp','wear_pp','gated'});
-csv3 = fullfile(resDir,'quad_p3_sens.csv'); writetable(Ts,csv3,'Encoding','UTF-8');
+csv3 = fullfile(resDir,['quad_p3_sens' sfx '.csv']); writetable(Ts,csv3,'Encoding','UTF-8');
 % ---- 图(P3 素材, 脚本同源导出) ----
 fig = figure('Visible','off');
 subplot(2,2,1); hold on;
@@ -160,7 +164,7 @@ bar([sensRows{:,5}]); hold on;
 plot([0 size(sensRows,1)+1],[g.sensWearMax_pp g.sensWearMax_pp],'r--');
 set(gca,'XTick',1:size(sensRows,1),'XTickLabel',sensLabels);
 xtickangle(45); ylabel('margin wear (pp)'); title('estimator-error sensitivity'); grid on;
-png = fullfile(resDir,'quad_p3_fig.png'); saveas(fig,png); close(fig);
+png = fullfile(resDir,['quad_p3_fig' sfx '.png']); saveas(fig,png); close(fig);
 gates = struct('vStar',vStar,'marginTrue_pp',marginTrue,'marginHat_pp',marginHat, ...
     'drift_pp',drift,'detOK',detOK,'wearGatedMax_pp',max([wearGated 0]));
 result = struct('pass',isempty(fails),'tier','smoke', ...

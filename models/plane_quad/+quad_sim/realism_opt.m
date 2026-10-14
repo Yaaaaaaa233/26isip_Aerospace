@@ -46,8 +46,8 @@ opt.cells = [ ...
 end
 function cl = local_cell(id, family, level)
 d = struct('ctrl_period_s',0,'cmd_delay_s',0,'meas_delay_s',0, ...
-    'meas_noise_V_pct',0,'pwm_slew_us_per_s',0,'pwm_quant_us',0, ...
-    'est_delay_s',0,'est_noise_pct',0);
+    'meas_noise_V_pct',0,'meas_noise_I_pct',0,'pwm_slew_us_per_s',0, ...
+    'pwm_quant_us',0,'est_delay_s',0,'est_noise_pct',0);
 switch id
     case {'D1','D2','D5'}
         d.meas_delay_s = level;
@@ -63,6 +63,7 @@ switch id
         d.ctrl_period_s = 0.02; d.cmd_delay_s = 0.02; d.meas_delay_s = 0.2;
         d.meas_noise_V_pct = 0.5; d.pwm_slew_us_per_s = 1500; d.pwm_quant_us = 1;
         d.est_delay_s = 0.2; d.est_noise_pct = 1.2;
+        d.meas_noise_I_pct = 1.0;   % R8③ 电流采样器典型声明值(vi 档, §4.8 预注册)
 end
 cl = struct('id',id,'family',family,'level',level,'deg',d);
 end

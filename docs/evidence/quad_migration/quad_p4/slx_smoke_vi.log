@@ -1,0 +1,15 @@
+slx smoke PASS -> D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_slx_smoke_vi.csv | parity bitwise(V/v/x/soc) | est bias -0.00% | frame 0xF2
+
+ans = 
+
+  包含以下字段的 struct:
+
+             pass: 1
+             tier: 'smoke'
+              csv: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_slx_smoke_vi.csv'
+              png: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_slx_parity_vi.png'
+              slx: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\models\air_quad.slx'
+         bias_pct: -1.8628e-14
+    deterministic: 1
+         failures: {}
+

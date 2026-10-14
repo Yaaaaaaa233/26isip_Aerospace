@@ -1,0 +1,27 @@
+phase 1 (wind +4.0): P(v) =  603.1  635.0  682.9  751.8  850.6  994.6 1219.2 1360.3 1360.3 1360.1 1360.3  W | v*=4 m/s Pmin=603.1 W
+phase 2 (wind +0.0): P(v) =  587.6  577.1  575.7  584.0  603.1  635.0  682.9  751.9  850.4  994.7 1219.5  W | v*=6 m/s Pmin=575.7 W
+phase 3 (wind -4.0): P(v) =  713.3  670.0  634.3  606.7  587.6  577.1  575.7  584.0  603.1  635.1  682.8  W | v*=10 m/s Pmin=575.7 W
+arms E =   44.93   42.57   38.99  Wh | excess =  15.24   9.19   0.00  pp | margin(sweep vs open) = +6.048 pp (hat +6.047)
+sens s1=+3.00: margin +6.048 pp, wear 0.000 pp [gated]
+sens s1=-3.00: margin +6.048 pp, wear 0.000 pp [gated]
+sens s1=+5.00: margin +6.048 pp, wear 0.000 pp
+sens s1=-5.00: margin +6.048 pp, wear 0.000 pp
+sens s2=+0.70: margin +5.865 pp, wear 0.183 pp [gated]
+sens s2=-0.70: margin +5.920 pp, wear 0.128 pp [gated]
+sens s2=+1.40: margin +5.747 pp, wear 0.301 pp
+sens s2=-1.40: margin +5.953 pp, wear 0.094 pp
+P3 PASS: v*=[4 6 10] | margin +6.048 pp (drift 0.001) | gated wear max 0.183 pp | det 1 -> D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_p3_arms_vi.csv
+
+ans = 
+
+  包含以下字段的 struct:
+
+        pass: 1
+        tier: 'smoke'
+         csv: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_p3_sweep_vi.csv'
+     armsCsv: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_p3_arms_vi.csv'
+     sensCsv: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_p3_sens_vi.csv'
+         png: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_p3_fig_vi.png'
+       gates: [1x1 struct]
+    failures: {}
+

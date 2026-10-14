@@ -6,9 +6,12 @@ function R = realism_run(c, opt)
 %   执行器链: PWM 分辨率 pwm_quant_us(目标量化) + PWM 速率限制 pwm_slew_us_per_s
 %             (执行值斜坡) + 植物内既有饱和(PWM 上下限/rpm 帽/推力上限/俯仰限)
 %   噪声链:   端电压测量噪声 meas_noise_V_pct(单一传感器流, ctrl 与估计链同源不同时延)
-%             + 估计链输出乘性噪声 est_noise_pct(T1 语义)
-%   估计链:   P̂ = L0 静态台架映射(pwm_applied, V_meas, 估计口径, 与 trim_run 的
-%             PHatL0 同式) + est_delay_s 输入时延 + est_noise_pct(重标定账, P2)
+%             + 电流测量噪声 meas_noise_I_pct(仅 vi 档, 独立流 seed+8191, R8③)
+%             + 估计链输出乘性噪声 est_noise_pct(T1 语义; vi 测量档不叠乘)
+%   估计链:   est_model='l0': P̂ = L0 静态台架映射(pwm_applied, V_meas, 与 trim_run
+%             的 PHatL0 同式); 'l1': +声明系数修正(D1, R7 空速口径); 'vi': P̂ =
+%             V_meas×I_meas 直接测量(R8③ 电流采样器主档, 无反推链)。
+%             全档同型 est_delay_s 输入时延。
 %   风扰剧本: 头风 + 确定性正弦/阵风窗(opt 内预注册), 逐步注入 cmd.wind_ned_mps
 % 噪声用运行器私有 RandStream(mt19937ar, 固定种子, 共同随机数), 不动全局 rng;
 % 所有退化开关为 0 时不抽噪声不改数(逐位无操作)。
@@ -42,6 +45,7 @@ assert(dt > 0 && isfinite(dt),'quad_sim:RealismRun','sample_time_s must be posit
 nHoverKrpm = local_n_of_t(c,c.mass_kg/4);
 s = quad_sim.reset(c,struct('rotor_omega_radps',(nHoverKrpm*1000*2*pi/60)*ones(4,1)));
 stream = RandStream('mt19937ar','Seed',opt.seed);
+streamI = RandStream('mt19937ar','Seed',opt.seed+8191);  % 电流传感独立流(R8③, 不动电压流序列)
 mDelay = round(c.meas_delay_s/dt); cDelay = round(c.cmd_delay_s/dt);
 eDelay = round(c.est_delay_s/dt); ctrlEvery = max(1,round(c.ctrl_period_s/dt));
 nMax = ceil(opt.maxTime_s/dt);
@@ -49,6 +53,7 @@ measBuf = zeros(13,nMax);      % [vel3; att3; rate3; Vmeas; vAir3] 每步写一�
 cmdBuf = zeros(4,nMax);        % 控制器目标 PWM(逐列)
 appBuf = zeros(4,nMax);        % 执行后 PWM(逐列, 估计链输入)
 VmBuf = zeros(1,nMax);         % 电压测量流
+ImBuf = zeros(1,nMax);         % 电流测量流(R8③, vi 档估计输入)
 logEvery = 5; nLog = ceil(nMax/logEvery);
 tLog = zeros(1,nLog); vLog = zeros(1,nLog); PLog = zeros(1,nLog); PhLog = zeros(1,nLog);
 nL = 0; Ehat = 0; nApplied = 0; nSat = 0; pwmTarget = []; pwmPrev = [];
@@ -63,10 +68,17 @@ for k = 1:nMax
     else
         Vmeas = Vtrue;
     end
+    Itrue = out0.battery_current_A;
+    if strcmp(c.est_model,'vi') && c.meas_noise_I_pct > 0
+        Imeas = Itrue*(1+c.meas_noise_I_pct/100*randn(streamI,1));  % R8③ 电流采样器
+    else
+        Imeas = Itrue;
+    end
     kk = max(1,k-mDelay);
     measBuf(:,k) = [out0.velocity_ned_mps; out0.attitude_rad; ...
         out0.body_rate_radps; Vmeas; out0.relative_air_velocity_mps];
     VmBuf(k) = Vmeas;
+    ImBuf(k) = Imeas;
     % ---- 控制周期(算法步) + 指令保持 ----
     if mod(k-1,ctrlEvery) == 0 || isempty(pwmTarget)
         m = struct('velocity_ned_mps',measBuf(1:3,kk), ...   % GPS 级: 时延通道
@@ -102,26 +114,32 @@ for k = 1:nMax
     pwmPrev = pwmApplied;
     appBuf(:,k) = pwmApplied;
     [s,out] = quad_sim.step(s,struct('pwm_us',pwmApplied,'wind_ned_mps',wind),dt,c);
-    % ---- 估计链(P̂ 估计口径, 输入=执行 PWM + 电压测量流, 估计时延) ----
+    % ---- 估计链(P̂ 估计口径, 估计时延; 输入=执行 PWM + 电压测量流 或 V·I 测量) ----
     ke = max(1,k-eDelay);
-    frac = (appBuf(:,ke)-1000)/1000;
-    nHat = frac.*(c.kv_rpm_per_V*VmBuf(ke))/1000;
-    Pmap = max(0,sum(polyval(local_p_coef(c,VmBuf(ke)),nHat)));
-    if strcmp(c.est_model,'l1')
-        % L1 声明系数修正(D1 档; 首评 L0 速度依赖偏差翻转排序, 勘误后 P3 口径):
-        % P̂ = 台架映射 - H3 诱导节省 + 废阻 + aux —— 与植物同型分解(PM-L1=0 无 J 项),
-        % 修正项全部来自 config 声明值, 无真值拟合。R7(2026-10-13): 代理项用
-        % 【空速】(Q3 û 同口径), 地速代理为 Q2 遗留口径偏差(§4.5)。
-        thrustHat = max(0,polyval(c.bench_T_coef_desc,nHat))*c.gravity_mps2;
-        vAir = norm(measBuf(11:13,ke));
-        savHat = local_ind_saving(c,thrustHat,vAir);
-        PdragHat = 0.5*c.air_density_kgpm3*c.drag_coefficient(1)* ...
-            c.drag_area_m2(1)*vAir^3;
-        P0 = max(0,Pmap-sum(savHat)) + PdragHat + c.aux_power_W;
+    if strcmp(c.est_model,'vi')
+        % vi 测量档(R8③ 电流采样器主档): P̂ = V_meas×I_meas 直接测量, 无反推链;
+        % est_noise_pct 是反推链伪噪声, 不叠乘(测量档噪声源=两路传感器)。
+        P0 = VmBuf(ke)*ImBuf(ke);
     else
-        P0 = Pmap;
+        frac = (appBuf(:,ke)-1000)/1000;
+        nHat = frac.*(c.kv_rpm_per_V*VmBuf(ke))/1000;
+        Pmap = max(0,sum(polyval(local_p_coef(c,VmBuf(ke)),nHat)));
+        if strcmp(c.est_model,'l1')
+            % L1 声明系数修正(D1 档; 首评 L0 速度依赖偏差翻转排序, 勘误后 P3 口径):
+            % P̂ = 台架映射 - H3 诱导节省 + 废阻 + aux —— 与植物同型分解(PM-L1=0 无 J 项),
+            % 修正项全部来自 config 声明值, 无真值拟合。R7(2026-10-13): 代理项用
+            % 【空速】(Q3 û 同口径), 地速代理为 Q2 遗留口径偏差(§4.5)。
+            thrustHat = max(0,polyval(c.bench_T_coef_desc,nHat))*c.gravity_mps2;
+            vAir = norm(measBuf(11:13,ke));
+            savHat = local_ind_saving(c,thrustHat,vAir);
+            PdragHat = 0.5*c.air_density_kgpm3*c.drag_coefficient(1)* ...
+                c.drag_area_m2(1)*vAir^3;
+            P0 = max(0,Pmap-sum(savHat)) + PdragHat + c.aux_power_W;
+        else
+            P0 = Pmap;
+        end
     end
-    if c.est_noise_pct > 0
+    if c.est_noise_pct > 0 && ~strcmp(c.est_model,'vi')
         Phat = max(0,P0*(1+c.est_noise_pct/100*randn(stream,1)));
     else
         Phat = P0;

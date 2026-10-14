@@ -1,20 +1,22 @@
-function result = run_quad_slx_checks()
+function result = run_quad_slx_checks(estMode)
 %RUN_QUAD_SLX_CHECKS P4 air_quad.slx 薄包装冒烟验收(开发级 smoke, 2026-10-13)。
-% 运行: cd models/plane_quad && run_quad_slx_checks
-% 正式验收 = 接口审查(叶安, AIR_QUAD_INTERFACE.md, Proposed)。
+% 运行: cd models/plane_quad && run_quad_slx_checks        % est_model='l1'(默认)
+%       run_quad_slx_checks('vi')                          % V·I 测量档(R8③)
+% 正式验收 = 接口审查(叶安, AIR_QUAD_INTERFACE.md; 三项裁决 R8 2026-10-14 落定)。
 % 门(全部硬断言, 失败携带归档路径退出):
 %   S-B1 构建: air_quad.slx 生成并可加载(薄包装, 模型内无自有动力学)
 %   S-B2 对拍: slx 仿真 vs MATLAB 权威链直接循环, V/v/x/soc 逐位一致
 %      (激励: 悬停 5 s + 6 m/s 阶跃 15 s, 头风 2.5 m/s; 证明 slx 管道透明)
 %   S-B3 确定性: 同会话两遍 sim 逐位一致(reset 首拍重建状态)
 %   S-B4 组帧接口位: 0xF2 副帧 24 字节/标识 0xF2/量化回读 <=1 LSB/校验和自洽
-%   S-B5 估计映射: slx P̂ 对权威链 P_true 偏差 <=3%(est_model='l1', C3/C7 报告)
+%   S-B5 估计映射: slx P̂ 对权威链 P_true 偏差 <=3%(est_model=estMode, C3/C7 报告)
+if nargin < 1, estMode = 'l1'; end
 root = fileparts(mfilename('fullpath'));
 repo = fileparts(fileparts(root));
 addpath(root); addpath(fullfile(repo,'models','px4_x8'));
 resDir = fullfile(root,'results');
 if ~exist(resDir,'dir'), mkdir(resDir); end
-cfg = quad_sim.config(quad_sim.baseline('b40'),'est_model','l1');
+cfg = quad_sim.config(quad_sim.baseline('b40'),'est_model',estMode);
 dt = cfg.sample_time_s; T = 20; t = (0:dt:T)';
 cmd = struct('t',t,'vref',6*double(t>=5),'wind',repmat([-2.5 0 0],numel(t),1), ...
     'reset',double(t==0));
@@ -84,7 +86,8 @@ end
 T2 = cell2table({dV,dv,dx,ds,detOK,dVtel,dt1,dItel,bias,b(1),b(24)==ck}, ...
     'VariableNames',{'dV','dv','dx','dsoc','deterministic','tel_dV','tel_dth', ...
     'tel_dI','est_bias_pct','frame_id','checksum_ok'});
-csv = fullfile(resDir,'quad_slx_smoke.csv'); writetable(T2,csv,'Encoding','UTF-8');
+sfx = ''; if ~strcmp(estMode,'l1'), sfx = ['_' estMode]; end
+csv = fullfile(resDir,['quad_slx_smoke' sfx '.csv']); writetable(T2,csv,'Encoding','UTF-8');
 fig = figure('Visible','off');
 subplot(2,1,1); plot(t(1:nCmp),log1(1:nCmp,4),t(1:nCmp),ref(1:nCmp,3),'--');
 legend('slx','authority'); grid on; xlabel('t (s)'); ylabel('v (m/s)');
@@ -92,7 +95,7 @@ title('air_quad.slx vs MATLAB authority (parity)');
 subplot(2,1,2); plot(t(1:nCmp),log1(1:nCmp,1),t(1:nCmp),ref(1:nCmp,1),'--');
 legend('P-hat (est)','P true'); grid on; xlabel('t (s)'); ylabel('P (W)');
 title(sprintf('estimator mapping (bias %+.2f%%)',bias));
-png = fullfile(resDir,'quad_slx_parity.png'); saveas(fig,png); close(fig);
+png = fullfile(resDir,['quad_slx_parity' sfx '.png']); saveas(fig,png); close(fig);
 result = struct('pass',isempty(fails),'tier','smoke','csv',csv,'png',png, ...
     'slx',file,'bias_pct',bias,'deterministic',detOK,'failures',{fails});
 if ~result.pass

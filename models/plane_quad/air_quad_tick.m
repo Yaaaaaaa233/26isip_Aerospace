@@ -1,8 +1,9 @@
 function y = air_quad_tick(u)
 %AIR_QUAD_TICK air_quad.slx 薄包装的一步推进(P4, MATLAB 权威链的 Simulink 外壳)。
 % 输入 u = [v_ref_cmd; wind_ned(3); reset](5x1); 输出 y = 8x1:
-%   y(1)=P_est_W(估计口径, est_model) y(2)=bus_V y(3)=bus_I y(4)=v_ground
-%   y(5)=throttle1 y(6)=throttle2 y(7)=x_pos y(8)=soc
+%   y(1)=P_est_W(估计口径, est_model; 'vi'=V·I 测量主档, R8③) y(2)=bus_V y(3)=bus_I
+%   y(4)=v_ground y(5)=油门组1(电机 1/2 均值) y(6)=油门组2(电机 3/4 均值, R8②A)
+%   y(7)=x_pos y(8)=soc
 % 状态 = quad_sim 链的 s 结构(persistent); reset>0.5 或首次调用时重建。
 % 配置: base 工作区变量 air_quad_config 可覆盖, 默认 quad_sim.baseline('b40')
 %   (workbook 口径, C9 非老师参数)。MATLAB 链(quad_sim.ctrl/step)是唯一权威,
@@ -25,19 +26,24 @@ vRef = u(1); wind = u(2:4);
 pwm = quad_sim.ctrl(s,out0,vRef,c);
 [s,out] = quad_sim.step(s,struct('pwm_us',pwm,'wind_ned_mps',wind),dt,c);
 frac = (out.pwm_applied_us-1000)/1000;
-nHat = frac.*(c.kv_rpm_per_V*out.battery_voltage_V)/1000;
-Pmap = max(0,sum(polyval(local_p_coef(c,out.battery_voltage_V),nHat)));
-if strcmp(c.est_model,'l1')
-    thrustHat = max(0,polyval(c.bench_T_coef_desc,nHat))*c.gravity_mps2;
-    vAir = norm(out.relative_air_velocity_mps(1:2));
-    savHat = local_ind_saving(c,thrustHat,vAir);
-    Pmap = max(0,Pmap-sum(savHat)) + ...
-        0.5*c.air_density_kgpm3*c.drag_coefficient(1)*c.drag_area_m2(1)*vAir^3 ...
-        + c.aux_power_W;
+if strcmp(c.est_model,'vi')
+    Pmap = out.battery_voltage_V*out.battery_current_A;   % R8③: V·I 测量档主口径
+else
+    nHat = frac.*(c.kv_rpm_per_V*out.battery_voltage_V)/1000;
+    Pmap = max(0,sum(polyval(local_p_coef(c,out.battery_voltage_V),nHat)));
+    if strcmp(c.est_model,'l1')
+        thrustHat = max(0,polyval(c.bench_T_coef_desc,nHat))*c.gravity_mps2;
+        vAir = norm(out.relative_air_velocity_mps(1:2));
+        savHat = local_ind_saving(c,thrustHat,vAir);
+        Pmap = max(0,Pmap-sum(savHat)) + ...
+            0.5*c.air_density_kgpm3*c.drag_coefficient(1)*c.drag_area_m2(1)*vAir^3 ...
+            + c.aux_power_W;
+    end
 end
+th1 = max(0,min(1,(frac(1)+frac(2))/2));   % R8②A: 油门组1 = 电机 1/2 均值
+th2 = max(0,min(1,(frac(3)+frac(4))/2));   % R8②A: 油门组2 = 电机 3/4 均值
 y = [Pmap; out.battery_voltage_V; out.battery_current_A; ...
-    norm(out.velocity_ned_mps(1:2)); ...
-    max(0,min(1,frac(1))); max(0,min(1,frac(2))); ...
+    norm(out.velocity_ned_mps(1:2)); th1; th2; ...
     out.position_ned_m(1); out.soc];
 end
 function n = local_n_of_t(c,t)
