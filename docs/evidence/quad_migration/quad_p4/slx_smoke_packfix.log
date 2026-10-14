@@ -1,0 +1,26 @@
+           cycle_s: 30
+           dwell_s: 3
+            tail_s: 2
+      probeOff_mps: 1.5000
+    supportExt_mps: 0.7500
+       maxStep_mps: 1.5000
+          vMin_mps: 4
+          vMax_mps: 14
+         vInit_mps: 8
+
+factory ok
+slx smoke PASS -> D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_slx_smoke.csv | parity bitwise(V/v/x/soc) | est bias -0.18% | frame 0xF2
+
+ans = 
+
+  包含以下字段的 struct:
+
+             pass: 1
+             tier: 'smoke'
+              csv: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_slx_smoke.csv'
+              png: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_slx_parity.png'
+              slx: 'D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\models\air_quad.slx'
+         bias_pct: -0.1806
+    deterministic: 1
+         failures: {}
+
