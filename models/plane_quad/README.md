@@ -30,7 +30,14 @@ MN1005 台架 T(n)/P(n;V)/H3（替代 x8phys 代理系数）；`ctrl` = v_ref→
 cd models/plane_quad
 run_quad_checks       % 轨 A: 单元门 M2/M3 + 稳态配平表
 run_quad_sim_checks   % 轨 B: 单元门 + M4' 对拍表 + n 效应 + 就位比
+launch_quad_demo      % 展示面板(演示层, 2026-10-14): 控制台/P(v)谷图/时间线/仪表+0xF2
+run_quad_demo_smoke   % 面板开发级冒烟(S-D1–S-D5)
 ```
+
+面板口径（黑箱红线）：`launch_quad_demo` 仅供演示，**不作可引用数据源**——
+数字口径以 [`docs/evidence`](../docs/evidence/) 证据 CSV 为准。演示链 =
+`air_quad_tick`（P4 薄包装）逐步推进，臂 = `p3_arm` 策略句柄（白名单信息面），
+P(v) 曲线加载 E1 证据 CSV 不重算；估计档可切 vi/l1/l0（R8 降级链演示）。
 
 ## 验收（2026-09-21，证据 [q2_track_a](../docs/evidence/quad_migration/q2_track_a/) / [q2_track_b](../docs/evidence/quad_migration/q2_track_b/)）
 
