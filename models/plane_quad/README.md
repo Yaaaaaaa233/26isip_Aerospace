@@ -30,7 +30,7 @@ MN1005 台架 T(n)/P(n;V)/H3（替代 x8phys 代理系数）；`ctrl` = v_ref→
 cd models/plane_quad
 run_quad_checks       % 轨 A: 单元门 M2/M3 + 稳态配平表
 run_quad_sim_checks   % 轨 B: 单元门 + M4' 对拍表 + n 效应 + 就位比
-launch_quad_demo      % 展示面板(演示层, v3 布局=老 3.6 面板 uigridlayout 网格骨架)
+launch_quad_demo      % 展示面板(演示层, v4=老 3.6 面板骨架逐项同构+增量绘图)
 run_quad_demo_smoke   % 面板开发级冒烟(S-D1–S-D5)
 ```
 
@@ -38,6 +38,9 @@ run_quad_demo_smoke   % 面板开发级冒烟(S-D1–S-D5)
 数字口径以 [`docs/evidence`](../docs/evidence/) 证据 CSV 为准。演示链 =
 `air_quad_tick`（P4 薄包装）逐步推进，臂 = `p3_arm` 策略句柄（白名单信息面），
 P(v) 曲线加载 E1 证据 CSV 不重算；估计档可切 vi/l1/l0（R8 降级链演示）。
+面板 v4（2026-10-15）：布局与运行模型整体回贴老 UI（模块切换/滚动表单/操作钮
+3 行/6 行评价卡/resizeLayout 动态配平），绘图=setupPanels 一次建图元 + 每帧
+只推 XData/YData（热态一拍 30 步+重绘 43.5 ms）；smoke S-D1–S-D5 全过。
 
 ## 验收（2026-09-21，证据 [q2_track_a](../docs/evidence/quad_migration/q2_track_a/) / [q2_track_b](../docs/evidence/quad_migration/q2_track_b/)）
 
