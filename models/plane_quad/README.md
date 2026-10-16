@@ -31,7 +31,7 @@ cd models/plane_quad
 run_quad_checks       % 轨 A: 单元门 M2/M3 + 稳态配平表
 run_quad_sim_checks   % 轨 B: 单元门 + M4' 对拍表 + n 效应 + 就位比
 launch_quad_demo      % 展示面板(演示层, v4=老 3.6 面板骨架逐项同构+增量绘图)
-run_quad_demo_smoke   % 面板开发级冒烟(S-D1–S-D5)
+run_quad_demo_smoke   % 面板开发级冒烟(S-D1–S-D6)
 run_quad_p3_checks    % P3 算法验证批(三臂, G-P0–G-P4)
 run_quad_p3_multiarm  % 多臂对比批(8 臂, 同门槛; 'vi' 主档/'l1' 对照)
 run_quad_e3_checks    % E3 门+B 组样张(满放 V(t)/推力天花板)
@@ -43,7 +43,13 @@ run_quad_e3_checks    % E3 门+B 组样张(满放 V(t)/推力天花板)
 P(v) 曲线加载 E1 证据 CSV 不重算；估计档可切 vi/l1/l0（R8 降级链演示）。
 面板 v4（2026-10-15）：布局与运行模型整体回贴老 UI（模块切换/滚动表单/操作钮
 3 行/6 行评价卡/resizeLayout 动态配平），绘图=setupPanels 一次建图元 + 每帧
-只推 XData/YData（热态一拍 30 步+重绘 43.5 ms）；smoke S-D1–S-D5 全过。
+只推 XData/YData（热态一拍 30 步+重绘 43.5 ms）；smoke S-D1–S-D6 全过。
+MOP/MOE 评价卡（2026-10-16，老 3.6 卡逐字同构）：6 行=MOE 综合效能/MOE_energy/
+vs 开环 ΔMOE/瞬时能效/入带步数/搜索步数，指标逐式照搬 `w36.mop_moe`（1 Hz 行
+口径，尾窗 60 行，带内 eps=0.4）；MOE=方案1 参照（known+openloop 同配置同风
+剧本离线趟，同 horizon 部分窗能量，跨启动缓存）。**风语义**：面板/P3/证据 +w=
+头风（P(v,w)=P0(v+w)），`air_quad_tick` wind_ned +w=顺风——植物输入取负衔接
+（2026-10-16 修复；不取负则谷律 6∓w 与证据反向）。
 
 ## 多臂适配（2026-10-15，预注册 `+quad_sim/p3_multiarm_opt`）
 

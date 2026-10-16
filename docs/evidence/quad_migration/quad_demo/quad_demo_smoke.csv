@@ -1,2 +1,2 @@
-steps,deterministic,frame_ok,vCmd_end,Ewh,Ehat
-300,1,1,8,2.57372770004881,2.57372770004881
+steps,deterministic,frame_ok,vCmd_end,Ewh,Ehat,moe_end,moe_openloop,d_moe
+300,1,1,8,3.02784674472673,3.02784674472673,0.920015076176339,0.867896055490105,0.0521190206862345

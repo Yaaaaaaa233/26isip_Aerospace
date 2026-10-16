@@ -43,11 +43,22 @@ if isfile(curveCsv)
 end
 % ---- 状态(可变状态一律具名嵌套 getter 暴露, 勿匿名捕获) ----
 st = struct('t',0,'k',0,'vCmd',8,'Ehat',0,'Ewh',0,'needReset',true, ...
-    'phase',1,'running',false);
+    'phase',1,'running',false,'maxAcc',0);
 nMax = ceil(T_s/dt); down = 5; nD = ceil(nMax/down)+1;
 hist = struct('t',zeros(1,nD),'v',zeros(1,nD),'vc',zeros(1,nD), ...
     'P',zeros(1,nD),'Ph',zeros(1,nD),'E',zeros(1,nD),'Eh',zeros(1,nD),'n',0);
-pol = []; estTier = 'vi'; windKind = 'phase'; rate = 2; armName = 'sweepcal';
+% ---- MOP/MOE 评价行(1 Hz 行口径, 逐式照搬 w36.mop_moe: tEval=1 s / tailSteps=60 / eps=0.4) ----
+% 列映射(老 UI log -> 演示行): estimate->v_cmd(臂的谷信念) optimumTrue->命令谷 v*(t)
+%   speed/speedCmd->v实/v_cmd  powerTrue->行区间均 V·I  minPowerTrue->known 参照趟同行均值
+%   hold 行 -> 行末 v_cmd 未变; 峰值加速度 -> max|dv实/dt|(逐物理步)
+moeEps = 0.4; moeTail = 60; nRow = round(1/dt);
+mop = struct('n',0,'t',zeros(1,ceil(T_s)+2),'vc',zeros(1,ceil(T_s)+2), ...
+    'v',zeros(1,ceil(T_s)+2),'P',zeros(1,ceil(T_s)+2), ...
+    'lag',zeros(1,ceil(T_s)+2),'inband',false(1,ceil(T_s)+2), ...
+    'chg',false(1,ceil(T_s)+2));
+rowPsum = 0; rowLagSum = 0; rowN = 0; prevV4 = NaN;
+pol = []; refs = [];   % refs=MOE 参照(known/openloop 同配置趟, ensureRefs 缓存)
+estTier = 'vi'; windKind = 'phase'; rate = 2; armName = 'sweepcal';
 showEv = true; showTruth = true; showBand = true; curView = 'console';
 cfg = quad_sim.config(quad_sim.baseline('b40'),'est_model',estTier);
 assignin('base','air_quad_config',cfg);
@@ -111,8 +122,8 @@ exportPng = uibutton(actions,'Text','导出PNG'); put(exportPng,2,1);
 exportGif = uibutton(actions,'Text','导出GIF动画'); put(exportGif,2,[2 4]);
 loadEvBtn = uibutton(actions,'Text','载入P3证据'); put(loadEvBtn,3,1);
 clearLogBtn = uibutton(actions,'Text','清空日志'); put(clearLogBtn,3,[2 4]);
-% --- 评价结果卡片(6 行, 老 UI 同构) ---
-resultCard = uipanel(left,'Title','★ 评价结果(任务窗终点, 演示口径)','FontName','Microsoft YaHei', ...
+% --- MOP/MOE 评价结果卡片(6 行, 老 3.6 UI report() 口径/格式逐字同构) ---
+resultCard = uipanel(left,'Title','★ MOP/MOE 评价结果(任务窗终点)','FontName','Microsoft YaHei', ...
     'FontSize',11,'ForegroundColor',[.62 .08 .08],'HighlightColor',[.62 .08 .08]);
 put(resultCard,4,1);
 rg = uigridlayout(resultCard,[6 2]); rg.RowHeight = {30,24,24,24,24,24};
@@ -121,18 +132,19 @@ mkTag = @(txt) uilabel(rg,'Text',txt,'FontName','Microsoft YaHei','FontSize',9, 
     'FontColor',[.25 .25 .25]);
 mkVal = @(sz) uilabel(rg,'Text','—','FontName','Microsoft YaHei','FontSize',sz, ...
     'FontWeight','bold','HorizontalAlignment','right');
-labET = mkTag('E真 / Ê (Wh, 任务累计)'); put(labET,1,1);
-labE = mkVal(15); put(labE,1,2); labE.FontColor = [.0 .45 .2];
-labVT = mkTag('v_cmd / v实 (m/s)'); put(labVT,2,1);
-labV = mkVal(11); put(labV,2,2);
-labPT = mkTag('P̂ / P真 (W)'); put(labPT,3,1);
-labP = mkVal(11); put(labP,3,2);
-labStarT = mkTag('命令谷 6∓w (R7) / 相位'); put(labStarT,4,1);
-labStar = mkVal(11); put(labStar,4,2);
-labTT = mkTag('t (s) / 估计档'); put(labTT,5,1);
-labT = mkVal(11); put(labT,5,2);
-labThT = mkTag('油门组 th1/th2 / SOC'); put(labThT,6,1);
-labTh = mkVal(11); put(labTh,6,2);
+labOverallT = mkTag('MOE 综合效能 overall(2026-09-04口径: =续航能耗Emin/Eactual)');
+put(labOverallT,1,1);
+labOverall = mkVal(15); put(labOverall,1,2); labOverall.FontColor = [.0 .45 .2];
+labEnergyT = mkTag('续航能效 MOE_energy / 能耗超额'); put(labEnergyT,2,1);
+labEnergy = mkVal(11); put(labEnergy,2,2);
+labLiftT = mkTag('vs 开环基线: ΔMOE / 能耗相对变化'); put(labLiftT,3,1);
+labLift = mkVal(11); put(labLift,3,2);
+labInstT = mkTag('瞬时能效 instant / 指令跟踪滞后'); put(labInstT,4,1);
+labInst = mkVal(11); put(labInst,4,2);
+labSetT = mkTag('入带步数 / 任务可用率'); put(labSetT,5,1);
+labSet = mkVal(11); put(labSet,5,2);
+labSeaT = mkTag('搜索步数(含就位) / 稳态波动σ'); put(labSeaT,6,1);
+labSea = mkVal(11); put(labSea,6,2);
 readout = uilabel(left,'Text','','WordWrap','on','FontName','Microsoft YaHei');
 put(readout,5,1);
 logBox = uitextarea(left,'Editable','off','FontName','Microsoft YaHei','FontSize',9);
@@ -189,7 +201,8 @@ clock = timer('ExecutionMode','fixedSpacing','Period',.15,'BusyMode','drop', ...
 h = struct();
 setupPanels();
 S = struct('step',@stepSim,'state',@getState,'hist',@getHist,'policy',@getPol, ...
-    'whitelist',{whitelist},'frame',@frameNow,'autostart',@onRun);
+    'whitelist',{whitelist},'frame',@frameNow,'autostart',@onRun, ...
+    'reset',@doReset,'refs',@getRefs,'finish',@doFinish);
 setappdata(fig,'qdemo',S);
 play.ButtonPushedFcn = @onRun; pauseBtn.ButtonPushedFcn = @onPause;
 reset.ButtonPushedFcn = @onReset; finish.ButtonPushedFcn = @onFinish;
@@ -209,6 +222,9 @@ updateReadout();
     function s = getState(), s = st; end
     function hh = getHist(), hh = hist; end
     function p = getPol(), p = pol; end
+    function r = getRefs(), r = refs; end
+    function doReset(varargin), onReset([],[]); end
+    function doFinish(varargin), onFinish([],[]); end
     function n = ticksPerFire()
         n = max(1,round(rate*0.15/dt));
     end
@@ -269,7 +285,9 @@ updateReadout();
             w = windAt(st.t);
             rst = 0;
             if st.needReset, rst = 1; st.needReset = false; end
-            y = air_quad_tick([st.vCmd; w; rst]);
+            % 风语义取负: 面板/P3 口径 +w=头风(P(v,w)=P0(v+w), E1 证据逐点同),
+            %   wind_ned 轴向 +w=顺风 -> 植物输入须取负, 否则谷律 6∓w 与证据反向
+            y = air_quad_tick([st.vCmd; -w; rst]);
             info = struct('t',st.t,'v',y(4),'x',y(7),'Phat',y(1), ...
                 'Vmeas',y(2),'Ehat',st.Ehat,'cmd',st.vCmd);
             assert(isequal(sort(fieldnames(info))',sort(whitelist)), ...
@@ -278,6 +296,23 @@ updateReadout();
             st.Ehat = st.Ehat + y(1)*dt/3600;
             st.Ewh = st.Ewh + y(2)*y(3)*dt/3600;
             st.phase = phaseAt(st.t);
+            % MOP/MOE 评价行累计(1 Hz 行落账, mop_moe 同式)
+            rowPsum = rowPsum + y(2)*y(3);
+            rowLagSum = rowLagSum + abs(y(4)-st.vCmd);
+            rowN = rowN + 1;
+            if isfinite(prevV4)
+                st.maxAcc = max(st.maxAcc,abs(y(4)-prevV4)/dt);
+            end
+            prevV4 = y(4);
+            if rowN >= nRow
+                mop.n = mop.n + 1; ir = mop.n;
+                vStarNow = min(vMax,max(vMin,uStar-w(1)));
+                mop.t(ir) = st.t + dt; mop.vc(ir) = st.vCmd; mop.v(ir) = y(4);
+                mop.P(ir) = rowPsum/rowN; mop.lag(ir) = rowLagSum/rowN;
+                mop.inband(ir) = abs(st.vCmd-vStarNow) <= moeEps;
+                mop.chg(ir) = (ir == 1) || abs(st.vCmd-mop.vc(ir-1)) > 1e-9;
+                rowPsum = 0; rowLagSum = 0; rowN = 0;
+            end
             if mod(st.k-1,down) == 0 && hist.n < nD
                 hist.n = hist.n + 1;
                 hist.t(hist.n) = st.t; hist.v(hist.n) = y(4);
@@ -463,20 +498,53 @@ updateReadout();
     end
     function updateReadout()
         wRd = windAt(st.t);
-        readout.Text = sprintf('步 %d | 相位 %d | 指令 %.2f | 地速 %.2f | v*(t) %.2f | t=%.0f s | 估计档 %s', ...
-            st.k,st.phase,st.vCmd,localV(), ...
-            min(vMax,max(vMin,uStar-wRd(1))),st.t,estTier);
-        labE.Text = sprintf('%.3f / %.3f',st.Ewh,st.Ehat);
-        labV.Text = sprintf('%.1f / %.1f',st.vCmd,localV());
-        labP.Text = sprintf('%.0f / %.0f',localPhat(),localPtrue());
-        wNow = windAt(st.t);
-        labStar.Text = sprintf('%+.0f / %d', ...
-            min(vMax,max(vMin,uStar-wNow(1))),st.phase);
-        labT.Text = sprintf('%.1f / %s',st.t,estTier);
+        vStarNow = min(vMax,max(vMin,uStar-wRd(1)));
+        th1 = 0; th2 = 0; socv = 0;
         if isfield(st,'lastY') && ~isempty(st.lastY)
-            labTh.Text = sprintf('%.2f / %.2f / %.3f',st.lastY(5),st.lastY(6),st.lastY(8));
+            th1 = st.lastY(5); th2 = st.lastY(6); socv = st.lastY(8);
         end
-        status.Text = sprintf('t=%6.1f s | 相位%d | v_cmd=%4.1f v实=%4.1f | E真=%.3f Wh Ê=%.3f Wh | 臂=%s 估计档=%s [演示口径]', ...
+        % 行内读数(被 MOP/MOE 卡顶替的四旋翼量并进行内, 信息不丢)
+        readout.Text = sprintf(['步 %d | 相位 %d | 指令 %.2f | 地速 %.2f | v*(t) %.2f | ' ...
+            't=%.0f s | 估计档 %s | P̂/P真 %.0f/%.0f W | th1/th2 %.2f/%.2f | SOC %.3f | ' ...
+            'E真/Ê %.3f/%.3f Wh'], ...
+            st.k,st.phase,st.vCmd,localV(),vStarNow,st.t,estTier, ...
+            localPhat(),localPtrue(),th1,th2,socv,st.Ewh,st.Ehat);
+        % MOP/MOE 卡(老 3.6 UI report() 格式逐字同构, 逐式照搬 w36.mop_moe):
+        % Emin/Eopen = known/openloop(8) 参照趟同一 horizon 的部分窗能量(方案1),
+        % 任务窗终点即全窗值; 运行中为"至今"值, 不会出现全窗参照/部分窗实飞的错配。
+        if ~refsOK() || st.Ewh <= 0 || mop.n < 1
+            labOverall.Text = '—'; labOverall.FontColor = [.5 .5 .5];
+            if ~refsOK(), labEnergy.Text = '参照未计算(重置后生成)';
+            else, labEnergy.Text = '—'; end
+            labLift.Text = '—'; labLift.FontColor = [.5 .5 .5];
+            labInst.Text = '—'; labSet.Text = '—'; labSea.Text = '—';
+        else
+            [mOE,eExc,mBo,epct] = energyMOE();
+            m = mopCalc();
+            labOverall.Text = sprintf('%.4f',mOE);
+            if mOE >= 0.99, labOverall.FontColor = [.0 .45 .2];
+            elseif mOE >= 0.97, labOverall.FontColor = [.85 .45 .1];
+            else, labOverall.FontColor = [.8 .1 .1]; end
+            labEnergy.Text = sprintf('%.4f (超额 %.2f%%)',mOE,eExc);
+            if strcmp(armName,'openloop')
+                labLift.Text = '基线=自身 / —'; labLift.FontColor = [.4 .4 .4];
+            else
+                lift = mOE - mBo;
+                labLift.Text = sprintf('%+.4f / %+.2f%%',lift,epct);
+                if lift > 1e-6, labLift.FontColor = [.0 .45 .2];
+                elseif lift < -1e-6, labLift.FontColor = [.8 .1 .1];
+                else, labLift.FontColor = [.5 .5 .5]; end
+            end
+            if isfinite(m.MOE_instant)
+                labInst.Text = sprintf('%.4f / %.2f m/s',m.MOE_instant,m.meanTrackLag);
+            else
+                labInst.Text = sprintf('— / %.2f m/s',m.meanTrackLag);
+            end
+            labSet.Text = sprintf('%g 步 / %.1f%%',m.settleSteps,100*m.MOE_availability);
+            labSea.Text = sprintf('%d 步 / σ=%.3f',m.searchSteps,m.steadyFluct);
+        end
+        status.Text = sprintf(['t=%6.1f s | 相位%d | v_cmd=%4.1f v实=%4.1f | ' ...
+            'E真=%.3f Wh Ê=%.3f Wh | 臂=%s 估计档=%s [演示口径, 非数据源]'], ...
             st.t,st.phase,st.vCmd,localV(),st.Ewh,st.Ehat,armName,estTier);
     end
     function v = localV()
@@ -501,6 +569,7 @@ updateReadout();
         if strcmp(clock.Running,'on')
             stopRun();
         else
+            if st.t <= 0, ensureRefs(); end   % 首次播放补 MOE 参照(缓存命中即返回)
             st.running = true;
             if isempty(pol), buildPolicy(); end
             start(clock);
@@ -512,6 +581,7 @@ updateReadout();
     function onFinish(~,~)
         stopRun();
         stepSim(ceil((T_s-st.t)/dt));
+        report();
     end
     function onReset(~,~)
         stopRun();
@@ -519,10 +589,133 @@ updateReadout();
         cfg = quad_sim.config(quad_sim.baseline('b40'),'est_model',estTier);
         assignin('base','air_quad_config',cfg);
         st.t = 0; st.k = 0; st.vCmd = hV0.Value; st.Ehat = 0; st.Ewh = 0;
-        st.needReset = true; st.phase = 1;
+        st.needReset = true; st.phase = 1; st.maxAcc = 0;
+        mop.n = 0; rowPsum = 0; rowLagSum = 0; rowN = 0; prevV4 = NaN;
         hist.n = 0;
+        ensureRefs();   % MOE 参照(方案1: known+openloop 同配置趟, 按风剧本/任务窗缓存)
         buildPolicy();
         redraw();
+    end
+    function report()
+        % 老 UI report() 的状态行 + MOP/MOE 汇总行(port, 逐字同构)
+        if ~refsOK() || st.Ewh <= 0 || mop.n < 1
+            logMsg('MOP/MOE汇总: 参照未计算(按"重置"生成)');
+            return;
+        end
+        [mOE,~,mBo] = energyMOE();
+        m = mopCalc();
+        status.Text = sprintf(['MOE=%.4f | 末误差 %.3f m/s | 稳态超额 %.3f%% | ' ...
+            '全程能耗超额 %.2f%%'],m.MOE_energy,m.finalErr,m.regretPercent, ...
+            m.energyExcessPercent);
+        logMsg(sprintf(['MOP/MOE汇总: overall=%.4f | MOE_energy=%.4f | ' ...
+            '开环基线MOE=%.4f | ΔMOE=%+.4f | 可用率=%.1f%% | 末误差=%.3f | ' ...
+            '跟踪滞后=%.2f m/s | 搜索步数=%d(就位占%.0f%%) | 峰值加速度=%.1f m/s²'], ...
+            mOE,m.MOE_energy,mBo,mOE-mBo,100*m.MOE_availability,m.finalErr, ...
+            m.meanTrackLag,m.searchSteps,100*m.settleQueryRatio,m.maxAccelUsed));
+    end
+    function ok = refsOK()
+        ok = ~isempty(refs) && isfield(refs,'key') && strcmp(refs.key,refsKey());
+    end
+    function key = refsKey()
+        % 参照趟 = air_quad_tick 同链同风剧本: 只依赖 (风剧本, 任务窗) 与代码版本
+        key = sprintf('qdemo_refs_v1|%s|%.6g',windKind,T_s);
+    end
+    function [mOE,eExc,mBo,epct] = energyMOE()
+        % 同 horizon 部分窗能量对比(任务窗终点=全窗值, 运行中=至今值)
+        kk = min(st.k,numel(refs.Pmin));
+        EminP = sum(refs.Pmin(1:kk))*dt/3600;
+        EopenP = sum(refs.Popen(1:kk))*dt/3600;
+        mOE = EminP/max(st.Ewh,eps);
+        eExc = 100*(st.Ewh-EminP)/max(EminP,eps);
+        mBo = EminP/max(EopenP,eps);
+        epct = 100*(EopenP-st.Ewh)/max(EopenP,eps);
+    end
+    function m = mopCalc()
+        % w36.mop_moe 逐式同构(行口径): 尾窗=60 行, 带内 eps=0.4;
+        % MOE.overall = MOE_energy(2026-09-04 用户口径)。
+        n = mop.n;
+        tail = max(1,n-moeTail)+1:n;
+        pmT = refPminRows(tail);
+        instEff = pmT./mop.P(tail);
+        inband = mop.inband(1:n);
+        chg = mop.chg(1:n);
+        kSettle = find(inband,1);
+        if isempty(kSettle), settleSteps = NaN; else, settleSteps = kSettle; end
+        m = struct();
+        [mOE,eExc] = energyMOE();
+        m.MOE_energy = mOE; m.energyExcessPercent = eExc;
+        m.MOE = struct('energy',mOE,'instant',NaN,'availability',NaN,'overall',mOE);
+        m.regretPercent = 100*mean((mop.P(tail)-pmT)./pmT);
+        m.MOE_instant = mean(instEff(isfinite(instEff)));
+        m.MOE_availability = sum(inband)/max(n,1);
+        m.settleSteps = settleSteps;
+        m.searchSteps = nnz(chg);
+        m.settleQueryRatio = nnz(chg & mop.inband(1:n))/max(nnz(chg),1);
+        m.meanTrackLag = mean(mop.lag(1:n));
+        m.steadyFluct = std(mop.vc(tail),'omitnan');
+        wEnd = windAt(mop.t(n));
+        m.finalErr = abs(mop.vc(n)-min(vMax,max(vMin,uStar-wEnd(1))));
+        m.maxAccelUsed = st.maxAcc;
+        m.MOE.instant = m.MOE_instant; m.MOE.availability = m.MOE_availability;
+    end
+    function pm = refPminRows(rows)
+        % known 参照趟逐物理拍 P真 -> 评价行区间均值(与行均功率同口径)
+        pm = zeros(1,numel(rows));
+        for q = 1:numel(rows)
+            k1 = (rows(q)-1)*nRow+1; k2 = min(rows(q)*nRow,numel(refs.Pmin));
+            if k1 > numel(refs.Pmin), pm(q) = NaN;
+            else, pm(q) = mean(refs.Pmin(k1:k2)); end
+        end
+    end
+    function R = ensureRefs()
+        % 方案1: 同配置同风剧本离线参照趟(known=Emin, openloop(8)=基线),
+        % 按 (风剧本,任务窗) 缓存(跨启动 appdata 复用); 跑完即清 air_quad_tick。
+        key = refsKey();
+        if isfield(refs,'key') && strcmp(refs.key,key), R = refs; return; end
+        cch = getappdata(0,'qdemo_refs_cache');
+        if isa(cch,'containers.Map') && isKey(cch,key)
+            refs = cch(key); setappdata(fig,'qdemo_refs',refs);
+            R = refs;
+            logMsg(sprintf('MOE 参照(缓存): E_known=%.3f Wh | E_openloop=%.3f Wh', ...
+                refs.Emin,refs.Eopen));
+            return;
+        end
+        status.Text = 'MOE 参照计算中(known 趟, 约 30 s)...'; drawnow;
+        rK = refPass(@refKnownV,'known');
+        status.Text = 'MOE 参照计算中(openloop 趟, 约 30 s)...'; drawnow;
+        rO = refPass(@(t) 8,'openloop');
+        refs = struct('key',key,'Emin',rK.E,'Eopen',rO.E, ...
+            'Pmin',rK.P,'Popen',rO.P);
+        if ~isa(cch,'containers.Map'), cch = containers.Map; end
+        cch(key) = refs; setappdata(0,'qdemo_refs_cache',cch);
+        setappdata(fig,'qdemo_refs',refs);   % 测试/诊断挂钩(非 API)
+        R = refs;
+        logMsg(sprintf('MOE 参照就绪: E_known=%.3f Wh | E_openloop=%.3f Wh (%s)', ...
+            rK.E,rO.E,key));
+        status.Text = 'MOE 参照就绪';
+    end
+    function v = refKnownV(t)
+        % known 参照策略=R7 命令谷 v*(t)=clip(uStar-w, vMin, vMax)(显式 oracle)
+        w = windAt(t);
+        v = min(vMax,max(vMin,uStar-w(1)));
+    end
+    function R = refPass(polFn,tag)
+        % 同配置参照趟: 独立走一遍 air_quad_tick(定策略), 逐拍 P真 与能量
+        clear air_quad_tick
+        K = ceil(T_s/dt); P = zeros(1,K); E = 0; rst = 1;
+        for kk = 1:K
+            t = (kk-1)*dt;
+            y = air_quad_tick([polFn(t); -windAt(t); rst]);   % 风语义取负(同 stepSim)
+            rst = 0;
+            P(kk) = y(2)*y(3);
+            E = E + y(2)*y(3)*dt/3600;
+            if mod(kk,2400) == 0
+                status.Text = sprintf('MOE 参照计算中(%s 趟 %d%%)...', ...
+                    tag,round(100*kk/K)); drawnow;
+            end
+        end
+        clear air_quad_tick
+        R = struct('E',E,'P',P);
     end
     function onChanged(~,~)
         stopRun();
