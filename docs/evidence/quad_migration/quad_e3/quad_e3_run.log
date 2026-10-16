@@ -1,0 +1,7 @@
+CHK high: soc=0.90 0.70 0.50 0.30 0.15 0.05 
+  V=26.29 24.68 22.38 20.20 19.18 18.79 
+  ocv=28.58 27.12 24.49 21.86 20.67 20.21 
+  T=227.8 227.8 198.0 161.4 145.5 139.6 
+  dropN=0.00 0.00 29.66 27.66 23.41 21.93 
+E3 PASS: V(t) 单调 | T_ce 实测偏差 0.1048% | sag 1.42~2.44 V, 天花板落差 0.0~29.7 N | 容量对账 0.001% -> D:\Study\Sophomore_to_Junior\UAV\第二阶段\26isip_Aerospace\models\plane_quad\results\quad_e3_metrics.csv
+E3_OK pass=1
