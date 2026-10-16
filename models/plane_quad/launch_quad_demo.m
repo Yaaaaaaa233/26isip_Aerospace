@@ -75,8 +75,9 @@ form = uipanel(left,'BorderType','none'); put(form,2,1);
 g = uigridlayout(form,[9 2]); g.ColumnWidth = {150,'1x'};
 g.RowHeight = [repmat({30},1,5),{26,26,26},30];
 g.Padding = [0 0 8 0]; g.RowSpacing = 7; g.Scrollable = 'on';
-hArm = choice(g,'控制策略',1,{'sweepcal 在线寻优','openloop 恒速 8','known R7 oracle'}, ...
-    {'sweepcal','openloop','known'},'sweepcal');
+hArm = choice(g,'控制策略',1,{'sweepcal 在线寻优','openloop 恒速 8','known R7 oracle', ...
+    'rl 三段REINFORCE','hybrid 标定后在线','purerl 纯在线RL'}, ...
+    {'sweepcal','openloop','known','rl','hybrid','purerl'},'sweepcal');
 hArm.ValueChangedFcn = @onArm;
 hEst = choice(g,'估计档',2,{'vi (V·I 测量主档)','l1 (空速修正降级)','l0 (粗估降级)'}, ...
     {'vi','l1','l0'},'vi');
@@ -245,6 +246,13 @@ updateReadout();
                 end
                 vs = min(vMax,max(vMin,uStar-ws));
                 pol = quad_sim.p3_arm('known',struct('bounds_s',bs,'vStar',vs));
+            case {'rl','hybrid','purerl'}
+                po = quad_sim.p3_multiarm_opt();
+                switch armName
+                    case 'rl',     pol = quad_sim.p3_arm('rl',po.rl);
+                    case 'hybrid', pol = quad_sim.p3_arm('hybrid',po.hybrid);
+                    otherwise,     pol = quad_sim.p3_arm('purerl',po.purerl);
+                end
             otherwise
                 po = quad_sim.p3_opt();
                 pol = quad_sim.p3_arm('sweepcal',po.arms.sweepcal);

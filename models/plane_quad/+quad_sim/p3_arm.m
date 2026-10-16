@@ -13,6 +13,15 @@ function pol = p3_arm(kind, arg)
 %   pol = p3_arm('known', map)            oracle 上界: map.bounds_s(1xN+1) 相位边界
 %       + map.vStar(1xN) 逐相位真值扫描 v*(显式 oracle, v* 来源=真值扫描, 不来自 info)
 %   pol = p3_arm('const', v)              常值(真值扫描/复跑用)
+% 多臂适配(2026-10-15, 预注册 p3_multiarm_opt; 参数默认值以该文件为准):
+%   pol = p3_arm('rl', o)                 三段式 sim-to-real REINFORCE
+%       (括号扫标定 + 模型内离线预训练 + 在线对偶微调), 见 p3_pol_rl
+%   pol = p3_arm('hybrid', o)             标定后在线: 冻结形状 1-D 平移跟踪 +
+%       信赖域探针对(航向风辨识已剪, 见 p3_multiarm_opt 裁决 a), 见 p3_pol_hybrid
+%   pol = p3_arm('purerl', o)             纯在线 REINFORCE(无扫频无模型), 见 p3_pol_purerl
+%   pol = p3_arm('purerl_on', warm)       试飞预训练在线部署(lr/4, σ=0.5)
+%   pol = p3_arm('purerl_off', warm)      试飞预训练冻结贪心部署
+%       warm = quad_sim.p3_warmup(c,o) 输出(预训练=额外试飞预算, 不占任务窗)
 narginchk(2,2);
 switch char(kind)
     case {'openloop','const'}
@@ -32,6 +41,22 @@ switch char(kind)
         assert(isfield(map,'bounds_s') && isfield(map,'vStar'), ...
             'p3_arm:Known','map needs bounds_s and vStar.');
         pol = @(info) local_known(map,info);
+    case 'hybrid'
+        pol = quad_sim.p3_pol_hybrid(local_mergearg(struct(),arg));
+    case 'rl'
+        pol = quad_sim.p3_pol_rl(local_mergearg(struct(),arg));
+    case 'purerl'
+        o = local_mergearg(struct('mode','scratch'),arg);
+        pol = quad_sim.p3_pol_purerl(o);
+    case {'purerl_on','purerl_off'}
+        if isstruct(arg) && isfield(arg,'warm')
+            o = arg;
+        else
+            o = struct('warm',arg);
+        end
+        kstr = char(kind);
+        o.mode = kstr(8:end);                        % 'purerl_on'->'on'
+        pol = quad_sim.p3_pol_purerl(o);
     otherwise
         error('p3_arm:Kind','Unknown arm kind: %s',char(kind));
 end
@@ -100,4 +125,9 @@ function v = local_known(map,info)
 p = find(info.t < map.bounds_s(2:end),1,'first');
 if isempty(p), p = numel(map.vStar); end
 v = map.vStar(p);
+end
+function o = local_mergearg(o,arg)
+if isempty(arg), return; end
+fn = fieldnames(arg);
+for k = 1:numel(fn), o.(fn{k}) = arg.(fn{k}); end
 end

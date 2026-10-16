@@ -1,6 +1,6 @@
 # models/plane_quad：四旋翼双轨对象（Q2 轨 A + 轨 B）
 
-> 状态：**轨 A + 轨 B（MATLAB 权威链）交付，M4' 对拍门通过**；**建模调整 P0/P1 落地（2026-10-11，工作簿三套 baseline 参数包 + 冒烟 3/3 PASS）**；**P2 控制现实性关闭（2026-10-11，现实性链+时延×饱和×噪声磨损表全门 PASS）**；**P3 算法验证交付（2026-10-14 G-P4 修复两轮复评 G-P0–G-P4 全门槛 PASS + vi 测量档复评全 PASS，见方案 §4.4/§4.6/§4.7/§4.8）**；**P4 薄包装收尾（2026-10-13，air_quad.slx + 商飞 0xF2 接口位，冒烟全过）；R8 接口三裁决落实（2026-10-14，叶安：校验和累加和/油门两组均值+主母线/**加电流采样器**——P̂=V·I 测量主档 `est_model='vi'`，l1/l0 降级链），`docs/AIR_QUAD_INTERFACE.md` 已审查**。
+> 状态：**轨 A + 轨 B（MATLAB 权威链）交付，M4' 对拍门通过**；**建模调整 P0/P1 落地（2026-10-11，工作簿三套 baseline 参数包 + 冒烟 3/3 PASS）**；**P2 控制现实性关闭（2026-10-11，现实性链+时延×饱和×噪声磨损表全门 PASS）**；**P3 算法验证交付（2026-10-14 G-P4 修复两轮复评 G-P0–G-P4 全门槛 PASS + vi 测量档复评全 PASS，见方案 §4.4/§4.6/§4.7/§4.8）**；**P4 薄包装收尾（2026-10-13，air_quad.slx + 商飞 0xF2 接口位，冒烟全过）；R8 接口三裁决落实（2026-10-14，叶安：校验和累加和/油门两组均值+主母线/**加电流采样器**——P̂=V·I 测量主档 `est_model='vi'`，l1/l0 降级链），`docs/AIR_QUAD_INTERFACE.md` 已审查**；**多臂适配交付（2026-10-15，rl/hybrid/purerl 族进 p3_arm 同框架互比，vi 主档 G-P0–G-P4 全门槛 PASS）**。
 > 方案：[`docs/QUAD_MIGRATION_PLAN_20260921.md`](../docs/QUAD_MIGRATION_PLAN_20260921.md) §4-Q2；建模调整期按 [`docs/QUAD_SIM_MODEL_PLAN_20261011.md`](../docs/QUAD_SIM_MODEL_PLAN_20261011.md)（含妥协登记 C1–C9）。
 > 口径：默认配置维持 **quad_placeholder（P4）** 占位（Q2 证据可复现）；工作簿机型走 `quad_sim.baseline('bg'/'b40'/'b42')` opt-in（workbook_baseline_20261011，非老师参数，不可外引为真实结论）。
 
@@ -32,6 +32,8 @@ run_quad_checks       % 轨 A: 单元门 M2/M3 + 稳态配平表
 run_quad_sim_checks   % 轨 B: 单元门 + M4' 对拍表 + n 效应 + 就位比
 launch_quad_demo      % 展示面板(演示层, v4=老 3.6 面板骨架逐项同构+增量绘图)
 run_quad_demo_smoke   % 面板开发级冒烟(S-D1–S-D5)
+run_quad_p3_checks    % P3 算法验证批(三臂, G-P0–G-P4)
+run_quad_p3_multiarm  % 多臂对比批(8 臂, 同门槛; 'vi' 主档/'l1' 对照)
 ```
 
 面板口径（黑箱红线）：`launch_quad_demo` 仅供演示，**不作可引用数据源**——
@@ -41,6 +43,19 @@ P(v) 曲线加载 E1 证据 CSV 不重算；估计档可切 vi/l1/l0（R8 降级
 面板 v4（2026-10-15）：布局与运行模型整体回贴老 UI（模块切换/滚动表单/操作钮
 3 行/6 行评价卡/resizeLayout 动态配平），绘图=setupPanels 一次建图元 + 每帧
 只推 XData/YData（热态一拍 30 步+重绘 43.5 ms）；smoke S-D1–S-D5 全过。
+
+## 多臂适配（2026-10-15，预注册 `+quad_sim/p3_multiarm_opt`）
+
+Q 系臂（w36 环航平台）适配进 p3_arm 同框架互比：**hybrid**（括号扫标定+1-D
+平移跟踪+重括号升级）/ **rl**（三段式 sim-to-real REINFORCE）/ **purerl 族**
+（纯在线 REINFORCE + 试飞预训练部署 on/off，训练栈 `p3_warmup` 额外试飞预算
+声明）。vi 主档 8 臂同窗排序（G-P0–G-P4 全门槛 PASS，门槛取 p3_opt 同值）：
+**known 38.99 < hybrid 39.79 < purerl_off 41.79 < purerl_on 42.13 < rl 42.34
+< sweepcal 42.57 < purerl 44.91 < openloop 44.93 Wh**。既有三臂与冻结 P3 逐位
+一致（移植零副作用）。l1 对照批同 PASS；口径发现：曲线拟合类臂（hybrid/rl）
+吃估计口径偏差（vi 39.79/42.34 → l1 43.03/45.36），REINFORCE/恒速类不敏感。
+勘误 2 登记（hybrid 首批异常→测量语义 v2/选谷锚定/
+重括号升级，证据链见 worklog）；数字口径 C9 禁外引。
 
 ## 验收（2026-09-21，证据 [q2_track_a](../docs/evidence/quad_migration/q2_track_a/) / [q2_track_b](../docs/evidence/quad_migration/q2_track_b/)）
 
@@ -58,7 +73,8 @@ P(v) 曲线加载 E1 证据 CSV 不重算；估计档可切 vi/l1/l0（R8 降级
   电流采样器规格/质量待老师确认（≥50 g 级需同步 R2 BOM 与 b40 质量）；
 - Q1 结论在本模块加固：谷由 H3 创造、纯静态 L0 盲——估计链按 D1 用 L1 档；
 - P3 G-P4 已按登记两轮修复关闭（2026-10-14 全门槛 PASS：锚定选谷+邻域钳位+
-  曲率门槛+探针边界防退化，`p3_arm`/`p3_opt`/方案 §4.6–4.7）；多臂适配按序最后。
+  曲率门槛+探针边界防退化，`p3_arm`/`p3_opt`/方案 §4.6–4.7）；多臂适配已交付
+  （2026-10-15，8 臂同框架互比全门槛 PASS，勘误 2 登记后复评）。
 
 ## 署名
 
